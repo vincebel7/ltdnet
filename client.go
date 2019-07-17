@@ -9,7 +9,8 @@ import( "fmt"
 
 type network struct {
 	name []string `json:"name"`
-	author []string `json:"author"`
+	author []string `json:"auth"`
+	gateway []string `json:"gway"`
 }
 
 func main() {
@@ -18,6 +19,7 @@ func main() {
 	net = append(net, network{
 		name: []string{"Test Name"},
 		author: []string{"Vince"},
+		gateway: []string{"192.168.1.1"},
 	})
 
 	// Print to demonstrate
