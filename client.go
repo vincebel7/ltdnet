@@ -14,7 +14,7 @@ type network struct {
 }
 
 func main() {
-	fmt.Println("ltdnet v0.0.1")
+	fmt.Println("ltdnet v0.0.2")
 	var net []network
 	net = append(net, network{
 		name: []string{"Test Name"},
