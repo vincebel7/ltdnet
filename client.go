@@ -20,6 +20,7 @@ type Network struct {
 	Author		string `json:"auth"`
 	Class		string `json:"clas"`
 	Router		Router `json:"rtr"`
+	Hosts		[]Host `json:"hsts"`
 }
 
 var snet Network //selected network, essentially the loaded save file
@@ -179,7 +180,7 @@ func loadnetwork(netname string) {
 
 	//save global
 	snet = net
-	fmt.Println("Loaded %s", snet.Name)
+	fmt.Printf("Loaded %s", snet.Name)
 }
 
 func idgen(n int) string {
@@ -211,22 +212,27 @@ func NewBobcat(hostname string) Router {
 	b.DHCPPool = 253
 	b.Downports = 4
 
-	if snet.Class == "A" {
-		b.Gateway = "10.0.0.1"
-	} else if snet.Class == "B" {
-		b.Gateway = "172.16.0.1"
-	} else if snet.Class == "C" {
-		b.Gateway = "192.168.0.1"
-	}
-
 	fmt.Println(b)
 	return b
+}
+
+func NewOsiris(hostname string) Router {
+	o := Router{}
+	o.ID = idgen(8)
+	o.Model = "Osiris 2-I"
+	o.MACAddr = macgen()
+	o.Hostname = hostname
+	o.DHCPPool = 2
+	o.Downports = 2
+
+	fmt.Println(o)
+	return o
 }
 
 func addRouter() {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("What model?")
-	fmt.Println("Available: Bobcat")
+	fmt.Println("Available: Bobcat, Osiris")
 	fmt.Print("Model: ")
 	scanner.Scan()
 	routerModel := scanner.Text()
@@ -238,26 +244,75 @@ func addRouter() {
 	r := Router{}
 	if routerModel == "BOBCAT" {
 		r = NewBobcat(routerHostname)
+	} else if routerModel == "OSIRIS" {
+		r = NewOsiris(routerHostname)
+	}
+
+	if snet.Class == "A" {
+		r.Gateway = "10.0.0.1"
+	} else if snet.Class == "B" {
+		r.Gateway = "172.16.0.1"
+	} else if snet.Class == "C" {
+		r.Gateway = "192.168.0.1"
 	}
 	snet.Router = r
 }
 
+func overview() {
+	fmt.Printf("Network name:\t\t%s\n", snet.Name)
+	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
+	fmt.Printf("Network class:\t\tClass %s\n", snet.Class)
+	fmt.Printf("\nRouter model:\t\t%s\n", snet.Router.Model)
+	fmt.Printf("Router ID:\t\t%s\n", snet.Router.ID)
+	fmt.Printf("Router MAC:\t\t%s\n", snet.Router.MACAddr)
+	fmt.Printf("Router Gateway:\t\t%s\n", snet.Router.Gateway)
+	fmt.Printf("Router DHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
+	fmt.Printf("Router user ports:\t%d ports\n", snet.Router.Downports)
+	fmt.Printf("\nTotal devices: 1 (1 Router, 0 Switches, 0 Hosts\n")
+}
+
 func actions() {
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("\nPlease type an action:")
-	fmt.Println("help")
-	fmt.Println("show network overview")
-	fmt.Println("add device router")
-	fmt.Println("del device router")
 	fmt.Print("> ")
 	scanner.Scan()
 	action_selection := scanner.Text()
-	if action_selection == "add device router" {
-		addRouter()
-		save()
+	actionword1 := ""
+	if action_selection != "" {
+		actionword0 := strings.Fields(action_selection)
+		actionword1 = actionword0[0]
 	}
-	if action_selection == "show network overview" {
-		fmt.Println(snet)
+	switch actionword1 {
+	case "":
+
+	case "add":
+		switch action_selection {
+		case "add device router":
+			addRouter()
+			save()
+		default:
+			fmt.Println(" Usage: add device <device_type>")
+		}
+	case "del":
+		switch action_selection {
+		case "del device router":
+			save()
+		default:
+			fmt.Println(" Usage: del device <device_type>")
+		}
+	case "show":
+		switch action_selection {
+		case "show network overview":
+			overview()
+		default:
+			fmt.Println(" Usage: show network overview")
+		}
+	case "help":
+		fmt.Println("",
+		"show <args>	Displays information\n",
+		"add <args>	Adds device to network\n",
+		"del <args>	Removes device from network")
+	default:
+		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
 }
 
@@ -284,6 +339,7 @@ func save() {
 func main() {
 	mainmenu()
 
+	fmt.Println("\nPlease type an action:")
 	for true {
 		actions()
 	}
