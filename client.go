@@ -46,7 +46,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.0.6")
+	fmt.Println("ltdnet v0.0.7")
 
 	selection := false
 		for selection == false {
@@ -229,6 +229,17 @@ func NewOsiris(hostname string) Router {
 	return o
 }
 
+func NewProbox(hostname string) Host {
+	p := Host{}
+	p.ID = idgen(8)
+	p.Model = "ProBox 1"
+	p.MACAddr = macgen()
+	p.Hostname = hostname
+
+	fmt.Println(p)
+	return p
+}
+
 func addRouter() {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("What model?")
@@ -258,17 +269,56 @@ func addRouter() {
 	snet.Router = r
 }
 
+func addHost() {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println("What model?")
+	fmt.Println("Available: ProBox")
+	fmt.Print("Model: ")
+	scanner.Scan()
+	hostModel := scanner.Text()
+	hostModel = strings.ToUpper(hostModel)
+
+	fmt.Print("Hostname: ")
+	scanner.Scan()
+	hostHostname := scanner.Text()
+	h := Host{}
+	if hostModel == "PROBOX" {
+		h = NewProbox(hostHostname)
+	}
+
+	h.IPAddr = "0.0.0.0"
+
+	snet.Hosts = append(snet.Hosts, h)
+	fmt.Println(snet.Hosts)
+}
+
 func overview() {
 	fmt.Printf("Network name:\t\t%s\n", snet.Name)
 	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
 	fmt.Printf("Network class:\t\tClass %s\n", snet.Class)
-	fmt.Printf("\nRouter model:\t\t%s\n", snet.Router.Model)
-	fmt.Printf("Router ID:\t\t%s\n", snet.Router.ID)
-	fmt.Printf("Router MAC:\t\t%s\n", snet.Router.MACAddr)
-	fmt.Printf("Router Gateway:\t\t%s\n", snet.Router.Gateway)
-	fmt.Printf("Router DHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
-	fmt.Printf("Router user ports:\t%d ports\n", snet.Router.Downports)
-	fmt.Printf("\nTotal devices: 1 (1 Router, 0 Switches, 0 Hosts\n")
+
+	fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
+	fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
+	fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
+	fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
+	fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
+	fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
+	fmt.Printf("\tUser ports:\t%d ports\n", snet.Router.Downports)
+
+	//hosts
+	j := 0
+	for i := 0; i < len(snet.Hosts); i++ {
+		fmt.Printf("\nHost %v\n", snet.Hosts[i].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[i].ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[i].Model)
+		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[i].MACAddr)
+		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[i].IPAddr)
+		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].DefaultGateway)
+		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].SubnetMask)
+		j = i
+	}
+
+	fmt.Printf("\nTotal devices: %d (1 Router, 0 Switches, %d Hosts)\n", (j + 1 + 1), (j + 1))
 }
 
 func actions() {
@@ -289,15 +339,18 @@ func actions() {
 		case "add device router":
 			addRouter()
 			save()
+		case "add device host":
+			addHost()
+			save()
 		default:
-			fmt.Println(" Usage: add device <device_type>")
+			fmt.Println(" Usage: add device <host|router>")
 		}
 	case "del":
 		switch action_selection {
 		case "del device router":
 			save()
 		default:
-			fmt.Println(" Usage: del device <device_type>")
+			fmt.Println(" Usage: del device <host|router>")
 		}
 	case "show":
 		switch action_selection {
