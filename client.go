@@ -48,7 +48,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.0.9")
+	fmt.Println("ltdnet v0.0.10")
 
 	selection := false
 		for selection == false {
@@ -271,6 +271,21 @@ func addRouter() {
 	snet.Router = r
 }
 
+func delRouter() {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Printf("\nAre you sure you want do delete router %s? [Y/n]: ", snet.Router.Hostname)
+	scanner.Scan()
+	confirmation := scanner.Text()
+	confirmation = strings.ToUpper(confirmation)
+	if confirmation == "Y" {
+		r := Router{}
+		snet.Router = r
+		fmt.Printf("\nRouter deleted\n")
+	} else {
+		fmt.Printf("\nRouter %s was not deleted.\n", snet.Router.Hostname)
+	}
+}
+
 func addHost() {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("What model?")
@@ -329,6 +344,46 @@ func linkHost() {
 			snet.Hosts[i].UplinkID = uplinkID
 			return
 		}
+	}
+}
+
+func controlHost(hostname string) {
+	fmt.Printf("Attempting to control host %s...\n", hostname)
+	host := Host{}
+	for i := range snet.Hosts {
+		if(snet.Hosts[i].Hostname == hostname){
+			host = snet.Hosts[i]
+			hostConnection(host.ID)
+		}
+	}
+	if host.Hostname == "" {
+		fmt.Println("Host not found")
+	}
+	return
+}
+
+func hostConnection(id string) {
+	//find host
+	host := Host{}
+	for i := range snet.Hosts {
+		if(snet.Hosts[i].ID == id){
+			host = snet.Hosts[i]
+		}
+	}
+	if host.ID == "" {
+		fmt.Println("Error: ID cannot be located. Please try again")
+	}
+
+	//connection
+	//TODO loop
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Printf("\n%s> ", host.Hostname)
+	scanner.Scan()
+	action := scanner.Text()
+	for strings.ToUpper(action) != "EXIT" {
+		fmt.Printf("%s> ", host.Hostname)
+		scanner.Scan()
+		action = scanner.Text()
 	}
 }
 
@@ -402,6 +457,10 @@ func actions() {
 	case "del":
 		switch action_selection {
 		case "del device router":
+			delRouter()
+			save()
+		case "del device host":
+			delHost()
 			save()
 		default:
 			fmt.Println(" Usage: del device <host|router>")
@@ -420,6 +479,18 @@ func actions() {
 			save()
 		default:
 			fmt.Println(" Usage: unlink device host")
+		}
+	case "control":
+		if len(action_selection) > 13{
+			switch action_selection[:13] {
+			case "control host ":
+				controlHost(action_selection[13:])
+				save()
+			default:
+				fmt.Println(" Usage: control <host|router> <hostname>")
+			}
+		} else {
+			fmt.Println(" Usage: control <host|router> <hostname>")
 		}
 	case "show":
 		switch action_selection {
