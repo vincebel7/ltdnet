@@ -33,6 +33,7 @@ type Router struct {
 	Gateway		string `json:"gway"`
 	DHCPPool	int `json:"dpol"` //maximum, not just available
 	Downports	int `json:"dpts"`
+	MACTable	map[string]string `json:"mact"`
 }
 
 type Host struct {
@@ -43,10 +44,11 @@ type Host struct {
 	IPAddr		string `json:"ipa"`
 	SubnetMask	string `json:"mask"`
 	DefaultGateway	string `json:"gway"`
+	UplinkID	string `json:"upid"`
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.0.8")
+	fmt.Println("ltdnet v0.0.9")
 
 	selection := false
 		for selection == false {
@@ -292,6 +294,44 @@ func addHost() {
 	fmt.Println(snet.Hosts)
 }
 
+func delHost() {}
+
+func linkHost() {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println("Which host? Please specify by hostname")
+	fmt.Print("Available hosts:")
+	for availh := range snet.Hosts {
+		fmt.Printf(" %s", snet.Hosts[availh].Hostname)
+	}
+	fmt.Print("\nHostname: ")
+	scanner.Scan()
+	hostname := scanner.Text()
+	hostname = strings.ToUpper(hostname)
+
+	fmt.Println("Uplink to which device? Please specify by hostname")
+	fmt.Printf("Router: %s\n", snet.Router.Hostname)
+	fmt.Printf("Switches: %s\n", "coming soon")
+	fmt.Print("Hostname: ")
+	scanner.Scan()
+	uplinkHostname := scanner.Text()
+	uplinkHostname = strings.ToUpper(uplinkHostname)
+
+	//find host with that hostname
+	for i := range snet.Hosts {
+		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
+			uplinkID := ""
+			//Router
+			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
+				uplinkID = snet.Router.ID
+			}
+			//TODO: Search switches
+
+			snet.Hosts[i].UplinkID = uplinkID
+			return
+		}
+	}
+}
+
 func overview() {
 	fmt.Printf("Network name:\t\t%s\n", snet.Name)
 	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
@@ -315,6 +355,20 @@ func overview() {
 		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[i].IPAddr)
 		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].DefaultGateway)
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].SubnetMask)
+		uplinkHostname := ""
+		for dev := range snet.Hosts {
+			//Router
+			if(snet.Hosts[i].UplinkID == snet.Router.ID) {
+				uplinkHostname = snet.Router.Hostname
+			}
+			//TODO: Switches
+			//Hosts (pointless since host cant be uplink, just here to show how to do switches)
+			if(snet.Hosts[i].UplinkID == snet.Hosts[dev].ID) {
+				uplinkHostname = snet.Hosts[dev].Hostname
+			}
+		}
+		//fmt.Printf("\tUplink ID:\t%s\n", snet.Hosts[i].UplinkID)
+		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
 		j = i
 	}
 
@@ -352,6 +406,21 @@ func actions() {
 		default:
 			fmt.Println(" Usage: del device <host|router>")
 		}
+	case "link":
+		switch action_selection {
+		case "link device host":
+			linkHost()
+			save()
+		default:
+			fmt.Println(" Usage: link device host")
+		}
+	case "unlink":
+		switch action_selection {
+		case "unlink device host":
+			save()
+		default:
+			fmt.Println(" Usage: unlink device host")
+		}
 	case "show":
 		switch action_selection {
 		case "show network overview":
@@ -363,7 +432,9 @@ func actions() {
 		fmt.Println("",
 		"show <args>	Displays information\n",
 		"add <args>	Adds device to network\n",
-		"del <args>	Removes device from network")
+		"del <args>	Removes device from network\n",
+		"link <args>	Links two devices\n",
+		"unlink <args>	Unlinks two devices\n")
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
