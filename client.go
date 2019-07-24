@@ -48,7 +48,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.0.10")
+	fmt.Println("ltdnet v0.0.11")
 
 	selection := false
 		for selection == false {
@@ -353,38 +353,13 @@ func controlHost(hostname string) {
 	for i := range snet.Hosts {
 		if(snet.Hosts[i].Hostname == hostname){
 			host = snet.Hosts[i]
-			hostConnection(host.ID)
+			Conn("host", host.ID)
 		}
 	}
 	if host.Hostname == "" {
 		fmt.Println("Host not found")
 	}
 	return
-}
-
-func hostConnection(id string) {
-	//find host
-	host := Host{}
-	for i := range snet.Hosts {
-		if(snet.Hosts[i].ID == id){
-			host = snet.Hosts[i]
-		}
-	}
-	if host.ID == "" {
-		fmt.Println("Error: ID cannot be located. Please try again")
-	}
-
-	//connection
-	//TODO loop
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Printf("\n%s> ", host.Hostname)
-	scanner.Scan()
-	action := scanner.Text()
-	for strings.ToUpper(action) != "EXIT" {
-		fmt.Printf("%s> ", host.Hostname)
-		scanner.Scan()
-		action = scanner.Text()
-	}
 }
 
 func overview() {
@@ -501,11 +476,12 @@ func actions() {
 		}
 	case "help":
 		fmt.Println("",
-		"show <args>	Displays information\n",
-		"add <args>	Adds device to network\n",
-		"del <args>	Removes device from network\n",
-		"link <args>	Links two devices\n",
-		"unlink <args>	Unlinks two devices\n")
+		"show <args>\t\tDisplays information\n",
+		"add <args>\t\tAdds device to network\n",
+		"del <args>\t\tRemoves device from network\n",
+		"link <args>\t\tLinks two devices\n",
+		"unlink <args>\t\tUnlinks two devices\n",
+		"control <args>\t\tLogs in as device\n")
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
