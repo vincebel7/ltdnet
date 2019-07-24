@@ -6,10 +6,10 @@ import(
 	"os"
 	//"log"
 	//"math/rand"
-	//"time"
+	"time"
 	"bufio"
 	"strings"
-	//"strconv"
+	"strconv"
 	//"path/filepath"
 	//"io/ioutil"
 )
@@ -30,15 +30,25 @@ func Conn(device string, id string) {
 	//TODO loop
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("\n")
-	action := ""
-	for strings.ToUpper(action) != "EXIT" {
+	action_selection := ""
+	for strings.ToUpper(action_selection) != "EXIT" {
 		fmt.Printf("%s> ", host.Hostname)
 		scanner.Scan()
-		action = scanner.Text()
-		if action != "" {
-		switch action {
+		action_selection := scanner.Text()
+		if action_selection != "" {
+		action := strings.Fields(action_selection)
+		actionword1 := action[0]
+
+		switch actionword1 {
 			case "ping":
-				go ping(host.Hostname, host.Hostname)
+				if len(action) > 1 {
+					if len(action) > 2 { //if seconds is specified
+						seconds, _ := strconv.Atoi(action[2])
+						go ping(host.Hostname, action[1], seconds)
+					} else {
+						go ping(host.Hostname, action[1], 1)
+					}
+				}
 			case "help":
 				fmt.Println("",
 				"ping <dest_hostname> [seconds]\t\tPings host\n")
@@ -51,6 +61,12 @@ func Conn(device string, id string) {
 
 }
 
-func ping(srchost string, dsthost string) {
-	fmt.Printf("\nPinging %s from %s\n", dsthost, srchost)
+func ping(srchost string, dsthost string, secs int) {
+	for i := 0; i < secs; i++ {
+		fmt.Printf("\nPinging %s from %s\n", dsthost, srchost)
+		time.Sleep(time.Second)
+	}
+	fmt.Printf("done pingin")
+	//check if host is found
+	return
 }
