@@ -14,6 +14,25 @@ import(
 	//"io/ioutil"
 )
 
+type Segment struct {
+	protocol	string
+	srcPort		int
+	dstPort		int
+	data		string
+}
+
+type Packet struct {
+	srcIP		string
+	dstIP		string
+	data		Segment//layers 4+ abstracted
+}
+
+type Frame struct {
+	srcMAC		string
+	dstMAC		string
+	data		Packet
+}
+
 func Conn(device string, id string) {
 	fmt.Println("TEST FROM CONN")
 	//find host
@@ -26,8 +45,8 @@ func Conn(device string, id string) {
 	if host.ID == "" {
 		fmt.Println("Error: ID cannot be located. Please try again")
 	}
-	//connection
-	//TODO loop
+
+	//interface
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("\n")
 	action_selection := ""

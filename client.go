@@ -48,7 +48,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.0.11")
+	fmt.Println("ltdnet v0.0.11c")
 
 	selection := false
 		for selection == false {
@@ -509,6 +509,7 @@ func save() {
 
 func main() {
 	mainmenu()
+	Listener()
 
 	fmt.Println("\nPlease type an action:")
 	for true {
