@@ -48,7 +48,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.0.11c")
+	fmt.Println("ltdnet v0.1.0")
 
 	selection := false
 		for selection == false {

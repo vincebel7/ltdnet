@@ -88,12 +88,11 @@ func ping(srchost string, dsthost string, secs int) {
 	}
 
 	for i := 0; i < secs; i++ {
-		fmt.Printf("\nPinging %s from %s\n", dsthost, srchost)
-
-		channels[channelMap[dstid]]<- "ping"
+		fmt.Printf("\nPinging %s from %s (dstid %s)\n", dsthost, srchost, dstid)
+		channels[dstid]<-"ping!"
 		time.Sleep(time.Second)
 	}
-	fmt.Printf("done pingin")
+	fmt.Printf("done pinging")
 	//check if host is found
 	return
 }
