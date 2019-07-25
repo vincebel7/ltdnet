@@ -2,16 +2,9 @@ package main
 
 import(
 	"fmt"
-	//"encoding/json"
-	"os"
-	//"log"
-	//"math/rand"
 	"time"
-	"bufio"
 	"strings"
 	"strconv"
-	//"path/filepath"
-	//"io/ioutil"
 )
 
 type Segment struct {
@@ -46,18 +39,21 @@ func Conn(device string, id string) {
 	}
 
 	//interface
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("\n")
 	action_selection := ""
 	for strings.ToUpper(action_selection) != "EXIT" {
 		fmt.Printf("%s> ", host.Hostname)
 		scanner.Scan()
 		action_selection := scanner.Text()
+		actionword1 := ""
 		if action_selection != "" {
 		action := strings.Fields(action_selection)
-		actionword1 := action[0]
+		if(len(action) > 0){
+			actionword1 = action[0]
+		}
 
 		switch actionword1 {
+			case "":
 			case "ping":
 				if len(action) > 1 {
 					if len(action) > 2 { //if seconds is specified
@@ -66,11 +62,13 @@ func Conn(device string, id string) {
 					} else {
 						go ping(host.IPAddr, action[1], 1)
 					}
+					<-actionsync[id]
 				}
+			case "exit":
+				return
 			case "help":
 				fmt.Println("",
 				"ping <dest_hostname> [seconds]\t\tPings host\n")
-
 			default:
 				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}
@@ -144,11 +142,11 @@ func ping(srcIP string, dstIP string, secs int) {
 		channels[dstid]<-f
 		pong := <-internal[srcid]
 		if(pong.Data.Data.Data == "pong!") {
-			fmt.Println("ok we got a pong back")
+			fmt.Println("Received")
 		}
-		time.Sleep(time.Second) //replace with block
+		time.Sleep(time.Second)
 	}
-	//check if host is found
+	actionsync[srcid]<-1
 	return
 }
 
@@ -172,13 +170,12 @@ func pong(srcIP string, dstIP string) {
 		}
 	}
 
-		//fmt.Printf("\nPonging %s from %s (dstid %s)\n", dsthost, srchost, dstid)
+		//fmt.Printf("\nPonging from %s\n", dstid)
 
 		s := constructSegment("pong!")
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
 		channels[dstid]<-f
 
-	//check if host is found
 	return
 }

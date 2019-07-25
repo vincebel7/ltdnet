@@ -26,6 +26,7 @@ type Network struct {
 
 var snet Network //selected network, essentially the loaded save file
 var listenSync = make(chan int)
+var scanner = bufio.NewScanner(os.Stdin)
 
 type Router struct {
 	ID		string `json:"id"`
@@ -50,21 +51,20 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.1")
+	fmt.Println("ltdnet v0.1.2")
 
 	selection := false
 		for selection == false {
 		fmt.Println("Please create or select a network:")
 		fmt.Println("1) Create new network")
 		fmt.Println("2) Select saved network")
-		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		option := scanner.Text()
 
-		if option == "1" || option == "C" || option == "c" || option == "create" || option == "new" {
+		if option == "1" || strings.ToUpper(option) == "C" || strings.ToUpper(option) == "NEW" {
 			selection = true
 			newnetwork()
-		} else if option == "2" || option == "S" || option == "s" || option == "select" {
+		} else if option == "2" || strings.ToUpper(option) == "S" || strings.ToUpper(option) == "select" {
 			selection = true
 			selectnetwork()
 		} else {
@@ -76,7 +76,6 @@ func mainmenu() {
 
 func newnetwork() {
 	fmt.Println("Creating a new network")
-	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Print("Your new network's name: ")
 	scanner.Scan()
@@ -156,7 +155,6 @@ func selectnetwork() {
 		i = i+1
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Print("\nLoad: ")
 	scanner.Scan()
 	network_selection := scanner.Text()
@@ -184,7 +182,7 @@ func loadnetwork(netname string) {
 
 	//save global
 	snet = net
-	fmt.Printf("Loaded %s", snet.Name)
+	fmt.Printf("Loaded %s\n", snet.Name)
 }
 
 func idgen(n int) string {
@@ -245,7 +243,6 @@ func NewProbox(hostname string) Host {
 }
 
 func addRouter() {
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("What model?")
 	fmt.Println("Available: Bobcat, Osiris")
 	fmt.Print("Model: ")
@@ -274,7 +271,6 @@ func addRouter() {
 }
 
 func delRouter() {
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("\nAre you sure you want do delete router %s? [Y/n]: ", snet.Router.Hostname)
 	scanner.Scan()
 	confirmation := scanner.Text()
@@ -289,7 +285,6 @@ func delRouter() {
 }
 
 func addHost() {
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("What model?")
 	fmt.Println("Available: ProBox")
 	fmt.Print("Model: ")
@@ -314,7 +309,6 @@ func addHost() {
 func delHost() {}
 
 func linkHost() {
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Which host? Please specify by hostname")
 	fmt.Print("Available hosts:")
 	for availh := range snet.Hosts {
@@ -366,7 +360,6 @@ func controlHost(hostname string) {
 
 func ipset(hostname string) {
 	fmt.Printf(" IP configuration for %s\n", hostname)
-	scanner := bufio.NewScanner(os.Stdin)
 
 	correct := false
 	var ipaddr, subnetmask, defaultgateway string
@@ -511,14 +504,25 @@ func show(hostname string) {
 }
 
 func actions() {
-	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Print("> ")
 	scanner.Scan()
 	action_selection := scanner.Text()
 	actionword1 := ""
+	actionword2 := ""
+	actionword3 := ""
 	if action_selection != "" {
 		actionword0 := strings.Fields(action_selection)
-		actionword1 = actionword0[0]
+		if(len(actionword0) > 0){
+			actionword1 = actionword0[0]
+		}
+
+		if(len(actionword0) > 1) {
+			actionword2 = actionword0[1]
+
+			if(len(actionword0) > 2) {
+				actionword3 = actionword0[2]
+			}
+		}
 	}
 	switch actionword1 {
 	case "":
@@ -561,10 +565,12 @@ func actions() {
 			fmt.Println(" Usage: unlink device host")
 		}
 	case "control":
-		if len(action_selection) > 13{
-			switch action_selection[:13] {
-			case "control host ":
-				controlHost(action_selection[13:])
+		if actionword2 != "" {
+			switch actionword2 {
+			case "host":
+				controlHost(actionword3)
+				save()
+			case "router":
 				save()
 			default:
 				fmt.Println(" Usage: control <host|router> <hostname>")
@@ -584,6 +590,8 @@ func actions() {
 		} else {
 			fmt.Println(" Usage: ipset host <hostname>")
 		}
+	case "reload":
+		loadnetwork(snet.Name)
 	case "show":
 		switch action_selection {
 		case "show network overview":
@@ -603,15 +611,14 @@ func actions() {
 		"link <args>\t\tLinks two devices\n",
 		"unlink <args>\t\tUnlinks two devices\n",
 		"control <args>\t\tLogs in as device\n",
-		"ipset <args>\t\tStatically assigns an IP configuration\n")
+		"ipset <args>\t\tStatically assigns an IP configuration\n",
+		"reload\t\t\tReloads the network file (May fix runtime bugs)")
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
 }
 
 func save() {
-	//are you sure prompt
-
 	marshString, err := json.Marshal(snet)
 	if err != nil {
 		log.Println(err)
@@ -638,6 +645,7 @@ func main() {
 	}
 
 	fmt.Println("\nPlease type an action:")
+
 	for true {
 		actions()
 	}
