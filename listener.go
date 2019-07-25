@@ -14,26 +14,44 @@ import(
 	//"io/ioutil"
 )
 
-var channels = map[string]chan string{}
+var channels = map[string]chan Frame{}
+var internal = map[string]chan Frame{} //for internal device communication
 
 func Listener() {
 	for i := range snet.Hosts {
-		//create channel and map channel ID
-		channels[snet.Hosts[i].ID] = make(chan string)
-		go listen(i) //TODO block Client.action() till this runs
+		//create channel
+		channels[snet.Hosts[i].ID] = make(chan Frame)
+		internal[snet.Hosts[i].ID] = make(chan Frame)
+		go listen(i)
 	}
 }
 
-func listen(i int) {
+func listen(index int) {
 	//declarations to make things easier
-	id := snet.Hosts[i].ID
-	hostname := snet.Hosts[i].Hostname
+	id := snet.Hosts[index].ID
+	hostname := snet.Hosts[index].Hostname
 
-	fmt.Printf("\n%s listening", snet.Hosts[i].Hostname)
-	action := <-channels[id]
-	fmt.Printf("%s just got: %s\n", hostname, action)
+	fmt.Printf("\n%s listening", snet.Hosts[index].Hostname)
+	listenSync<-index //synchronizing with client.go
+
+	for true {
+		frame := <-channels[id]
+		fmt.Printf("%s just got: %s\n", hostname, frame.Data.Data.Data)
+		actionHandler(frame, index)
+	}
 }
 
-func actionHandler() {
+func actionHandler(frame Frame, index int) {
+	data := frame.Data.Data.Data
+	srcIP := snet.Hosts[index].IPAddr
+	dstIP := frame.Data.SrcIP
 
+	if data == "ping!" {
+		//fmt.Printf("(%s) Time to respond to this ping\n", srcIP)
+		pong(srcIP, dstIP)
+	}
+
+	if data == "pong!" {
+		internal[snet.Hosts[index].ID]<-frame
+	}
 }

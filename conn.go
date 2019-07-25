@@ -15,22 +15,22 @@ import(
 )
 
 type Segment struct {
-	protocol	string
-	srcPort		int
-	dstPort		int
-	data		string
+	Protocol	string
+	SrcPort		int
+	DstPort		int
+	Data		string
 }
 
 type Packet struct {
-	srcIP		string
-	dstIP		string
-	data		Segment//layers 4+ abstracted
+	SrcIP		string
+	DstIP		string
+	Data		Segment//layers 4+ abstracted
 }
 
 type Frame struct {
-	srcMAC		string
-	dstMAC		string
-	data		Packet
+	SrcMAC		string
+	DstMAC		string
+	Data		Packet
 }
 
 func Conn(device string, id string) {
@@ -62,9 +62,9 @@ func Conn(device string, id string) {
 				if len(action) > 1 {
 					if len(action) > 2 { //if seconds is specified
 						seconds, _ := strconv.Atoi(action[2])
-						go ping(host.Hostname, action[1], seconds)
+						go ping(host.IPAddr, action[1], seconds)
 					} else {
-						go ping(host.Hostname, action[1], 1)
+						go ping(host.IPAddr, action[1], 1)
 					}
 				}
 			case "help":
@@ -79,20 +79,106 @@ func Conn(device string, id string) {
 
 }
 
-func ping(srchost string, dsthost string, secs int) {
+func constructSegment(data string) Segment {
+	srcport := 7
+	dstport := 7
+	protocol := "UDP"
+
+	s := Segment{
+		Protocol: protocol,
+		SrcPort: srcport,
+		DstPort: dstport,
+		Data: data,
+	}
+
+	return s
+}
+
+func constructPacket(srcIP string, dstIP string, data Segment) Packet {
+	p := Packet{
+		SrcIP: srcIP,
+		DstIP: dstIP,
+		Data: data,
+	}
+
+	return p
+}
+
+func constructFrame(data Packet, srcMAC string, dstMAC string) Frame {
+	f := Frame{
+		SrcMAC: srcMAC,
+		DstMAC: dstMAC,
+		Data: data,
+	}
+
+	return f
+}
+
+func ping(srcIP string, dstIP string, secs int) {
+	srcid := ""
 	dstid := ""
+	srcMAC := ""
+	dstMAC := ""
+	srchost := ""
+	dsthost := ""
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == dsthost {
+		if snet.Hosts[h].IPAddr == dstIP { // network-independent
+			dsthost = snet.Hosts[h].Hostname
 			dstid = snet.Hosts[h].ID
+			dstMAC = snet.Hosts[h].MACAddr
+		}
+
+		if snet.Hosts[h].IPAddr == srcIP {
+			srchost = snet.Hosts[h].Hostname
+			srcid = snet.Hosts[h].ID
+			srcMAC = snet.Hosts[h].MACAddr
 		}
 	}
 
 	for i := 0; i < secs; i++ {
 		fmt.Printf("\nPinging %s from %s (dstid %s)\n", dsthost, srchost, dstid)
-		channels[dstid]<-"ping!"
-		time.Sleep(time.Second)
+
+		s := constructSegment("ping!")
+		p := constructPacket(srcIP, dstIP, s)
+		f := constructFrame(p, srcMAC, dstMAC)
+		channels[dstid]<-f
+		pong := <-internal[srcid]
+		if(pong.Data.Data.Data == "pong!") {
+			fmt.Println("ok we got a pong back")
+		}
+		time.Sleep(time.Second) //replace with block
 	}
-	fmt.Printf("done pinging")
+	//check if host is found
+	return
+}
+
+
+func pong(srcIP string, dstIP string) {
+	dstid := ""
+	srcMAC := ""
+	dstMAC := ""
+	//srchost := ""
+	//dsthost := ""
+	for h := range snet.Hosts {
+		if snet.Hosts[h].IPAddr == dstIP { //network-independent
+			//dsthost = snet.Hosts[h].Hostname
+			dstid = snet.Hosts[h].ID
+			dstMAC = snet.Hosts[h].MACAddr
+		}
+
+		if snet.Hosts[h].IPAddr == srcIP {
+			//srchost = snet.Hosts[h].Hostname
+			srcMAC = snet.Hosts[h].MACAddr
+		}
+	}
+
+		//fmt.Printf("\nPonging %s from %s (dstid %s)\n", dsthost, srchost, dstid)
+
+		s := constructSegment("pong!")
+		p := constructPacket(srcIP, dstIP, s)
+		f := constructFrame(p, srcMAC, dstMAC)
+		channels[dstid]<-f
+
 	//check if host is found
 	return
 }

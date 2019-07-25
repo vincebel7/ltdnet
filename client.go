@@ -12,6 +12,7 @@ import(
 	"strconv"
 	"path/filepath"
 	"io/ioutil"
+	"net"
 )
 
 type Network struct {
@@ -24,6 +25,7 @@ type Network struct {
 }
 
 var snet Network //selected network, essentially the loaded save file
+var listenSync = make(chan int)
 
 type Router struct {
 	ID		string `json:"id"`
@@ -48,7 +50,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.0")
+	fmt.Println("ltdnet v0.1.1")
 
 	selection := false
 		for selection == false {
@@ -362,18 +364,71 @@ func controlHost(hostname string) {
 	return
 }
 
+func ipset(hostname string) {
+	fmt.Printf(" IP configuration for %s\n", hostname)
+	scanner := bufio.NewScanner(os.Stdin)
+
+	correct := false
+	var ipaddr, subnetmask, defaultgateway string
+	for !correct {
+		fmt.Print("IP Address: ")
+		scanner.Scan()
+		ipaddr = scanner.Text()
+
+		fmt.Print("\nSubnet mask: ")
+		scanner.Scan()
+		subnetmask = scanner.Text()
+
+		fmt.Print("\nDefault gateway: ")
+		scanner.Scan()
+		defaultgateway = scanner.Text()
+
+		fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetmask, defaultgateway)
+		fmt.Print("\nIs this correct? [Y/n/exit]")
+		scanner.Scan()
+		affirmation := scanner.Text()
+
+		if(strings.ToUpper(affirmation) == "Y") {
+			// error checking
+			error := false
+			if net.ParseIP(ipaddr).To4() == nil {
+				error = true
+				fmt.Printf("Error: '%s' is not a valid IP address\n", ipaddr)
+			}
+			if net.ParseIP(subnetmask).To4() == nil {
+				fmt.Printf("Error: '%s' is not a valid subnet mask\n", subnetmask)
+			}
+			if net.ParseIP(defaultgateway).To4() == nil {
+				fmt.Printf("Error: '%s' is not a valid default gateway\n", defaultgateway)
+			}
+
+			if(!error) {
+				correct = true
+			}
+		 } else if(strings.ToUpper(affirmation) == "EXIT") {
+			fmt.Println("Network changes reverted")
+			return
+		 }
+	}
+
+	//update info
+	for h := range snet.Hosts {
+		if snet.Hosts[h].Hostname == hostname {
+			snet.Hosts[h].IPAddr = ipaddr
+			snet.Hosts[h].SubnetMask = subnetmask
+			snet.Hosts[h].DefaultGateway = defaultgateway
+			fmt.Println("Network configuration updated")
+		}
+	}
+
+}
+
 func overview() {
 	fmt.Printf("Network name:\t\t%s\n", snet.Name)
 	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
 	fmt.Printf("Network class:\t\tClass %s\n", snet.Class)
 
-	fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
-	fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
-	fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
-	fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
-	fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
-	fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
-	fmt.Printf("\tUser ports:\t%d ports\n", snet.Router.Downports)
+	show(snet.Router.Hostname)
 
 	//hosts
 	j := 0
@@ -403,6 +458,56 @@ func overview() {
 	}
 
 	fmt.Printf("\nTotal devices: %d (1 Router, 0 Switches, %d Hosts)\n", (j + 1 + 1), (j + 1))
+}
+
+func show(hostname string) {
+	device_type := "host"
+	//TODO search switches
+	if(snet.Router.Hostname == hostname) {
+		device_type = "router"
+	}
+
+	if device_type == "host" {
+		id := -1
+		for i := range snet.Hosts {
+			if snet.Hosts[i].Hostname == hostname {
+				id = i
+			}
+		}
+		if id == -1 {
+			fmt.Printf("Hostname not found\n")
+			return
+		}
+		fmt.Printf("\nHost %v\n", snet.Hosts[id].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[id].ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[id].Model)
+		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[id].MACAddr)
+		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[id].IPAddr)
+		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].DefaultGateway)
+		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[id].SubnetMask)
+		uplinkHostname := ""
+		for dev := range snet.Hosts {
+			//Router
+			if(snet.Hosts[id].UplinkID == snet.Router.ID) {
+				uplinkHostname = snet.Router.Hostname
+			}
+			//TODO: Switches
+			//Hosts (pointless since host cant be uplink, just here to show how to do switches)
+			if(snet.Hosts[id].UplinkID == snet.Hosts[dev].ID) {
+				uplinkHostname = snet.Hosts[dev].Hostname
+			}
+		}
+		//fmt.Printf("\tUplink ID:\t%s\n", snet.Hosts[i].UplinkID)
+		fmt.Printf("\tUplink to:\t%s\n\n", uplinkHostname)
+	} else if device_type == "router" {
+		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
+		fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
+		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
+		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
+		fmt.Printf("\tUser ports:\t%d ports\n\n", snet.Router.Downports)
+	}
 }
 
 func actions() {
@@ -467,12 +572,28 @@ func actions() {
 		} else {
 			fmt.Println(" Usage: control <host|router> <hostname>")
 		}
+	case "ipset":
+		if len(action_selection) > 11{
+			switch action_selection[:11] {
+			case "ipset host ":
+				ipset(action_selection[11:])
+				save()
+			default:
+				fmt.Println(" Usage: ipset host <hostname>")
+			}
+		} else {
+			fmt.Println(" Usage: ipset host <hostname>")
+		}
 	case "show":
 		switch action_selection {
 		case "show network overview":
 			overview()
 		default:
-			fmt.Println(" Usage: show network overview")
+			if len(action_selection) > 5{
+				show(action_selection[5:])
+			} else {
+				fmt.Println(" Usage: show network overview\n\tshow <hostname>")
+			}
 		}
 	case "help":
 		fmt.Println("",
@@ -481,7 +602,8 @@ func actions() {
 		"del <args>\t\tRemoves device from network\n",
 		"link <args>\t\tLinks two devices\n",
 		"unlink <args>\t\tUnlinks two devices\n",
-		"control <args>\t\tLogs in as device\n")
+		"control <args>\t\tLogs in as device\n",
+		"ipset <args>\t\tStatically assigns an IP configuration\n")
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
@@ -494,7 +616,7 @@ func save() {
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println("Saving", string(marshString))
+	//fmt.Println("Saving", string(marshString)) //DEBUG
 	// Write to file
 	filename := "saves/" + snet.Name + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
@@ -509,7 +631,11 @@ func save() {
 
 func main() {
 	mainmenu()
-	Listener()
+	go Listener()
+
+	for range snet.Hosts {
+		<-listenSync
+	}
 
 	fmt.Println("\nPlease type an action:")
 	for true {
