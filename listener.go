@@ -14,8 +14,9 @@ import(
 	//"io/ioutil"
 )
 
-var channelMap = map[int]string{}
-var channels = make([]chan int, len(snet.Hosts))
+var channelMap = map[string]int{}
+const chansize = len(snet.Hosts)
+var channels = [chansize]chan string
 
 func Listener() {
 	k := 0
@@ -28,14 +29,15 @@ func Listener() {
 		if (len(snet.Hosts) == 3) {
 		}
 		//create channel and map channel ID
-		channelMap[i] = snet.Hosts[i].ID
-		channels[i] = make(chan int)
-		//go listen(i)
+		channelMap[snet.Hosts[i].ID] = i
+		channels[i] = make(chan string)
+		go listen(snet.Hosts[i].ID)
 		fmt.Printf("\n%s listening", snet.Hosts[i].Hostname)
-		fmt.Printf(channelMap[i])
 	}
 }
 
-func listen(i int) {
-	fmt.Println("spawned goroutine %d\n", i)
+func listen(id string) {
+	//<-channels[channelMap[id]]
+	//<-channels[1]
+	fmt.Println("spawned goroutine for %d\n", id)
 }

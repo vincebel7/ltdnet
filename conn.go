@@ -34,7 +34,6 @@ type Frame struct {
 }
 
 func Conn(device string, id string) {
-	fmt.Println("TEST FROM CONN")
 	//find host
 	host := Host{}
 	for i := range snet.Hosts {
@@ -81,8 +80,17 @@ func Conn(device string, id string) {
 }
 
 func ping(srchost string, dsthost string, secs int) {
+	dstid := ""
+	for h := range snet.Hosts {
+		if snet.Hosts[h].Hostname == dsthost {
+			dstid = snet.Hosts[h].ID
+		}
+	}
+
 	for i := 0; i < secs; i++ {
 		fmt.Printf("\nPinging %s from %s\n", dsthost, srchost)
+
+		channels[channelMap[dstid]]<- "ping"
 		time.Sleep(time.Second)
 	}
 	fmt.Printf("done pingin")
