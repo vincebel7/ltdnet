@@ -14,26 +14,29 @@ func Listener() {
 		channels[snet.Hosts[i].ID] = make(chan Frame)
 		internal[snet.Hosts[i].ID] = make(chan Frame)
 		actionsync[snet.Hosts[i].ID] = make(chan int)
-		go listen(i)
+		go hostlisten(i)
+	}
+	if snet.Router.Hostname != "" {
+		go routerlisten()
 	}
 }
 
-func listen(index int) {
+func hostlisten(index int) {
 	//declarations to make things easier
 	id := snet.Hosts[index].ID
 	//hostname := snet.Hosts[index].Hostname
 
-	fmt.Printf("\n%s listening", snet.Hosts[index].Hostname)
+	//fmt.Printf("\n%s listening", snet.Hosts[index].Hostname)
 	listenSync<-index //synchronizing with client.go
 
 	for true {
 		frame := <-channels[id]
 		//fmt.Printf("%s just got: %s\n", hostname, frame.Data.Data.Data)
-		go actionHandler(frame, index)
+		go hostactionhandler(frame, index)
 	}
 }
 
-func actionHandler(frame Frame, index int) {
+func hostactionhandler(frame Frame, index int) {
 	data := frame.Data.Data.Data
 	srcIP := snet.Hosts[index].IPAddr
 	dstIP := frame.Data.SrcIP
@@ -44,5 +47,21 @@ func actionHandler(frame Frame, index int) {
 
 	if data == "pong!" {
 		internal[snet.Hosts[index].ID]<-frame
+	}
+}
+
+func routerlisten() {
+	//fmt.Println("router listening")
+	for true {
+		frame := <-channels[snet.Router.ID]
+		go routeractionhandler(frame)
+	}
+}
+
+func routeractionhandler(frame Frame) {
+	if(frame.Data.DstIP != snet.Router.Gateway) { //packet not for me
+		fmt.Println("This packet is not for me. I will forward")
+	} else {
+		fmt.Println("my packet")
 	}
 }
