@@ -119,17 +119,32 @@ func ping(srcIP string, dstIP string, secs int) {
 	dstMAC := ""
 	srchost := ""
 	dsthost := ""
-	for h := range snet.Hosts {
-		if snet.Hosts[h].IPAddr == dstIP { // network-independent
-			dsthost = snet.Hosts[h].Hostname
-			dstid = snet.Hosts[h].ID
-			dstMAC = snet.Hosts[h].MACAddr
-		}
 
-		if snet.Hosts[h].IPAddr == srcIP {
-			srchost = snet.Hosts[h].Hostname
-			srcid = snet.Hosts[h].ID
-			srcMAC = snet.Hosts[h].MACAddr
+	if snet.Router.Gateway == srcIP {
+		srchost = snet.Router.Hostname
+		srcid = snet.Router.ID
+		srcMAC = snet.Router.MACAddr
+	}
+
+	if snet.Router.Gateway == dstIP {
+		dsthost = snet.Router.Hostname
+		dstid = snet.Router.ID
+		dstMAC = snet.Router.MACAddr
+	}
+
+	if dsthost == "" || srchost == "" {
+		for h := range snet.Hosts {
+			if snet.Hosts[h].IPAddr == dstIP { // network-independent
+				dsthost = snet.Hosts[h].Hostname
+				dstid = snet.Hosts[h].ID
+				dstMAC = snet.Hosts[h].MACAddr
+			}
+
+			if snet.Hosts[h].IPAddr == srcIP {
+				srchost = snet.Hosts[h].Hostname
+				srcid = snet.Hosts[h].ID
+				srcMAC = snet.Hosts[h].MACAddr
+			}
 		}
 	}
 

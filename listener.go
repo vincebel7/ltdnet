@@ -17,6 +17,8 @@ func Listener() {
 		go hostlisten(i)
 	}
 	if snet.Router.Hostname != "" {
+		channels[snet.Router.ID] = make(chan Frame)
+		internal[snet.Router.ID] = make(chan Frame)
 		go routerlisten()
 	}
 }
@@ -59,9 +61,21 @@ func routerlisten() {
 }
 
 func routeractionhandler(frame Frame) {
-	if(frame.Data.DstIP != snet.Router.Gateway) { //packet not for me
-		fmt.Println("This packet is not for me. I will forward")
+	if(frame.Data.DstIP == snet.Router.Gateway) {
+		fmt.Println("Router: my packet")
+		data := frame.Data.Data.Data
+		srcIP := snet.Router.Gateway
+		dstIP := frame.Data.SrcIP
+
+		if data == "ping!" {
+			pong(srcIP, dstIP)
+		}
+
+		if data == "pong!" {
+			internal[snet.Router.ID]<-frame
+		}
+
 	} else {
-		fmt.Println("my packet")
+		fmt.Println("Router: not my packet, I will forward")
 	}
 }
