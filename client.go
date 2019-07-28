@@ -37,6 +37,7 @@ type Router struct {
 	DHCPPool	int `json:"dpol"` //maximum, not just available
 	Downports	int `json:"dpts"`
 	MACTable	map[string]string `json:"mact"`
+	DHCPTable	map[string]string //maps IP address to MAC address
 }
 
 type Host struct {
@@ -51,7 +52,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.4")
+	fmt.Println("ltdnet v0.1.5")
 
 	selection := false
 		for selection == false {

@@ -61,8 +61,8 @@ func routerlisten() {
 }
 
 func routeractionhandler(frame Frame) {
-	if(frame.Data.DstIP == snet.Router.Gateway) {
-		fmt.Println("Router: my packet")
+	if((frame.Data.DstIP == snet.Router.Gateway) || (frame.Data.DstIP == "255.255.255.255")) {
+		fmt.Println("\nRouter: my packet")
 		data := frame.Data.Data.Data
 		srcIP := snet.Router.Gateway
 		dstIP := frame.Data.SrcIP
@@ -75,7 +75,15 @@ func routeractionhandler(frame Frame) {
 			internal[snet.Router.ID]<-frame
 		}
 
+		if data == "DHCPDISCOVER" {
+			fmt.Println("\nI will process this DHCP Discover")
+		}
+
+		if data == "DHCPREQUEST" {
+			fmt.Println("\nI will process this DHCP Request")
+		}
+
 	} else {
-		fmt.Println("Router: not my packet, I will forward")
+		fmt.Println("\nRouter: not my packet, I will forward")
 	}
 }

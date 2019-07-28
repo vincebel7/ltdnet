@@ -2,7 +2,7 @@ package main
 
 import(
 	"fmt"
-	"time"
+	//"time"
 	"strings"
 	"strconv"
 )
@@ -64,6 +64,8 @@ func Conn(device string, id string) {
 					}
 					<-actionsync[id]
 				}
+			case "dhcp":
+				go dhcp_discover(host)
 			case "exit":
 				return
 			case "help":
@@ -110,87 +112,4 @@ func constructFrame(data Packet, srcMAC string, dstMAC string) Frame {
 	}
 
 	return f
-}
-
-func ping(srcIP string, dstIP string, secs int) {
-	srcid := ""
-	dstid := ""
-	srcMAC := ""
-	dstMAC := ""
-	srchost := ""
-	dsthost := ""
-
-	if snet.Router.Gateway == srcIP {
-		srchost = snet.Router.Hostname
-		srcid = snet.Router.ID
-		srcMAC = snet.Router.MACAddr
-	}
-
-	if snet.Router.Gateway == dstIP {
-		dsthost = snet.Router.Hostname
-		dstid = snet.Router.ID
-		dstMAC = snet.Router.MACAddr
-	}
-
-	if dsthost == "" || srchost == "" {
-		for h := range snet.Hosts {
-			if snet.Hosts[h].IPAddr == dstIP { // network-independent
-				dsthost = snet.Hosts[h].Hostname
-				dstid = snet.Hosts[h].ID
-				dstMAC = snet.Hosts[h].MACAddr
-			}
-
-			if snet.Hosts[h].IPAddr == srcIP {
-				srchost = snet.Hosts[h].Hostname
-				srcid = snet.Hosts[h].ID
-				srcMAC = snet.Hosts[h].MACAddr
-			}
-		}
-	}
-
-	for i := 0; i < secs; i++ {
-		fmt.Printf("\nPinging %s from %s (dstid %s)\n", dsthost, srchost, dstid)
-
-		s := constructSegment("ping!")
-		p := constructPacket(srcIP, dstIP, s)
-		f := constructFrame(p, srcMAC, dstMAC)
-		channels[dstid]<-f
-		pong := <-internal[srcid]
-		if(pong.Data.Data.Data == "pong!") {
-			fmt.Println("Received")
-		}
-		time.Sleep(time.Second)
-	}
-	actionsync[srcid]<-1
-	return
-}
-
-
-func pong(srcIP string, dstIP string) {
-	dstid := ""
-	srcMAC := ""
-	dstMAC := ""
-	//srchost := ""
-	//dsthost := ""
-	for h := range snet.Hosts {
-		if snet.Hosts[h].IPAddr == dstIP { //network-independent
-			//dsthost = snet.Hosts[h].Hostname
-			dstid = snet.Hosts[h].ID
-			dstMAC = snet.Hosts[h].MACAddr
-		}
-
-		if snet.Hosts[h].IPAddr == srcIP {
-			//srchost = snet.Hosts[h].Hostname
-			srcMAC = snet.Hosts[h].MACAddr
-		}
-	}
-
-		//fmt.Printf("\nPonging from %s\n", dstid)
-
-		s := constructSegment("pong!")
-		p := constructPacket(srcIP, dstIP, s)
-		f := constructFrame(p, srcMAC, dstMAC)
-		channels[dstid]<-f
-
-	return
 }
