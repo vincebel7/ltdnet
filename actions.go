@@ -120,5 +120,11 @@ func dhcp_discover(host Host) {
 }
 
 func dhcp_offer(inc_f Frame){
-	
+	//find open address
+	addr_to_give := next_free_addr()
+	fmt.Printf("Address to give: %s\n", addr_to_give)
+
+	if addr_to_give == "" {
+		//message := "DHCP NOAVAILABLE"
+	}
 }

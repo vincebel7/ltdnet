@@ -5,7 +5,8 @@ import(
 	"encoding/json"
 	"os"
 	"log"
-	"math/rand"
+	//"sort"
+	//"math/rand"
 	"time"
 	"bufio"
 	"strings"
@@ -37,7 +38,8 @@ type Router struct {
 	DHCPPool	int `json:"dpol"` //maximum, not just available
 	Downports	int `json:"dpts"`
 	MACTable	map[string]string `json:"mact"`
-	DHCPTable	map[string]string //maps IP address to MAC address
+	DHCPIndex	[]string `json:"dhci"`
+	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
 }
 
 type Host struct {
@@ -186,26 +188,6 @@ func loadnetwork(netname string) {
 	fmt.Printf("Loaded %s\n", snet.Name)
 }
 
-func idgen(n int) string {
-	var idchars = []rune("abcdef1234567890")
-	id := make([]rune, n)
-
-	rand.Seed(time.Now().UnixNano())
-	for i := range id {
-		id[i] = idchars[rand.Intn(len(idchars))]
-	}
-
-	return string(id)
-}
-
-func macgen() string {
-	mac := idgen(2)
-	for n := 0; n < 5; n++ {
-		mac = mac + ":" + idgen(2)
-	}
-	return mac
-}
-
 func NewBobcat(hostname string) Router {
 	b := Router{}
 	b.ID = idgen(8)
@@ -268,6 +250,24 @@ func addRouter() {
 	} else if snet.Class == "C" {
 		r.Gateway = "192.168.0.1"
 	}
+	addrconstruct := ""
+
+	network_portion := strings.TrimSuffix(r.Gateway, "1")
+	fmt.Printf("network portion: %s", network_portion)
+
+	r.DHCPTable = make(map[string]string)
+
+	for k := range r.DHCPTable {
+		r.DHCPIndex = append(r.DHCPIndex, k)
+	}
+	//sort.Ints(keys)
+	//r.DHCPIndex = keys
+
+	for i := 2; i < len(r.DHCPIndex); i++ {
+		addrconstruct = network_portion + r.DHCPTable[r.DHCPIndex[i]]
+		r.DHCPTable[addrconstruct] = ""
+	}
+
 	snet.Router = r
 }
 
@@ -500,6 +500,7 @@ func show(hostname string) {
 		fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
 		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
 		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
+		fmt.Printf("\tDHCP index:\t%d addresses\n", len(snet.Router.DHCPIndex))
 		fmt.Printf("\tUser ports:\t%d ports\n\n", snet.Router.Downports)
 	}
 }
@@ -626,6 +627,7 @@ func save() {
 	}
 	//fmt.Println("Saving", string(marshString)) //DEBUG
 	// Write to file
+	fmt.Printf("Saving network: %s\n", snet.Name)
 	filename := "saves/" + snet.Name + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
@@ -635,6 +637,7 @@ func save() {
 	f.Write([]byte("\n"))
 
 	fmt.Println("Network saved")
+	loadnetwork(snet.Name)
 }
 
 func main() {

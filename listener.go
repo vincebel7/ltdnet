@@ -77,6 +77,7 @@ func routeractionhandler(frame Frame) {
 
 		if data == "DHCPDISCOVER" {
 			fmt.Println("\nI will process this DHCP Discover")
+			dhcp_offer(frame)
 		}
 
 		if data == "DHCPREQUEST" {
