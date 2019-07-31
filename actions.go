@@ -3,7 +3,7 @@ package main
 import(
 	"fmt"
 	"time"
-	//"strings"
+	"strings"
 	//"strconv"
 )
 
@@ -94,12 +94,12 @@ func dhcp_discover(host Host) {
 	//get info
 	srchost := host.Hostname
 	srcIP := host.IPAddr
-	srcMAC := host.IPAddr
+	srcMAC := host.MACAddr
 	srcID := host.ID
 	dstIP := "255.255.255.255"
-	dstMAC := "255.255.255.255"
+	dstMAC := getMACfromID(host.UplinkID)
 
-	fmt.Printf("\nHost %s broadcasting DHCP Discover", srchost)
+	fmt.Printf("\n[Host] Host %s is initiating a DHCP Discover broadcast\n", srchost)
 	s := constructSegment("DHCPDISCOVER")
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
@@ -111,20 +111,46 @@ func dhcp_discover(host Host) {
 	if(offer.Data.Data.Data != "") {
 		dstid := getIDfromMAC(offer.SrcMAC)
 
-		message := "DHCPREQUEST " + offer.Data.Data.Data
-		s = constructSegment(message)
-		p = constructPacket(srcIP, dstIP, s)
-		f = constructFrame(p, srcMAC, dstMAC)
-		channels[dstid]<-f //NI
+		if offer.Data.Data.Data == "DHCPOFFER NOAVAILABLE" {
+			fmt.Println("\n[Host] Failed to obtain IP address: No free addresses available")
+		} else {
+			word := strings.Fields(offer.Data.Data.Data)
+			if(len(word) > 0){
+				word2 := word[1]
+				fmt.Printf("\n[Host] Requesting IP Address %s\n", word2)
+
+				message := "DHCPREQUEST " + offer.Data.Data.Data
+				s = constructSegment(message)
+				p = constructPacket(srcIP, dstIP, s)
+				f = constructFrame(p, srcMAC, dstMAC)
+				channels[dstid]<-f //NI
+			} else {
+				fmt.Println("Error 2")
+			}
+		}
 	}
 }
 
 func dhcp_offer(inc_f Frame){
+	srcIP := snet.Router.Gateway
+	dstIP := inc_f.Data.SrcIP
+	srcMAC := snet.Router.MACAddr
+	dstMAC := inc_f.SrcMAC
+	dstid := getIDfromMAC(dstMAC)
+
 	//find open address
 	addr_to_give := next_free_addr()
-	fmt.Printf("Address to give: %s\n", addr_to_give)
+	fmt.Printf("\n[Router] Address to give: %s\n", addr_to_give)
 
+	message := ""
 	if addr_to_give == "" {
-		//message := "DHCP NOAVAILABLE"
+		message = "DHCPOFFER NOAVAILABLE"
+	} else {
+		message = "DHCPOFFER " + addr_to_give
 	}
+	s := constructSegment(message)
+	p := constructPacket(srcIP, dstIP, s)
+	f := constructFrame(p, srcMAC, dstMAC)
+	channels[dstid]<-f //NI
+
 }

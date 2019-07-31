@@ -1,7 +1,7 @@
 package main
 
 import(
-	"fmt"
+	//"fmt"
 	"math/rand"
 	"time"
 	//"strings"
@@ -62,10 +62,18 @@ func next_free_addr() string {
 	//find open address
 	//fmt.Println(snet.Router.DHCPTable)
 	for _, v := range snet.Router.DHCPIndex {
-		fmt.Printf("key %s\n", v)
 		if snet.Router.DHCPTable[v] == "" {
-			fmt.Printf("\n%s is free\n", v)
-			return v
+			net_prefix := ""
+			//get network portion
+			if(snet.Class == "A") {
+				net_prefix = "10.0.0."
+			} else if(snet.Class == "B") {
+				net_prefix = "172.16.0."
+			} else if(snet.Class == "C") {
+				net_prefix = "192.168.0."
+			}
+			ipaddr := net_prefix + v
+			return ipaddr
 		}
 	}
 	return ""

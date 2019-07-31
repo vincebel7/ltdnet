@@ -12,7 +12,7 @@ import(
 	"strings"
 	"strconv"
 	"path/filepath"
-	"io/ioutil"
+	//"io/ioutil"
 	"net"
 )
 
@@ -54,7 +54,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.5")
+	fmt.Println("ltdnet v0.1.6")
 
 	selection := false
 		for selection == false {
@@ -171,18 +171,23 @@ func selectnetwork() {
 func loadnetwork(netname string) {
 	//open file
 	filename := "saves/" + netname + ".json"
-	f, err := ioutil.ReadFile(filename)
+	f, err := os.Open(filename)
+	b1 := make([]byte, 1000000) //TODO: secure this
+	n1, err := f.Read(b1)
+
+	//fmt.Printf("\n[Debug] Filename: %s\n", filename) //DEBUG
 	if err != nil {
 		fmt.Printf("File not found: %s", filename)
 	}
 
 	//unmarshal
+	//fmt.Printf("\n[Debug] File contents: %s", b1[:n1]) //DEBUG
 	var net Network
-	err2 := json.Unmarshal(f, &net)
+	err2 := json.Unmarshal(b1[:n1], &net)
 	if err2 != nil {
 		fmt.Printf("err: %v", err2)
 	}
-
+	//fmt.Printf("\n[Debug] Network: %s\n", net) //DEBUG
 	//save global
 	snet = net
 	fmt.Printf("Loaded %s\n", snet.Name)
@@ -257,8 +262,9 @@ func addRouter() {
 
 	r.DHCPTable = make(map[string]string)
 
-	for k := range r.DHCPTable {
-		r.DHCPIndex = append(r.DHCPIndex, k)
+	for k := 2; k < (r.DHCPPool + 2); k++ {
+		r.DHCPIndex = append(r.DHCPIndex, strconv.Itoa(k))
+		//fmt.Println("\nkey added\n") //DEBUG
 	}
 	//sort.Ints(keys)
 	//r.DHCPIndex = keys
@@ -266,6 +272,7 @@ func addRouter() {
 	for i := 2; i < len(r.DHCPIndex); i++ {
 		addrconstruct = network_portion + r.DHCPTable[r.DHCPIndex[i]]
 		r.DHCPTable[addrconstruct] = ""
+		fmt.Println("\naddr added to table\n")
 	}
 
 	snet.Router = r
@@ -278,6 +285,14 @@ func delRouter() {
 	confirmation = strings.ToUpper(confirmation)
 	if confirmation == "Y" {
 		r := Router{}
+
+		r.ID = ""
+		r.Model = ""
+		r.MACAddr = ""
+		r.Hostname = ""
+		r.DHCPPool = 0
+		r.Downports = 0
+
 		snet.Router = r
 		fmt.Printf("\nRouter deleted\n")
 	} else {
@@ -592,6 +607,8 @@ func actions() {
 		} else {
 			fmt.Println(" Usage: ipset host <hostname>")
 		}
+	case "save":
+		save()
 	case "reload":
 		loadnetwork(snet.Name)
 	case "show":
@@ -605,6 +622,8 @@ func actions() {
 				fmt.Println(" Usage: show network overview\n\tshow <hostname>")
 			}
 		}
+	case "debug":
+		fmt.Println(snet)
 	case "help":
 		fmt.Println("",
 		"show <args>\t\tDisplays information\n",
@@ -614,30 +633,32 @@ func actions() {
 		"unlink <args>\t\tUnlinks two devices\n",
 		"control <args>\t\tLogs in as device\n",
 		"ipset <args>\t\tStatically assigns an IP configuration\n",
-		"reload\t\t\tReloads the network file (May fix runtime bugs)")
+		"save\t\t\tManually saves network changes",
+		"reload\t\t\tReloads the network file (May fix runtime bugs)",
+		"debug\t\t\tOutputs JSON file of loaded network file (developer use)")
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
 }
 
 func save() {
+	//fmt.Printf("\nNetwork to marshal: %s\n\n", snet) //DEBUG
 	marshString, err := json.Marshal(snet)
 	if err != nil {
 		log.Println(err)
 	}
 	//fmt.Println("Saving", string(marshString)) //DEBUG
 	// Write to file
-	fmt.Printf("Saving network: %s\n", snet.Name)
+	//fmt.Printf("Saving network: %s\n", snet.Name) //DEBUG
 	filename := "saves/" + snet.Name + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)
 	}
 	f.Write(marshString)
-	f.Write([]byte("\n"))
-
+	os.Truncate(filename, int64(len(marshString)))
 	fmt.Println("Network saved")
-	loadnetwork(snet.Name)
+	//loadnetwork(snet.Name)
 }
 
 func main() {
