@@ -56,6 +56,11 @@ func hostactionhandler(frame Frame, index int) {
 		fmt.Println("\n[Host] I will process this DHCP Offer")
 		internal[snet.Hosts[index].ID]<-frame
 	}
+
+	if data[0:19] == "DHCPACKNOWLEDGEMENT" {
+		fmt.Println("\n[Host] I will process this DHCP Acknowledgement")
+		internal[snet.Hosts[index].ID]<-frame
+	}
 }
 
 func routerlisten() {
@@ -86,8 +91,9 @@ func routeractionhandler(frame Frame) {
 			dhcp_offer(frame)
 		}
 
-		if data == "DHCPREQUEST" {
+		if data[0:11] == "DHCPREQUEST" {
 			fmt.Println("\n[Router] I will process this DHCP Request")
+			internal[snet.Router.ID]<-frame
 		}
 
 	} else {

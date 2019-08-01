@@ -106,7 +106,6 @@ func dhcp_discover(host Host) {
 
 	//need to give it to uplink
 	channels[host.UplinkID]<-f //NI
-
 	offer := <-internal[srcID]
 	if(offer.Data.Data.Data != "") {
 		dstid := getIDfromMAC(offer.SrcMAC)
@@ -117,18 +116,40 @@ func dhcp_discover(host Host) {
 			word := strings.Fields(offer.Data.Data.Data)
 			if(len(word) > 0){
 				word2 := word[1]
+				gateway := word[2]
+				snetmask := word[3]
 				fmt.Printf("\n[Host] Requesting IP Address %s\n", word2)
 
-				message := "DHCPREQUEST " + offer.Data.Data.Data
+				message := "DHCPREQUEST " + word2
 				s = constructSegment(message)
 				p = constructPacket(srcIP, dstIP, s)
 				f = constructFrame(p, srcMAC, dstMAC)
 				channels[dstid]<-f //NI
+
+				//wait for acknowledgement
+
+				ack := <-internal[srcID]
+				fmt.Println("\n[Host] I have received an acknowledgement\n")
+				if(ack.Data.Data.Data != "") {
+					fmt.Printf("\n[Host] My acknowledgement is: %s\n", ack.Data.Data.Data)
+
+					word = strings.Fields(ack.Data.Data.Data)
+					if(len(word) > 1) {
+						confirmed_addr := word[1]
+						dynamic_assign(srcID, confirmed_addr, gateway, snetmask)
+					} else {
+						fmt.Printf("\n[Host] Error 5: Empty DHCP acknowledgement\n")
+					}
+				}
+
+
 			} else {
-				fmt.Println("Error 2")
+				fmt.Println("Error 2: Empty DHCP offer")
 			}
 		}
 	}
+
+	actionsync[srcID]<-1
 }
 
 func dhcp_offer(inc_f Frame){
@@ -140,17 +161,59 @@ func dhcp_offer(inc_f Frame){
 
 	//find open address
 	addr_to_give := next_free_addr()
+	gateway := snet.Router.Gateway
+	subnetmask := ""
+	if snet.Class == "A" {
+		subnetmask = "255.0.0.0"
+	} else if snet.Class == "B" {
+		subnetmask = "255.255.0.0"
+	} else if snet.Class == "C" {
+		subnetmask = "255.255.255.0"
+	}
+
 	fmt.Printf("\n[Router] Address to give: %s\n", addr_to_give)
 
 	message := ""
 	if addr_to_give == "" {
 		message = "DHCPOFFER NOAVAILABLE"
 	} else {
-		message = "DHCPOFFER " + addr_to_give
+		message = "DHCPOFFER " + addr_to_give + " " + gateway + " " + subnetmask
 	}
 	s := constructSegment(message)
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
 	channels[dstid]<-f //NI
 
+	//acknowledge
+	request := <-internal[snet.Router.ID]
+	message = ""
+	if(request.Data.Data.Data != "") {
+		fmt.Printf("\n[Router] My request is: %s\n", request.Data.Data.Data)
+
+		word := strings.Fields(request.Data.Data.Data)
+		if(len(word) > 1) {
+			if(word[1] == addr_to_give) {
+				message = "DHCPACKNOWLEDGEMENT " + addr_to_give
+			} else {
+				fmt.Println("\n[Router] Error 4: DHCP address requested is not same as offer")
+			}
+		} else {
+			fmt.Printf("\n[Router] Error 3: Empty DHCP request\n")
+		}
+	}
+
+	s = constructSegment(message)
+	p = constructPacket(srcIP, dstIP, s)
+	f = constructFrame(p, srcMAC, dstMAC)
+	channels[dstid]<-f //NI
+
+	//REMOVE FROM POOL
+	network_portion := strings.TrimSuffix(snet.Router.Gateway, "1")
+	for i := 0; i < len(snet.Router.DHCPIndex); i++ {
+		//fmt.Printf("\n[Router] Debugging sum: %s\n", network_portion + snet.Router.DHCPIndex[i])
+		if (network_portion + snet.Router.DHCPIndex[i]) == addr_to_give {
+			fmt.Printf("\n[Router] Removing address %s from pool\n", addr_to_give)
+			snet.Router.DHCPTable[snet.Router.DHCPIndex[i]] = getMACfromID(dstid)
+		}
+	}
 }
