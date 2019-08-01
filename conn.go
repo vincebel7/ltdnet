@@ -66,6 +66,8 @@ func Conn(device string, id string) {
 				}
 			case "dhcp":
 				go dhcp_discover(host)
+				<-actionsync[id]
+				save()
 			case "exit":
 				return
 			case "help":

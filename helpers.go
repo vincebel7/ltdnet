@@ -1,7 +1,7 @@
 package main
 
 import(
-	//"fmt"
+	"fmt"
 	"math/rand"
 	"time"
 	//"strings"
@@ -77,4 +77,16 @@ func next_free_addr() string {
 		}
 	}
 	return ""
+}
+
+func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask string) {
+	for h := range snet.Hosts {
+		if snet.Hosts[h].ID == id {
+			snet.Hosts[h].IPAddr = ipaddr
+			snet.Hosts[h].SubnetMask = subnetmask
+			snet.Hosts[h].DefaultGateway = defaultgateway
+			fmt.Println("Network configuration updated")
+		}
+	}
+
 }

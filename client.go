@@ -54,7 +54,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.6")
+	fmt.Println("ltdnet v0.1.7")
 
 	selection := false
 		for selection == false {
@@ -264,13 +264,14 @@ func addRouter() {
 
 	for k := 2; k < (r.DHCPPool + 2); k++ {
 		r.DHCPIndex = append(r.DHCPIndex, strconv.Itoa(k))
-		//fmt.Println("\nkey added\n") //DEBUG
+		fmt.Println("\nkey added\n") //DEBUG
 	}
 	//sort.Ints(keys)
 	//r.DHCPIndex = keys
 
-	for i := 2; i < len(r.DHCPIndex); i++ {
-		addrconstruct = network_portion + r.DHCPTable[r.DHCPIndex[i]]
+	for i := 0; i < len(r.DHCPIndex); i++ {
+		addrconstruct = network_portion + r.DHCPIndex[i]
+		fmt.Printf("\ndebug: %s", addrconstruct)
 		r.DHCPTable[addrconstruct] = ""
 		fmt.Println("\naddr added to table\n")
 	}
@@ -633,9 +634,9 @@ func actions() {
 		"unlink <args>\t\tUnlinks two devices\n",
 		"control <args>\t\tLogs in as device\n",
 		"ipset <args>\t\tStatically assigns an IP configuration\n",
-		"save\t\t\tManually saves network changes",
-		"reload\t\t\tReloads the network file (May fix runtime bugs)",
-		"debug\t\t\tOutputs JSON file of loaded network file (developer use)")
+		"save\t\t\tManually saves network changes\n",
+		"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
+		"debug\t\t\tOutputs JSON file of loaded network file (developer use)\n")
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}

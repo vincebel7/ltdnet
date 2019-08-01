@@ -4,6 +4,11 @@
 A limited-functionality network simulator that serves as a practical application of goroutines, taking advantage of lightweight multi-threading for network traffic.
 Will include fictional LAN appliances as well as simple applications of essential TCP/IP protocols
 
+##How to run
+1. Install Go (https://golang.org/doc/install)
+2. Clone this repository and enter the directory
+3. Make the run script executable, and execute it (./run.sh)
+
 ##Files
 
 ###client.go
