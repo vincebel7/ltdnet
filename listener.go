@@ -40,26 +40,29 @@ func hostlisten(index int) {
 
 func hostactionhandler(frame Frame, index int) {
 	data := frame.Data.Data.Data
-
 	if data == "ping!" {
 		//fmt.Printf("(%s) Time to respond to this ping\n", srcIP)
-		srcIP := snet.Hosts[index].IPAddr
+		srcid := snet.Hosts[index].ID
 		dstIP := frame.Data.SrcIP
-		pong(srcIP, dstIP)
+		pong(srcid, dstIP)
 	}
 
 	if data == "pong!" {
 		internal[snet.Hosts[index].ID]<-frame
 	}
 
-	if data[0:9] == "DHCPOFFER" {
-		fmt.Println("\n[Host] I will process this DHCP Offer")
-		internal[snet.Hosts[index].ID]<-frame
+	if(len(data) > 7){
+		if data[0:9] == "DHCPOFFER" {
+			fmt.Println("\n[Host] I will process this DHCP Offer")
+			internal[snet.Hosts[index].ID]<-frame
+		}
 	}
 
-	if data[0:19] == "DHCPACKNOWLEDGEMENT" {
-		fmt.Println("\n[Host] I will process this DHCP Acknowledgement")
-		internal[snet.Hosts[index].ID]<-frame
+	if(len(data) > 17){
+		if data[0:19] == "DHCPACKNOWLEDGEMENT" {
+			fmt.Println("\n[Host] I will process this DHCP Acknowledgement")
+			internal[snet.Hosts[index].ID]<-frame
+		}
 	}
 }
 
@@ -73,13 +76,13 @@ func routerlisten() {
 
 func routeractionhandler(frame Frame) {
 	if((frame.Data.DstIP == snet.Router.Gateway) || (frame.Data.DstIP == "255.255.255.255")) {
-		fmt.Println("\n[Router] My packet")
+		//fmt.Println("\n[Router] My packet") // debug
 		data := frame.Data.Data.Data
-		srcIP := snet.Router.Gateway
+		srcid := snet.Router.Gateway
 		dstIP := frame.Data.SrcIP
 
 		if data == "ping!" {
-			pong(srcIP, dstIP)
+			pong(srcid, dstIP)
 		}
 
 		if data == "pong!" {
@@ -91,9 +94,11 @@ func routeractionhandler(frame Frame) {
 			dhcp_offer(frame)
 		}
 
-		if data[0:11] == "DHCPREQUEST" {
-			fmt.Println("\n[Router] I will process this DHCP Request")
-			internal[snet.Router.ID]<-frame
+		if(len(data) > 9){
+			if data[0:11] == "DHCPREQUEST" {
+				fmt.Println("\n[Router] I will process this DHCP Request")
+				internal[snet.Router.ID]<-frame
+			}
 		}
 
 	} else {

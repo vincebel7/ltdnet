@@ -54,13 +54,15 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.7")
+	fmt.Println("ltdnet v0.1.8")
+	fmt.Println("by vincebel\n")
 
 	selection := false
 		for selection == false {
 		fmt.Println("Please create or select a network:")
-		fmt.Println("1) Create new network")
-		fmt.Println("2) Select saved network")
+		fmt.Println(" 1) Create new network")
+		fmt.Println(" 2) Select saved network")
+		fmt.Print("\nAction: ")
 		scanner.Scan()
 		option := scanner.Text()
 
@@ -116,7 +118,6 @@ func newnetwork() {
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println(string(marshString))
 
 	// Write to file
 	filename := "saves/" + netname + ".json"
@@ -132,7 +133,7 @@ func newnetwork() {
 }
 
 func selectnetwork() {
-	fmt.Println("Please select a saved network")
+	fmt.Println("\nPlease select a saved network")
 
 	//display files
 	searchDir := "saves/"
@@ -150,7 +151,7 @@ func selectnetwork() {
 	for _, file := range fileList{
 		if(i >= 1){
 			file = file[6:] //strip saves
-			fmt.Printf("%d) %s\n", i, file)
+			fmt.Printf(" %d) %s\n", i, file)
 
 			//map i to file somehow for select
 			option_map[i] = file
@@ -202,7 +203,6 @@ func NewBobcat(hostname string) Router {
 	b.DHCPPool = 253
 	b.Downports = 4
 
-	fmt.Println(b)
 	return b
 }
 
@@ -215,7 +215,6 @@ func NewOsiris(hostname string) Router {
 	o.DHCPPool = 2
 	o.Downports = 2
 
-	fmt.Println(o)
 	return o
 }
 
@@ -226,7 +225,6 @@ func NewProbox(hostname string) Host {
 	p.MACAddr = macgen()
 	p.Hostname = hostname
 
-	fmt.Println(p)
 	return p
 }
 
@@ -258,22 +256,16 @@ func addRouter() {
 	addrconstruct := ""
 
 	network_portion := strings.TrimSuffix(r.Gateway, "1")
-	fmt.Printf("network portion: %s", network_portion)
 
 	r.DHCPTable = make(map[string]string)
 
 	for k := 2; k < (r.DHCPPool + 2); k++ {
 		r.DHCPIndex = append(r.DHCPIndex, strconv.Itoa(k))
-		fmt.Println("\nkey added\n") //DEBUG
 	}
-	//sort.Ints(keys)
-	//r.DHCPIndex = keys
 
 	for i := 0; i < len(r.DHCPIndex); i++ {
 		addrconstruct = network_portion + r.DHCPIndex[i]
-		fmt.Printf("\ndebug: %s", addrconstruct)
 		r.DHCPTable[addrconstruct] = ""
-		fmt.Println("\naddr added to table\n")
 	}
 
 	snet.Router = r
@@ -320,10 +312,11 @@ func addHost() {
 	h.IPAddr = "0.0.0.0"
 
 	snet.Hosts = append(snet.Hosts, h)
-	fmt.Println(snet.Hosts)
 }
 
-func delHost() {}
+func delHost() {
+	fmt.Println("Not implemented yet, sorry") //TODO
+}
 
 func linkHost() {
 	fmt.Println("Which host? Please specify by hostname")
@@ -358,6 +351,10 @@ func linkHost() {
 			return
 		}
 	}
+}
+
+func unlinkHost() {
+	fmt.Println("Not implemented yet, sorry") //TODO
 }
 
 func controlHost(hostname string) {
@@ -578,6 +575,7 @@ func actions() {
 	case "unlink":
 		switch action_selection {
 		case "unlink device host":
+			unlinkHost()
 			save()
 		default:
 			fmt.Println(" Usage: unlink device host")

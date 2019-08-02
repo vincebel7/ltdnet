@@ -7,52 +7,48 @@ import(
 	//"strconv"
 )
 
-func ping(srcIP string, dstIP string, secs int) {
-	srcid := ""
+func ping(srcid string, dstIP string, secs int) {
+	srcIP := ""
 	dstid := ""
 	srcMAC := ""
 	dstMAC := ""
 	srchost := ""
-	dsthost := ""
 
-	if snet.Router.Gateway == srcIP {
+	if snet.Router.ID == srcid {
 		srchost = snet.Router.Hostname
-		srcid = snet.Router.ID
+		srcIP = snet.Router.Gateway
 		srcMAC = snet.Router.MACAddr
+
+		dstMAC = "F" //MAC LEARNING IMPLEMENTATION HERE
 	}
 
-	if snet.Router.Gateway == dstIP {
-		dsthost = snet.Router.Hostname
+	if snet.Router.Gateway == dstIP { //NI
 		dstid = snet.Router.ID
-		dstMAC = snet.Router.MACAddr
 	}
 
-	if dsthost == "" || srchost == "" {
+	if dstMAC == "" || srcMAC == "" {
 		for h := range snet.Hosts {
 			if snet.Hosts[h].IPAddr == dstIP { // NI
-				dsthost = snet.Hosts[h].Hostname
 				dstid = snet.Hosts[h].ID
-				dstMAC = snet.Hosts[h].MACAddr
 			}
 
-			if snet.Hosts[h].IPAddr == srcIP {
+			if snet.Hosts[h].ID == srcid {
 				srchost = snet.Hosts[h].Hostname
-				srcid = snet.Hosts[h].ID
+				srcIP = snet.Hosts[h].IPAddr
 				srcMAC = snet.Hosts[h].MACAddr
+				dstMAC = getMACfromID(snet.Hosts[h].UplinkID) //eventually save uplink as MAC
 			}
 		}
 	}
-
+	fmt.Printf("\nPinging %s from %s (dstid %s)\n", dstIP, srchost, dstid)
 	for i := 0; i < secs; i++ {
-		fmt.Printf("\nPinging %s from %s (dstid %s)\n", dsthost, srchost, dstid)
-
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
 		channels[dstid]<-f //NI
 		pong := <-internal[srcid]
 		if(pong.Data.Data.Data == "pong!") {
-			fmt.Println("Received")
+			fmt.Printf("Reply from %s\n", dstIP)
 		}
 		time.Sleep(time.Second)
 	}
@@ -61,26 +57,34 @@ func ping(srcIP string, dstIP string, secs int) {
 }
 
 
-func pong(srcIP string, dstIP string) {
+func pong(srcid string, dstIP string) {
+	srcIP := ""
 	dstid := ""
 	srcMAC := ""
 	dstMAC := ""
-	//srchost := ""
-	//dsthost := ""
-	for h := range snet.Hosts {
-		if snet.Hosts[h].IPAddr == dstIP { //NI
-			//dsthost = snet.Hosts[h].Hostname
-			dstid = snet.Hosts[h].ID
-			dstMAC = snet.Hosts[h].MACAddr
-		}
+	if snet.Router.ID == srcid {
+		srcMAC = snet.Router.MACAddr
+		srcIP = snet.Router.Gateway
 
-		if snet.Hosts[h].IPAddr == srcIP {
-			//srchost = snet.Hosts[h].Hostname
-			srcMAC = snet.Hosts[h].MACAddr
-		}
+		dstMAC = "F" //MAC LEARNING IMPLEMNETED HERE
 	}
 
-		//fmt.Printf("\nPonging from %s\n", dstid)
+	if snet.Router.Gateway == dstIP { //NI
+		dstid = snet.Router.ID
+	}
+
+	for h := range snet.Hosts {
+		if snet.Hosts[h].IPAddr == dstIP { //NI
+			dstid = snet.Hosts[h].ID
+		}
+
+		if snet.Hosts[h].ID == srcid {
+			srcMAC = snet.Hosts[h].MACAddr
+			srcIP = snet.Hosts[h].IPAddr
+
+			dstMAC = getMACfromID(snet.Hosts[h].UplinkID)
+		}
+	}
 
 		s := constructSegment("pong!")
 		p := constructPacket(srcIP, dstIP, s)
@@ -105,11 +109,9 @@ func dhcp_discover(host Host) {
 	f := constructFrame(p, srcMAC, dstMAC)
 
 	//need to give it to uplink
-	channels[host.UplinkID]<-f //NI
+	channels[host.UplinkID]<-f
 	offer := <-internal[srcID]
 	if(offer.Data.Data.Data != "") {
-		dstid := getIDfromMAC(offer.SrcMAC)
-
 		if offer.Data.Data.Data == "DHCPOFFER NOAVAILABLE" {
 			fmt.Println("\n[Host] Failed to obtain IP address: No free addresses available")
 		} else {
@@ -121,15 +123,15 @@ func dhcp_discover(host Host) {
 				fmt.Printf("\n[Host] Requesting IP Address %s\n", word2)
 
 				message := "DHCPREQUEST " + word2
+				dstIP = offer.Data.SrcIP
 				s = constructSegment(message)
 				p = constructPacket(srcIP, dstIP, s)
 				f = constructFrame(p, srcMAC, dstMAC)
-				channels[dstid]<-f //NI
+				channels[host.UplinkID]<-f
 
 				//wait for acknowledgement
 
 				ack := <-internal[srcID]
-				fmt.Println("\n[Host] I have received an acknowledgement\n")
 				if(ack.Data.Data.Data != "") {
 					fmt.Printf("\n[Host] My acknowledgement is: %s\n", ack.Data.Data.Data)
 
@@ -182,7 +184,7 @@ func dhcp_offer(inc_f Frame){
 	s := constructSegment(message)
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
-	channels[dstid]<-f //NI
+	channels[dstid]<-f //NI because not using MAC learning (then MAC->ID)
 
 	//acknowledge
 	request := <-internal[snet.Router.ID]
@@ -202,18 +204,19 @@ func dhcp_offer(inc_f Frame){
 		}
 	}
 
+	dstIP = request.Data.SrcIP
 	s = constructSegment(message)
 	p = constructPacket(srcIP, dstIP, s)
 	f = constructFrame(p, srcMAC, dstMAC)
-	channels[dstid]<-f //NI
+	channels[dstid]<-f ///NI because not using MAC learning (then MAC->ID)
 
-	//REMOVE FROM POOL
+	// Setting leasee's MAC in pool
 	network_portion := strings.TrimSuffix(snet.Router.Gateway, "1")
 	for i := 0; i < len(snet.Router.DHCPIndex); i++ {
 		//fmt.Printf("\n[Router] Debugging sum: %s\n", network_portion + snet.Router.DHCPIndex[i])
 		if (network_portion + snet.Router.DHCPIndex[i]) == addr_to_give {
 			fmt.Printf("\n[Router] Removing address %s from pool\n", addr_to_give)
-			snet.Router.DHCPTable[snet.Router.DHCPIndex[i]] = getMACfromID(dstid)
+			snet.Router.DHCPTable[snet.Router.DHCPIndex[i]] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
 }

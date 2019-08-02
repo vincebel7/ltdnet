@@ -1,13 +1,49 @@
 #ltdnet
 ###by Vince Belanger
 
-A limited-functionality network simulator that serves as a practical application of goroutines, taking advantage of lightweight multi-threading for network traffic.
-Will include fictional LAN appliances as well as simple applications of essential TCP/IP protocols
+A limited-functionality network simulator that serves as a practical application of goroutines, taking advantage of lightweight multi-threading for network traffic and device-listening.
+Includes fictional LAN appliances as well as simple applications of essential TCP/IP protocols
 
 ##How to run
 1. Install Go (https://golang.org/doc/install)
 2. Clone this repository and enter the directory
 3. Make the run script executable, and execute it (./run.sh)
+
+##Using ltdnet
+First, create a network and pick a class (A, B, or C)
+Currently, each network can only have one router. It is best to start off by creating a router:
+`add device router`
+Then, pick the model. Right now there are two models: The Osiris 2-I and the Bobcat 100. The Osiris is better-suited for small networks, as it only has two user ports, and only two addresses available on its DHCP address pool. The Bobcat, however, has four user ports and 253 addresses available in its DHCP address pool.
+
+Next, you will want to create a host:
+`add device host`
+Currently the only host model available in ltdnet is the ProBox.
+
+You can now take a look at your network by running a show command. The most comprehensive of these is:
+`show network overview`
+
+Once you have created a host, you can "plug in" the host to the router by *linking* them.
+`link device host`
+This will allow you to set your host's uplink to your router.
+
+Next, you will need to set the IP configuration for your host. There are two ways to do this: Statically or dynamically, through DHCP.
+
+If you wish to statically set your host's IP configuration, simply run:
+`ipset host <hostname>`
+This will prompt you to set an IP address, subnet mask, and default gateway for your host. Remember to make sure you set the default gateway to the one your router is generated with.
+
+If you wish to acquire an IP configuration dynamically through your router's DHCP server, you must control (log into) the host first:
+`control host <hostname>`
+When controlling a device, the commands are different from the root ltdnet menu. Run `help` to see all available device control commands.
+To run DHCP to dynamically acquire an IP configuration, simply run `dhcp`.
+**NOTE**: As of v0.1.8 there is a bug that prevents DHCP from working properly if run during the same process that the host was linked. For now, please exit and restart the program after linking and before using DHCP.
+
+As long as there are available addresses in the router's DHCP pool, your host should now have an IP configuration. To test this out, from the device control, try pinging your router:
+`ping <gateway>`
+
+I hope you find this program to be fun. Many more features are on their way, but the main focus right now is ironing out some of the remaining bugs in v0.1 and cleaning up some debugging code still in place.
+
+For any further questions, please email vince@vincebel.tech
 
 ##Files
 

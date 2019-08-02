@@ -29,8 +29,10 @@ type Frame struct {
 func Conn(device string, id string) {
 	//find host
 	host := Host{}
+	hostindex := -1
 	for i := range snet.Hosts {
 		if(snet.Hosts[i].ID == id){
+			hostindex = i
 			host = snet.Hosts[i]
 		}
 	}
@@ -42,6 +44,8 @@ func Conn(device string, id string) {
 	fmt.Printf("\n")
 	action_selection := ""
 	for strings.ToUpper(action_selection) != "EXIT" {
+		host = snet.Hosts[hostindex]
+
 		fmt.Printf("%s> ", host.Hostname)
 		scanner.Scan()
 		action_selection := scanner.Text()
@@ -55,19 +59,30 @@ func Conn(device string, id string) {
 		switch actionword1 {
 			case "":
 			case "ping":
-				if len(action) > 1 {
-					if len(action) > 2 { //if seconds is specified
-						seconds, _ := strconv.Atoi(action[2])
-						go ping(host.IPAddr, action[1], seconds)
-					} else {
-						go ping(host.IPAddr, action[1], 1)
+				if(host.UplinkID == "") {
+					fmt.Println("Device is not connected. Please set an uplink")
+				} else if(host.IPAddr == "0.0.0.0") {
+					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
+				}else {
+					if len(action) > 1 {
+						if len(action) > 2 { //if seconds is specified
+							seconds, _ := strconv.Atoi(action[2])
+							go ping(host.ID, action[1], seconds)
+						} else {
+							go ping(host.ID, action[1], 1)
+						}
+						<-actionsync[id]
 					}
-					<-actionsync[id]
 				}
 			case "dhcp":
-				go dhcp_discover(host)
-				<-actionsync[id]
-				save()
+				if(host.UplinkID == "") {
+					fmt.Println("Device is not connected. Please set an uplink")
+				} else {
+
+					go dhcp_discover(host)
+					<-actionsync[id]
+					save()
+				}
 			case "exit":
 				return
 			case "help":
