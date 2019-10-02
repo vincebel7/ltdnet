@@ -87,7 +87,8 @@ func Conn(device string, id string) {
 				return
 			case "help":
 				fmt.Println("",
-				"ping <dest_hostname> [seconds]\t\tPings host\n")
+				"ping <dest_ip> [seconds]\tPings IP\n",
+				"dhcp\t\t\t\tGets address via DHCP")
 			default:
 				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}

@@ -1,15 +1,15 @@
-#ltdnet
-###by Vince Belanger
+# ltdnet
+### by Vince Belanger
 
 A limited-functionality network simulator that serves as a practical application of goroutines, taking advantage of lightweight multi-threading for network traffic and device-listening.
 Includes fictional LAN appliances as well as simple applications of essential TCP/IP protocols
 
-##How to run
+## How to run
 1. Install Go (https://golang.org/doc/install)
 2. Clone this repository and enter the directory
 3. Make the run script executable, and execute it (./run.sh)
 
-##Using ltdnet
+## Using ltdnet
 First, create a network and pick a class (A, B, or C)
 Currently, each network can only have one router. It is best to start off by creating a router:
 `add device router`
@@ -45,37 +45,37 @@ I hope you find this program to be fun. Many more features are on their way, but
 
 For any further questions, please email vince@vincebel.tech
 
-##Files
+## Files
 
-###client.go
+### client.go
 Basic menu operations, data structures
 
-###conn.go
+### conn.go
 Handles device interfaces
 
-###listener.go
+### listener.go
 Listens for incoming traffic and handles actions accordingly
 
-##actions.go
+## actions.go
 All "program" functions run on devices such as ping, DHCP, etc.
 
-##helpers.go
+## helpers.go
 Helper functions for common operations
 
-##run.sh
+## run.sh
 Simple run script to run *.go
 
-##wipesaves.sh
+## wipesaves.sh
 Clears the /saves directory
 
-##README.md
+## README.md
 See README.md :)
 
-##Version History
+## Version History
 What has been accomplished at each major.minor version
 
-###v0.0 - July 17, 2019
+### v0.0 - July 17, 2019
 Basic interface
 
-###v0.1
+### v0.1
 Creating, saving, and loading JSON savefiles, creating a network, adding and linking hosts, adding routers, host controlling, device listeners, basic host-to-host pinging

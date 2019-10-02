@@ -6,8 +6,8 @@ import(
 	"os"
 	"log"
 	//"sort"
-	//"math/rand"
-	"time"
+	//"math"
+	//"time"
 	"bufio"
 	"strings"
 	"strconv"
@@ -54,15 +54,16 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.8")
+	fmt.Println("ltdnet v0.1.9")
 	fmt.Println("by vincebel\n")
 
 	selection := false
-		for selection == false {
-		fmt.Println("Please create or select a network:")
-		fmt.Println(" 1) Create new network")
-		fmt.Println(" 2) Select saved network")
+	fmt.Println("Please create or select a network:")
+	fmt.Println(" 1) Create new network")
+	fmt.Println(" 2) Select saved network")
+	for selection == false {
 		fmt.Print("\nAction: ")
+
 		scanner.Scan()
 		option := scanner.Text()
 
@@ -73,8 +74,7 @@ func mainmenu() {
 			selection = true
 			selectnetwork()
 		} else {
-			fmt.Println("Not a valid option.\n")
-			time.Sleep(500000000)
+			fmt.Println("Not a valid option.")
 		}
 	}
 }
@@ -163,6 +163,14 @@ func selectnetwork() {
 	scanner.Scan()
 	network_selection := scanner.Text()
 	int_select, err := strconv.Atoi(network_selection)
+
+	for ((network_selection == "") || (int_select >= i) || (int_select < 1)) {
+		fmt.Println("Not a valid option.")
+		fmt.Print("\nLoad: ")
+		scanner.Scan()
+		network_selection = scanner.Text()
+		int_select, err = strconv.Atoi(network_selection)
+	}
 	netname := option_map[int_select]
 	netname = netname[:len(netname)-len(".json")]
 
@@ -239,11 +247,28 @@ func addRouter() {
 	fmt.Print("Hostname: ")
 	scanner.Scan()
 	routerHostname := scanner.Text()
+
+	// input validation
+
+	if routerHostname == "" {
+		fmt.Println("Hostname cannot be blank. Please try again")
+		return
+	}
+
+	if hostname_exists(routerHostname) {
+		fmt.Println("Hostname already exists. Please try again")
+		return
+	}
+
 	r := Router{}
+
 	if routerModel == "BOBCAT" {
 		r = NewBobcat(routerHostname)
 	} else if routerModel == "OSIRIS" {
 		r = NewOsiris(routerHostname)
+	} else {
+		fmt.Println("Invalid model. Please try again")
+		return
 	}
 
 	if snet.Class == "A" {
@@ -304,9 +329,24 @@ func addHost() {
 	fmt.Print("Hostname: ")
 	scanner.Scan()
 	hostHostname := scanner.Text()
+
+	// input validation
+	if hostHostname == "" {
+		fmt.Println("Hostname cannot be blank. Please try again")
+		return
+	}
+
+	if hostname_exists(hostHostname) {
+		fmt.Println("Hostname already exists. Please try again")
+		return
+	}
+
 	h := Host{}
 	if hostModel == "PROBOX" {
 		h = NewProbox(hostHostname)
+	} else {
+		fmt.Println("Invalid model. Please try again")
+		return
 	}
 
 	h.IPAddr = "0.0.0.0"
@@ -319,10 +359,12 @@ func delHost() {
 }
 
 func linkHost() {
-	fmt.Println("Which host? Please specify by hostname")
+	fmt.Println("Link which host? Please specify by hostname")
 	fmt.Print("Available hosts:")
 	for availh := range snet.Hosts {
-		fmt.Printf(" %s", snet.Hosts[availh].Hostname)
+		if len(snet.Hosts[availh].UplinkID) < 1 {
+			fmt.Printf(" %s", snet.Hosts[availh].Hostname)
+		}
 	}
 	fmt.Print("\nHostname: ")
 	scanner.Scan()
@@ -354,7 +396,25 @@ func linkHost() {
 }
 
 func unlinkHost() {
-	fmt.Println("Not implemented yet, sorry") //TODO
+	fmt.Println("Unlink which host? Please specify by hostname")
+	fmt.Print("Linked hosts:")
+	for availh := range snet.Hosts {
+		if snet.Hosts[availh].UplinkID != "" {
+			fmt.Printf(" %s", snet.Hosts[availh].Hostname)
+		}
+	}
+	fmt.Print("\nHostname: ")
+	scanner.Scan()
+	hostname := scanner.Text()
+	hostname = strings.ToUpper(hostname)
+
+	for i := range snet.Hosts {
+		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
+			uplinkID := ""
+			snet.Hosts[i].UplinkID = uplinkID
+			return
+		}
+	}
 }
 
 func controlHost(hostname string) {

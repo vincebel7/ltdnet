@@ -90,3 +90,16 @@ func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask 
 	}
 
 }
+
+func hostname_exists(hostname string) bool {
+	if snet.Router.Hostname == hostname {
+		return true
+	}
+
+	for h := range snet.Hosts {
+		if snet.Hosts[h].Hostname == hostname {
+			return true
+		}
+	}
+	return false
+}

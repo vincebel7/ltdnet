@@ -53,14 +53,14 @@ func hostactionhandler(frame Frame, index int) {
 
 	if(len(data) > 7){
 		if data[0:9] == "DHCPOFFER" {
-			fmt.Println("\n[Host] I will process this DHCP Offer")
+			fmt.Printf("\n[Host %s] DHCPOFFER received\n", snet.Hosts[index].Hostname)
 			internal[snet.Hosts[index].ID]<-frame
 		}
 	}
 
 	if(len(data) > 17){
 		if data[0:19] == "DHCPACKNOWLEDGEMENT" {
-			fmt.Println("\n[Host] I will process this DHCP Acknowledgement")
+			fmt.Printf("\n[Host %s] DHCPACKNOWLEDGEMENT received\n", snet.Hosts[index].Hostname)
 			internal[snet.Hosts[index].ID]<-frame
 		}
 	}
@@ -90,13 +90,13 @@ func routeractionhandler(frame Frame) {
 		}
 
 		if data == "DHCPDISCOVER" {
-			fmt.Println("\n[Router] I will process this DHCP Discover")
+			fmt.Println("\n[Router] DHCPDISCOVER received")
 			dhcp_offer(frame)
 		}
 
 		if(len(data) > 9){
 			if data[0:11] == "DHCPREQUEST" {
-				fmt.Println("\n[Router] I will process this DHCP Request")
+				fmt.Println("\n[Router] DHCPREQUEST received")
 				internal[snet.Router.ID]<-frame
 			}
 		}
