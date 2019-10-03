@@ -9,6 +9,9 @@ var internal = map[string]chan Frame{} //for internal device communication
 var actionsync = map[string]chan int{}
 
 func Listener() {
+	channels["FFFFFFFF"] = make(chan Frame)
+	go broadcastlisten()
+
 	for i := range snet.Hosts {
 		//create channel
 		channels[snet.Hosts[i].ID] = make(chan Frame)
@@ -23,8 +26,17 @@ func Listener() {
 	}
 }
 
+func broadcastlisten() {
+	for true {
+		frame := <-channels["FFFFFFFF"]
+
+		for i := range snet.Hosts {
+			go hostactionhandler(frame, i)
+		}
+	}
+}
+
 func hostlisten(index int) {
-	//declarations to make things easier
 	id := snet.Hosts[index].ID
 	//hostname := snet.Hosts[index].Hostname
 
@@ -41,7 +53,6 @@ func hostlisten(index int) {
 func hostactionhandler(frame Frame, index int) {
 	data := frame.Data.Data.Data
 	if data == "ping!" {
-		//fmt.Printf("(%s) Time to respond to this ping\n", srcIP)
 		srcid := snet.Hosts[index].ID
 		dstIP := frame.Data.SrcIP
 		pong(srcid, dstIP)
@@ -52,9 +63,24 @@ func hostactionhandler(frame Frame, index int) {
 	}
 
 	if(len(data) > 7){
+		if data[0:8] == "ARPREPLY" {
+			//fmt.Printf("[Host %s] ARPREPLY received\n", snet.Hosts[index].Hostname)
+			internal[snet.Hosts[index].ID]<-frame
+		}
+
+	}
+
+	if(len(data) > 8){
 		if data[0:9] == "DHCPOFFER" {
 			fmt.Printf("\n[Host %s] DHCPOFFER received\n", snet.Hosts[index].Hostname)
 			internal[snet.Hosts[index].ID]<-frame
+		}
+	}
+
+	if(len(data) > 8){
+		if data[0:10] == "ARPREQUEST" {
+			//fmt.Printf("\n[Host %s] ARPREQUEST received\n", snet.Hosts[index].Hostname)
+			arp_reply(index, frame)
 		}
 	}
 

@@ -28,6 +28,15 @@ func macgen() string {
 	return mac
 }
 
+func getHostIndexFromID(id string) int {
+	for h := range snet.Hosts {
+		if snet.Hosts[h].ID == id {
+			return h
+		}
+	}
+	return -1
+}
+
 func getMACfromID(id string) string {
 	//Router
 	if id == snet.Router.ID {
@@ -35,12 +44,7 @@ func getMACfromID(id string) string {
 	}
 
 	//Hosts
-	for h := range snet.Hosts {
-		if snet.Hosts[h].ID == id {
-			return snet.Hosts[h].MACAddr
-		}
-	}
-	return ""
+	return snet.Hosts[getHostIndexFromID(id)].MACAddr
 }
 
 func getIDfromMAC(mac string) string {

@@ -19,7 +19,8 @@ func ping(srcid string, dstIP string, secs int) {
 		srcIP = snet.Router.Gateway
 		srcMAC = snet.Router.MACAddr
 
-		dstMAC = "F" //MAC LEARNING IMPLEMENTATION HERE
+		//TODO: Implement MAC learning to avoid ARPing every time
+		dstMAC = arp_request(srcid, "router", dstIP)
 	}
 
 	if snet.Router.Gateway == dstIP { //NI
@@ -33,10 +34,15 @@ func ping(srcid string, dstIP string, secs int) {
 			}
 
 			if snet.Hosts[h].ID == srcid {
+
 				srchost = snet.Hosts[h].Hostname
 				srcIP = snet.Hosts[h].IPAddr
 				srcMAC = snet.Hosts[h].MACAddr
-				dstMAC = getMACfromID(snet.Hosts[h].UplinkID) //eventually save uplink as MAC
+
+				//dstMAC = getMACfromID(snet.Hosts[h].UplinkID) //eventually save uplink as MAC
+				//TODO: Implement MAC learning to avoid ARPing every time
+				dstMAC = arp_request(srcid, "host", dstIP)
+				//about to leave for the day, but why did i just do this? should be next-hop MAC for hosts.
 			}
 		}
 	}
@@ -66,7 +72,8 @@ func pong(srcid string, dstIP string) {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway
 
-		dstMAC = "F" //MAC LEARNING IMPLEMNETED HERE
+		//TODO: Implement MAC learning to avoid ARPing every time
+		dstMAC = arp_request(srcid, "router", dstIP)
 	}
 
 	if snet.Router.Gateway == dstIP { //NI
@@ -82,7 +89,10 @@ func pong(srcid string, dstIP string) {
 			srcMAC = snet.Hosts[h].MACAddr
 			srcIP = snet.Hosts[h].IPAddr
 
-			dstMAC = getMACfromID(snet.Hosts[h].UplinkID)
+			//dstMAC = getMACfromID(snet.Hosts[h].UplinkID)
+			//TODO: Implement MAC learning to avoid ARPing every time
+			dstMAC = arp_request(srcid, "host", dstIP)
+			//about to leave for the day, but why did i just do this? should be next-hop MAC for hosts.
 		}
 	}
 
@@ -92,6 +102,65 @@ func pong(srcid string, dstIP string) {
 		channels[dstid]<-f //NI
 
 	return
+}
+func arp_request(srcid string, device_type string, dstIP string) string {
+	//send broadcast ARP request FF, requesting answer for IP address
+
+	//Construct frame
+	srcIP := ""
+	srcMAC := ""
+	dstMAC := "FF:FF:FF:FF:FF:FF"
+	dstuplink := "FFFFFFFF" //NI do away with this once relying on MAC address
+	if(device_type == "router") {
+		srcIP = snet.Router.Gateway
+		srcMAC = snet.Router.MACAddr
+	} else {
+		index := getHostIndexFromID(srcid)
+		srcIP = snet.Hosts[index].IPAddr
+		srcMAC = snet.Hosts[index].MACAddr
+	}
+
+	s := constructSegment("ARPREQUEST")
+	p := constructPacket(srcIP, dstIP,s)
+	f := constructFrame(p, srcMAC, dstMAC)
+
+	channels[dstuplink]<-f
+	//computer with address will respond with its MAC
+
+	replyframe := <-internal[srcid]
+	return replyframe.Data.Data.Data[9:]
+}
+
+func arp_reply(i int, frame Frame) {
+	request_addr := frame.Data.DstIP
+
+	if (request_addr != snet.Hosts[i].IPAddr) {
+		return
+	} else {
+		//fmt.Printf("[Host %s] THIS ME!\n", snet.Hosts[i].Hostname)
+
+		srcIP := snet.Hosts[i].IPAddr
+		srcMAC := snet.Hosts[i].MACAddr
+		dstMAC := frame.SrcMAC
+		dstIP := frame.Data.SrcIP
+
+		//NI get rid of this with MAC switchover
+		dstid := ""
+		if snet.Router.Gateway == dstIP { //NI
+			dstid = snet.Router.ID
+		}
+		for h := range snet.Hosts {
+			if snet.Hosts[h].IPAddr == dstIP { //NI
+				dstid = snet.Hosts[h].ID
+			}
+		}
+
+		message := "ARPREPLY " + srcMAC
+		s := constructSegment(message)
+		p := constructPacket(srcIP, dstIP, s)
+		f := constructFrame(p, srcMAC, dstMAC)
+		channels[dstid]<-f //NI
+	}
 }
 
 func dhcp_discover(host Host) {
