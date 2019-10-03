@@ -6,7 +6,7 @@ import(
 	"strings"
 	"strconv"
 )
-
+/*
 type Segment struct {
 	Protocol	string
 	SrcPort		int
@@ -25,6 +25,7 @@ type Frame struct {
 	DstMAC		string
 	Data		Packet
 }
+*/
 
 func Conn(device string, id string) {
 	//find host
@@ -71,7 +72,7 @@ func Conn(device string, id string) {
 						} else {
 							go ping(host.ID, action[1], 1)
 						}
-						<-actionsync[id]
+						<-actionsync[getMACfromID(id)]
 					}
 				}
 			case "dhcp":
@@ -80,7 +81,7 @@ func Conn(device string, id string) {
 				} else {
 
 					go dhcp_discover(host)
-					<-actionsync[id]
+					<-actionsync[getMACfromID(id)]
 					save()
 				}
 			case "exit":
