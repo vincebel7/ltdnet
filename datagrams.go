@@ -1,3 +1,9 @@
+/*
+File:		datagrams.go
+Author: 	https://bitbucket.org/vincebel
+Purpose:	Datagram structs and helpful functions
+*/
+
 package main
 
 type Segment struct {
@@ -19,3 +25,37 @@ type Frame struct {
 	Data		Packet
 }
 
+func constructSegment(data string) Segment {
+	srcport := 7
+	dstport := 7
+	protocol := "UDP"
+
+	s := Segment{
+		Protocol: protocol,
+		SrcPort: srcport,
+		DstPort: dstport,
+		Data: data,
+	}
+
+	return s
+}
+
+func constructPacket(srcIP string, dstIP string, data Segment) Packet {
+	p := Packet{
+		SrcIP: srcIP,
+		DstIP: dstIP,
+		Data: data,
+	}
+
+	return p
+}
+
+func constructFrame(data Packet, srcMAC string, dstMAC string) Frame {
+	f := Frame{
+		SrcMAC: srcMAC,
+		DstMAC: dstMAC,
+		Data: data,
+	}
+
+	return f
+}

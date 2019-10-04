@@ -1,3 +1,9 @@
+/*
+File:		helpers.go
+Author: 	https://bitbucket.org/vincebel
+Purpose:	Various misc helper functions
+*/
+
 package main
 
 import(
@@ -107,3 +113,4 @@ func hostname_exists(hostname string) bool {
 	}
 	return false
 }
+

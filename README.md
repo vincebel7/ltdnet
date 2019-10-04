@@ -26,17 +26,16 @@ Once you have created a host, you can "plug in" the host to the router by *linki
 `link device host`
 This will allow you to set your host's uplink to your router.
 
-Next, you will need to set the IP configuration for your host. There are two ways to do this: Statically or dynamically, through DHCP.
+Next, you will need to set the IP configuration for your host. There are two ways to do this: Statically, or dynamically through DHCP. Both ways require you to be in device control mode.
+When controlling a device, the commands are different from the root ltdnet menu. Run `help` to see all available device control commands.
+To enter device control mode, run:
+`control host <hostname>`
 
-If you wish to statically set your host's IP configuration, simply run:
+If you wish to statically set your host's IP configuration, from device control mode run:
 `ipset host <hostname>`
 This will prompt you to set an IP address, subnet mask, and default gateway for your host. Remember to make sure you set the default gateway to the one your router is generated with.
 
-If you wish to acquire an IP configuration dynamically through your router's DHCP server, you must control (log into) the host first:
-`control host <hostname>`
-When controlling a device, the commands are different from the root ltdnet menu. Run `help` to see all available device control commands.
-To run DHCP to dynamically acquire an IP configuration, simply run `dhcp`.
-**NOTE**: As of v0.1.8 there is a bug that prevents DHCP from working properly if run during the same process that the host was linked. For now, please exit and restart the program after linking and before using DHCP.
+To run DHCP to dynamically acquire an IP configuration, from device control mode simply run `dhcp`.
 
 As long as there are available addresses in the router's DHCP pool, your host should now have an IP configuration. To test this out, from the device control, try pinging your router:
 `ping <gateway>`
@@ -50,7 +49,7 @@ For any further questions, please email vince@vincebel.tech
 ### client.go
 Basic menu operations, data structures
 
-### conn.go
+### hostconn.go
 Handles device interfaces
 
 ### listener.go
@@ -59,8 +58,17 @@ Listens for incoming traffic and handles actions accordingly
 ### actions.go
 All "program" functions run on devices such as ping, DHCP, etc.
 
+## router.go
+Router-specific functions
+
 ### helpers.go
 Helper functions for common operations
+
+## datagrams.go
+Defines datagram structs and related functions
+
+## debug.go
+Functions for debugging and testing
 
 ### run.sh
 Simple run script to run *.go
@@ -71,6 +79,9 @@ Clears the /saves directory
 ### README.md
 See README.md :)
 
+### notes.md
+Known bugs, and feature ideas. Mostly for my personal use
+
 ## Version History
 What has been accomplished at each major.minor version
 
@@ -79,3 +90,6 @@ Basic interface
 
 ### v0.1 - July 25, 2019
 Creating, saving, and loading JSON savefiles, creating a network, adding and linking hosts, adding routers, host controlling, device listeners, basic host-to-host pinging
+
+### v0.2 - October 4, 2019
+ARP, DHCP, complete network functionality, project structuring

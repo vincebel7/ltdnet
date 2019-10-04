@@ -1,3 +1,9 @@
+/*
+File:		client.go
+Author: 	https://bitbucket.org/vincebel
+Purpose:	General network configuration, main menu+general program functions
+*/
+
 package main
 
 import(
@@ -13,7 +19,7 @@ import(
 	"strconv"
 	"path/filepath"
 	//"io/ioutil"
-	"net"
+	//"net"
 )
 
 type Network struct {
@@ -54,7 +60,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.1.9")
+	fmt.Println("ltdnet v0.2.0")
 	fmt.Println("by vincebel\n")
 
 	selection := false
@@ -352,6 +358,9 @@ func addHost() {
 	h.IPAddr = "0.0.0.0"
 
 	snet.Hosts = append(snet.Hosts, h)
+
+	generateHostChannels(getHostIndexFromID(h.ID))
+	<-listenSync
 }
 
 func delHost() {
@@ -430,64 +439,6 @@ func controlHost(hostname string) {
 		fmt.Println("Host not found")
 	}
 	return
-}
-
-func ipset(hostname string) {
-	fmt.Printf(" IP configuration for %s\n", hostname)
-
-	correct := false
-	var ipaddr, subnetmask, defaultgateway string
-	for !correct {
-		fmt.Print("IP Address: ")
-		scanner.Scan()
-		ipaddr = scanner.Text()
-
-		fmt.Print("\nSubnet mask: ")
-		scanner.Scan()
-		subnetmask = scanner.Text()
-
-		fmt.Print("\nDefault gateway: ")
-		scanner.Scan()
-		defaultgateway = scanner.Text()
-
-		fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetmask, defaultgateway)
-		fmt.Print("\nIs this correct? [Y/n/exit]")
-		scanner.Scan()
-		affirmation := scanner.Text()
-
-		if(strings.ToUpper(affirmation) == "Y") {
-			// error checking
-			error := false
-			if net.ParseIP(ipaddr).To4() == nil {
-				error = true
-				fmt.Printf("Error: '%s' is not a valid IP address\n", ipaddr)
-			}
-			if net.ParseIP(subnetmask).To4() == nil {
-				fmt.Printf("Error: '%s' is not a valid subnet mask\n", subnetmask)
-			}
-			if net.ParseIP(defaultgateway).To4() == nil {
-				fmt.Printf("Error: '%s' is not a valid default gateway\n", defaultgateway)
-			}
-
-			if(!error) {
-				correct = true
-			}
-		 } else if(strings.ToUpper(affirmation) == "EXIT") {
-			fmt.Println("Network changes reverted")
-			return
-		 }
-	}
-
-	//update info
-	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == hostname {
-			snet.Hosts[h].IPAddr = ipaddr
-			snet.Hosts[h].SubnetMask = subnetmask
-			snet.Hosts[h].DefaultGateway = defaultgateway
-			fmt.Println("Network configuration updated")
-		}
-	}
-
 }
 
 func overview() {
@@ -654,18 +605,6 @@ func actions() {
 		} else {
 			fmt.Println(" Usage: control <host|router> <hostname>")
 		}
-	case "ipset":
-		if len(action_selection) > 11{
-			switch action_selection[:11] {
-			case "ipset host ":
-				ipset(action_selection[11:])
-				save()
-			default:
-				fmt.Println(" Usage: ipset host <hostname>")
-			}
-		} else {
-			fmt.Println(" Usage: ipset host <hostname>")
-		}
 	case "save":
 		save()
 	case "reload":
@@ -683,6 +622,8 @@ func actions() {
 		}
 	case "debug":
 		fmt.Println(snet)
+	case "exit":
+		os.Exit(0)
 	case "help":
 		fmt.Println("",
 		"show <args>\t\tDisplays information\n",
@@ -691,10 +632,11 @@ func actions() {
 		"link <args>\t\tLinks two devices\n",
 		"unlink <args>\t\tUnlinks two devices\n",
 		"control <args>\t\tLogs in as device\n",
-		"ipset <args>\t\tStatically assigns an IP configuration\n",
 		"save\t\t\tManually saves network changes\n",
 		"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
-		"debug\t\t\tOutputs JSON file of loaded network file (developer use)\n")
+		"debug\t\t\tOutputs JSON file of loaded network file (developer use)\n",
+		"exit\t\t\tExits the program\n",
+		)
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}

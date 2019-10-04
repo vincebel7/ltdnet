@@ -1,3 +1,9 @@
+/*
+File:		hostconn.go
+Author: 	https://bitbucket.org/vincebel
+Purpose:	Handles connection and interface for hosts
+*/
+
 package main
 
 import(
@@ -6,26 +12,6 @@ import(
 	"strings"
 	"strconv"
 )
-/*
-type Segment struct {
-	Protocol	string
-	SrcPort		int
-	DstPort		int
-	Data		string
-}
-
-type Packet struct {
-	SrcIP		string
-	DstIP		string
-	Data		Segment//layers 4+ abstracted
-}
-
-type Frame struct {
-	SrcMAC		string
-	DstMAC		string
-	Data		Packet
-}
-*/
 
 func Conn(device string, id string) {
 	//find host
@@ -72,7 +58,7 @@ func Conn(device string, id string) {
 						} else {
 							go ping(host.ID, action[1], 1)
 						}
-						<-actionsync[getMACfromID(id)]
+						<-actionsync[id]
 					}
 				}
 			case "dhcp":
@@ -81,54 +67,26 @@ func Conn(device string, id string) {
 				} else {
 
 					go dhcp_discover(host)
-					<-actionsync[getMACfromID(id)]
+					<-actionsync[id]
+					save()
+				}
+			case "ipset":
+				if(host.UplinkID == "") {
+					fmt.Println("Device is not connected. Please set an uplink")
+				} else {
+					ipset(host.Hostname)
 					save()
 				}
 			case "exit":
 				return
 			case "help":
 				fmt.Println("",
-				"ping <dest_ip> [seconds]\tPings IP\n",
-				"dhcp\t\t\t\tGets address via DHCP")
+				"ping <dest_ip> [seconds]\tPings an IP address\n",
+				"dhcp\t\t\t\tGets IP configuration via DHCP\n",
+				"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration")
 			default:
 				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}
 		}
 	}
-
-}
-
-func constructSegment(data string) Segment {
-	srcport := 7
-	dstport := 7
-	protocol := "UDP"
-
-	s := Segment{
-		Protocol: protocol,
-		SrcPort: srcport,
-		DstPort: dstport,
-		Data: data,
-	}
-
-	return s
-}
-
-func constructPacket(srcIP string, dstIP string, data Segment) Packet {
-	p := Packet{
-		SrcIP: srcIP,
-		DstIP: dstIP,
-		Data: data,
-	}
-
-	return p
-}
-
-func constructFrame(data Packet, srcMAC string, dstMAC string) Frame {
-	f := Frame{
-		SrcMAC: srcMAC,
-		DstMAC: dstMAC,
-		Data: data,
-	}
-
-	return f
 }
