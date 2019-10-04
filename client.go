@@ -11,15 +11,10 @@ import(
 	"encoding/json"
 	"os"
 	"log"
-	//"sort"
-	//"math"
-	//"time"
 	"bufio"
 	"strings"
 	"strconv"
 	"path/filepath"
-	//"io/ioutil"
-	//"net"
 )
 
 type Network struct {
@@ -60,7 +55,7 @@ type Host struct {
 }
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.0")
+	fmt.Println("ltdnet v0.2.1")
 	fmt.Println("by vincebel\n")
 
 	selection := false
@@ -190,19 +185,17 @@ func loadnetwork(netname string) {
 	b1 := make([]byte, 1000000) //TODO: secure this
 	n1, err := f.Read(b1)
 
-	//fmt.Printf("\n[Debug] Filename: %s\n", filename) //DEBUG
 	if err != nil {
 		fmt.Printf("File not found: %s", filename)
 	}
 
 	//unmarshal
-	//fmt.Printf("\n[Debug] File contents: %s", b1[:n1]) //DEBUG
 	var net Network
 	err2 := json.Unmarshal(b1[:n1], &net)
 	if err2 != nil {
 		fmt.Printf("err: %v", err2)
 	}
-	//fmt.Printf("\n[Debug] Network: %s\n", net) //DEBUG
+
 	//save global
 	snet = net
 	fmt.Printf("Loaded %s\n", snet.Name)
@@ -470,7 +463,6 @@ func overview() {
 				uplinkHostname = snet.Hosts[dev].Hostname
 			}
 		}
-		//fmt.Printf("\tUplink ID:\t%s\n", snet.Hosts[i].UplinkID)
 		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
 		j = i
 	}
@@ -620,8 +612,20 @@ func actions() {
 				fmt.Println(" Usage: show network overview\n\tshow <hostname>")
 			}
 		}
-	case "debug":
+	case "filedump":
 		fmt.Println(snet)
+	case "debug":
+		if actionword2 != "" {
+			setDebug(actionword2)
+		} else {
+			fmt.Printf("Current debug level: %d\n", getDebug())
+			fmt.Println("\nAll levels:\n",
+			"0 - No debugging\n",
+			"1 - Errors\n",
+			"2 - General network traffic\n",
+			"3 - All network traffic\n",
+			"4 - All sorts of garbage (dev use)\n")
+		}
 	case "exit":
 		os.Exit(0)
 	case "help":
@@ -634,7 +638,8 @@ func actions() {
 		"control <args>\t\tLogs in as device\n",
 		"save\t\t\tManually saves network changes\n",
 		"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
-		"debug\t\t\tOutputs JSON file of loaded network file (developer use)\n",
+		"debug <0-4>\t\tSets debug level. Defaults to 1 each runtime\n",
+		"filedump\t\tOutputs JSON file of loaded network file (developer use)\n",
 		"exit\t\t\tExits the program\n",
 		)
 	default:
@@ -643,14 +648,11 @@ func actions() {
 }
 
 func save() {
-	//fmt.Printf("\nNetwork to marshal: %s\n\n", snet) //DEBUG
 	marshString, err := json.Marshal(snet)
 	if err != nil {
 		log.Println(err)
 	}
-	//fmt.Println("Saving", string(marshString)) //DEBUG
-	// Write to file
-	//fmt.Printf("Saving network: %s\n", snet.Name) //DEBUG
+	//Write to file
 	filename := "saves/" + snet.Name + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
@@ -669,7 +671,7 @@ func main() {
 	for range snet.Hosts {
 		<-listenSync
 	}
-
+	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
 	fmt.Println("\nPlease type an action:")
 
 	for true {

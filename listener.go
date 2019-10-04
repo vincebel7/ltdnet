@@ -7,7 +7,6 @@ Purpose:	Listener for network and all devices
 package main
 
 import(
-	"fmt"
 )
 
 var channels = map[string]chan Frame{}
@@ -61,7 +60,7 @@ func hostlisten(index int) {
 }
 
 func hostactionhandler(frame Frame, index int) {
-	//fmt.Printf("\n[Host %s] My packet\n", snet.Hosts[index].Hostname)
+	//debug(3, "hostactionhandler", snet.Hosts[index].ID, "My packet")
 	data := frame.Data.Data.Data
 	if data == "ping!" {
 		srcid := snet.Hosts[index].ID
@@ -75,7 +74,7 @@ func hostactionhandler(frame Frame, index int) {
 
 	if(len(data) > 7){
 		if data[0:8] == "ARPREPLY" {
-			//fmt.Printf("[Host %s] ARPREPLY received\n", snet.Hosts[index].Hostname)
+			debug(3, "hostactionhandler", snet.Hosts[index].ID, "ARPREPLY received")
 			internal[snet.Hosts[index].ID]<-frame
 		}
 
@@ -83,21 +82,21 @@ func hostactionhandler(frame Frame, index int) {
 
 	if(len(data) > 8){
 		if data[0:9] == "DHCPOFFER" {
-			fmt.Printf("\n[Host %s] DHCPOFFER received\n", snet.Hosts[index].Hostname)
+			debug(2, "hostactionhandler", snet.Hosts[index].ID, "DHCPOFFER received")
 			internal[snet.Hosts[index].ID]<-frame
 		}
 	}
 
 	if(len(data) > 9){
 		if data[0:10] == "ARPREQUEST" {
-			//fmt.Printf("\n[Host %s] ARPREQUEST received\n", snet.Hosts[index].Hostname)
+			debug(3, "hostactionhandler", snet.Hosts[index].ID, "ARPREQUEST received")
 			arp_reply(index, "host", frame)
 		}
 	}
 
 	if(len(data) > 17){
 		if data[0:19] == "DHCPACKNOWLEDGEMENT" {
-			fmt.Printf("\n[Host %s] DHCPACKNOWLEDGEMENT received\n", snet.Hosts[index].Hostname)
+			debug(2, "hostactionhandler", snet.Hosts[index].ID, "DHCPACKNOWLEDGEMENT received")
 			internal[snet.Hosts[index].ID]<-frame
 		}
 	}
@@ -127,7 +126,7 @@ func routeractionhandler(frame Frame) {
 
 		if(len(data) > 7){
 			if data[0:8] == "ARPREPLY" {
-				//fmt.Printf("[Router] ARPREPLY received\n")
+				debug(3, "routeractionhandler", snet.Router.ID, "ARPREPLY received")
 				internal[snet.Router.ID]<-frame
 			}
 
@@ -135,7 +134,7 @@ func routeractionhandler(frame Frame) {
 
 		if(len(data) > 9){
 			if data[0:10] == "ARPREQUEST" {
-				//fmt.Printf("\n[Router] ARPREQUEST received\n")
+				debug(3, "routeractionhandler", snet.Router.ID, "ARPREQUEST received")
 				index := 0
 				arp_reply(index, "router", frame)
 			}
@@ -143,19 +142,19 @@ func routeractionhandler(frame Frame) {
 
 
 		if data == "DHCPDISCOVER" {
-			fmt.Println("\n[Router] DHCPDISCOVER received")
+			debug(2, "routeractionhandler", snet.Router.ID, "DHCPDISCOVER received")
 			dhcp_offer(frame)
 		}
 
 		if(len(data) > 10){
 			if data[0:11] == "DHCPREQUEST" {
-				fmt.Println("\n[Router] DHCPREQUEST received")
+				debug(2, "routeractionhandler", snet.Router.ID, "DHCPREQUEST received")
 				internal[snet.Router.ID]<-frame
 			}
 		}
 
 	} else {
-		//fmt.Println("\n[Debug] [Router] Not my packet, will forward") //debug
+		debug(3, "routeractionhandler", snet.Router.ID, "Not my packet, will forward")
 		routerforward(frame)
 	}
 }

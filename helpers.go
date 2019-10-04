@@ -34,6 +34,12 @@ func macgen() string {
 	return mac
 }
 
+func getDeviceType(id string) string {
+	if(snet.Router.ID == id) { return "router" }
+
+	return "host"
+}
+
 func getHostIndexFromID(id string) int {
 	for h := range snet.Hosts {
 		if snet.Hosts[h].ID == id {

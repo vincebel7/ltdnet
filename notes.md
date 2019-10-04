@@ -3,4 +3,5 @@
 -Concurrent read/write error upon loading file
 
 #Feature ideas
--Debugging system (toggle on/off, maybe pass messages to a function and toggle printing from function)
+-MAC address learning
+-HTTP over UDP

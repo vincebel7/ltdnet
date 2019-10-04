@@ -16,7 +16,7 @@ type Segment struct {
 type Packet struct {
 	SrcIP		string
 	DstIP		string
-	Data		Segment//layers 4+ abstracted
+	Data		Segment
 }
 
 type Frame struct {

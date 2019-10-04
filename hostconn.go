@@ -77,13 +77,18 @@ func Conn(device string, id string) {
 					ipset(host.Hostname)
 					save()
 				}
+			case "ipclear":
+				ipclear(host.ID)
+				save()
 			case "exit":
 				return
 			case "help":
 				fmt.Println("",
 				"ping <dest_ip> [seconds]\tPings an IP address\n",
 				"dhcp\t\t\t\tGets IP configuration via DHCP\n",
-				"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration")
+				"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
+				"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)",
+			)
 			default:
 				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}

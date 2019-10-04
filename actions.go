@@ -186,7 +186,7 @@ func dhcp_discover(host Host) {
 				word2 := word[1]
 				gateway := word[2]
 				snetmask := word[3]
-				fmt.Printf("[Host %s] DHCPREQUEST sent - %s\n", srchost, word2)
+				debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - " + word2)
 
 				message := "DHCPREQUEST " + word2
 				dstIP = offer.Data.SrcIP
@@ -199,7 +199,7 @@ func dhcp_discover(host Host) {
 
 				ack := <-internal[srcID]
 				if(ack.Data.Data.Data != "") {
-					fmt.Printf("[Host %s] DCHPACKNOWLEDGEMENT received - %s\n", srchost, ack.Data.Data.Data)
+					debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - " + ack.Data.Data.Data)
 
 					word = strings.Fields(ack.Data.Data.Data)
 					if(len(word) > 1) {
@@ -207,13 +207,13 @@ func dhcp_discover(host Host) {
 						confirmed_addr := word[1]
 						dynamic_assign(srcID, confirmed_addr, gateway, snetmask)
 					} else {
-						fmt.Printf("[Host %s] Error 5: Empty DHCP acknowledgement\n", srchost)
+						debug(1, "dhcp_discover", srcID, "Error 5: Empty DHCP acknowledgement\n")
 					}
 				}
 
 
 			} else {
-				fmt.Println("Error 2: Empty DHCP offer")
+				debug(1, "dhcp_discover", srcID, "Error 2: Empty DHCP offer")
 			}
 		}
 	}
@@ -252,7 +252,7 @@ func dhcp_offer(inc_f Frame){
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
 	channels[linkID]<-f
-	fmt.Printf("[Router] DHCPOFFER sent - %s\n", addr_to_give)
+	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - " + addr_to_give)
 
 	//acknowledge
 	request := <-internal[snet.Router.ID]
@@ -263,10 +263,10 @@ func dhcp_offer(inc_f Frame){
 			if(word[1] == addr_to_give) {
 				message = "DHCPACKNOWLEDGEMENT " + addr_to_give
 			} else {
-				fmt.Println("[Router] Error 4: DHCP address requested is not same as offer")
+				debug(1, "dhcp_offer", snet.Router.ID, "Error 4: DHCP address requested is not same as offer")
 			}
 		} else {
-			fmt.Printf("[Router] Error 3: Empty DHCP request\n")
+			debug(1, "dhcp_offer", snet.Router.ID, "Error 3: Empty DHCP request")
 		}
 	}
 
@@ -281,7 +281,7 @@ func dhcp_offer(inc_f Frame){
 	for i := 0; i < len(snet.Router.DHCPIndex); i++ {
 		//fmt.Printf("\n[Router] Debugging sum: %s\n", network_portion + snet.Router.DHCPIndex[i])
 		if (network_portion + snet.Router.DHCPIndex[i]) == addr_to_give {
-			fmt.Printf("[Router] Removing address %s from pool\n", addr_to_give)
+			debug(2, "dhcp_offer", snet.Router.ID, "Removing address " + addr_to_give + " from pool")
 			snet.Router.DHCPTable[snet.Router.DHCPIndex[i]] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
@@ -343,4 +343,12 @@ func ipset(hostname string) {
 		}
 	}
 
+}
+
+func ipclear(id string) {
+	index := getHostIndexFromID(id)
+	snet.Hosts[index].IPAddr = ""
+	snet.Hosts[index].SubnetMask = ""
+	snet.Hosts[index].DefaultGateway = ""
+	fmt.Println("Network configuration cleared")
 }

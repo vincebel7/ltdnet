@@ -58,16 +58,16 @@ Listens for incoming traffic and handles actions accordingly
 ### actions.go
 All "program" functions run on devices such as ping, DHCP, etc.
 
-## router.go
+### router.go
 Router-specific functions
 
 ### helpers.go
 Helper functions for common operations
 
-## datagrams.go
+### datagrams.go
 Defines datagram structs and related functions
 
-## debug.go
+### debug.go
 Functions for debugging and testing
 
 ### run.sh
