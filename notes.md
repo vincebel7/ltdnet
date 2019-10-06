@@ -5,3 +5,6 @@
 #Feature ideas
 -MAC address learning
 -HTTP over UDP
+-Communicate with running machine somehow (WAN)
+-Traceroute
+-Diagram drawing

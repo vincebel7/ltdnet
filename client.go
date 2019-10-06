@@ -11,51 +11,13 @@ import(
 	"encoding/json"
 	"os"
 	"log"
-	"bufio"
 	"strings"
 	"strconv"
 	"path/filepath"
 )
 
-type Network struct {
-	ID		string `json:"id"`
-	Name		string `json:"name"`
-	Author		string `json:"auth"`
-	Class		string `json:"clas"`
-	Router		Router `json:"rtr"`
-	Hosts		[]Host `json:"hsts"`
-}
-
-var snet Network //selected network, essentially the loaded save file
-var listenSync = make(chan int)
-var scanner = bufio.NewScanner(os.Stdin)
-
-type Router struct {
-	ID		string `json:"id"`
-	Model		string `json:"modl"`
-	MACAddr		string `json:"maca"`
-	Hostname	string `json:"hnme"`
-	Gateway		string `json:"gway"`
-	DHCPPool	int `json:"dpol"` //maximum, not just available
-	Downports	int `json:"dpts"`
-	MACTable	map[string]string `json:"mact"`
-	DHCPIndex	[]string `json:"dhci"`
-	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
-}
-
-type Host struct {
-	ID		string `json:"id"`
-	Model		string `json:"modl"`
-	MACAddr		string `json:"maca"`
-	Hostname	string `json:"hnme"`
-	IPAddr		string `json:"ipa"`
-	SubnetMask	string `json:"mask"`
-	DefaultGateway	string `json:"gway"`
-	UplinkID	string `json:"upid"`
-}
-
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.1")
+	fmt.Println("ltdnet v0.2.2")
 	fmt.Println("by vincebel\n")
 
 	selection := false
@@ -225,6 +187,15 @@ func NewOsiris(hostname string) Router {
 	return o
 }
 
+func NewSumerian2100(hostname string) Switch {
+	s := Switch{}
+	s.ID = idgen(8)
+	s.Model = "Sumerian 2100"
+	s.MACAddr = macgen()
+	s.Hostname = hostname
+	return s
+}
+
 func NewProbox(hostname string) Host {
 	p := Host{}
 	p.ID = idgen(8)
@@ -317,6 +288,42 @@ func delRouter() {
 	}
 }
 
+func addSwitch() {
+	fmt.Println("What model?")
+	fmt.Println("Available: Sumerian 2100")
+	fmt.Print("Model: ")
+	scanner.Scan()
+	switchModel := scanner.Text()
+	switchModel = strings.ToUpper(switchModel)
+
+	fmt.Print("Hostname: ")
+	scanner.Scan()
+	switchHostname := scanner.Text()
+
+	// input validation
+	if switchHostname == "" {
+		fmt.Println("Hostname cannot be blank. Please try again")
+		return
+	}
+
+	if hostname_exists(switchHostname) { //TODO make hostname_exists check switches
+		fmt.Println("Hostname already exists. Please try again")
+		return
+	}
+
+	s := Switch{}
+	if switchModel == "SUMERIAN 2100" {
+		s = NewSumerian2100(switchHostname)
+	} else {
+		fmt.Println("Invalid model. Please try again")
+		return
+	}
+
+	snet.Switches = append(snet.Switches, s)
+}
+
+func delSwitch() {}
+
 func addHost() {
 	fmt.Println("What model?")
 	fmt.Println("Available: ProBox")
@@ -375,7 +382,12 @@ func linkHost() {
 
 	fmt.Println("Uplink to which device? Please specify by hostname")
 	fmt.Printf("Router: %s\n", snet.Router.Hostname)
-	fmt.Printf("Switches: %s\n", "coming soon")
+	fmt.Printf("Switches: ")
+	for i := range snet.Switches {
+		fmt.Printf(snet.Switches[i].Hostname)
+	}
+	fmt.Printf("\n")
+
 	fmt.Print("Hostname: ")
 	scanner.Scan()
 	uplinkHostname := scanner.Text()
@@ -388,8 +400,15 @@ func linkHost() {
 			//Router
 			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
 				uplinkID = snet.Router.ID
+			} else {
+				//Search switches
+				for j := range snet.Switches {
+					if uplinkHostname == strings.ToUpper(snet.Switches[j].Hostname) {
+						uplinkID = snet.Switches[j].ID
+						fmt.Println("DEBUG TEST")
+					}
+				}
 			}
-			//TODO: Search switches
 
 			snet.Hosts[i].UplinkID = uplinkID
 			return
@@ -434,15 +453,113 @@ func controlHost(hostname string) {
 	return
 }
 
+func drawDiagram(rootID string) { // TODO make recursive
+	// Identify device info about rootID
+	rootHostname := ""
+	rootType := ""
+	//rootIndex := -1
+	if(rootID == snet.Router.ID) {
+		rootHostname = snet.Router.Hostname
+		rootType = "router"
+	}
+
+	if(rootType == "") {
+		for i := range snet.Switches {
+			if(rootID == snet.Switches[i].ID) {
+				rootHostname = snet.Switches[i].Hostname
+				rootType = "switch"
+				//rootIndex = i
+			}
+		}
+	}
+
+	if(rootType == "") {
+		for i := range snet.Hosts {
+			if(rootID == snet.Hosts[i].ID) {
+				rootHostname = snet.Hosts[i].Hostname
+				rootType = "host"
+				//rootIndex = i
+			}
+		}
+	}
+
+	// ROUTER
+	if(rootType == "router"){
+	if(rootHostname != "") {
+		space1 := 13 - len(snet.Router.Hostname)
+		space2 := 14 - len(snet.Router.Gateway)
+		space3 := 16 - len(snet.Router.Model)
+
+		fmt.Println("|------------------------|")
+		fmt.Println("|         Router         |")
+		 fmt.Printf("| Hostname: %s", snet.Router.Hostname)
+		for i := 0; i < space1; i++ { fmt.Printf(" ") }
+		 fmt.Printf("|\n| Gateway: %s", snet.Router.Gateway)
+		for i := 0; i < space2; i++ { fmt.Printf(" ") }
+		 fmt.Printf("|\n| Model: %s", snet.Router.Model)
+		for i := 0; i < space3; i++ { fmt.Printf(" ") }
+		fmt.Println("|\n|------------------------|")
+	}
+	}
+
+	hostCount := len(snet.Hosts)
+	for i := 0; i < hostCount; i++ {
+		h := snet.Hosts[i]
+		if(h.UplinkID == snet.Router.ID) {
+			space1 := 13 - len(h.Hostname)
+			space2 := 14 - len(h.IPAddr)
+			space3 := 16 - len(h.Model)
+
+			fmt.Println("           ||")
+			fmt.Println("           ||      |------------------------|")
+			fmt.Println("           ||      |          Host          |")
+			 fmt.Printf("           ||------| Hostname: %s", h.Hostname)
+			for i := 0; i < space1; i++ { fmt.Printf(" ") }
+			 fmt.Printf("|\n")
+			 fmt.Printf("           ||------| IP Addr: %s", h.IPAddr)
+			for i := 0; i < space2; i++ { fmt.Printf(" ") }
+			 fmt.Printf("|\n")
+
+			if(i == hostCount - 1) {
+			 fmt.Printf("                   | Model: %s", h.Model)
+			} else  {
+			 fmt.Printf("           ||      | Model: %s", h.Model)
+			}
+			for i := 0; i < space3; i++ { fmt.Printf(" ") }
+			 fmt.Printf("|\n")
+			if(i == hostCount - 1) {
+			 fmt.Println("                   |------------------------|")
+			} else {
+			 fmt.Println("           ||      |------------------------|")
+			}
+		}
+	}
+
+	//Unlinked hosts
+}
+
 func overview() {
 	fmt.Printf("Network name:\t\t%s\n", snet.Name)
 	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
 	fmt.Printf("Network class:\t\tClass %s\n", snet.Class)
 
+	// router
+	routerCount := 1
 	show(snet.Router.Hostname)
 
+	//switches
+	switchCount := 0
+	for i := 0; i < len(snet.Switches); i++ {
+		fmt.Printf("\nSwitch %v\n", snet.Switches[i].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Switches[i].ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[i].Model)
+		fmt.Printf("\tMAC:\t\t%s\n", snet.Switches[i].MACAddr)
+		fmt.Printf("\tMgmt IP:\t%s\n", snet.Switches[i].MgmtIP)
+		switchCount = i + 1
+	}
+
 	//hosts
-	j := 0
+	hostCount := 0
 	for i := 0; i < len(snet.Hosts); i++ {
 		fmt.Printf("\nHost %v\n", snet.Hosts[i].Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[i].ID)
@@ -464,10 +581,10 @@ func overview() {
 			}
 		}
 		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
-		j = i
+		hostCount = i + 1
 	}
 
-	fmt.Printf("\nTotal devices: %d (1 Router, 0 Switches, %d Hosts)\n", (j + 1 + 1), (j + 1))
+	fmt.Printf("\nTotal devices: %d (%d Router, %d Switches, %d Hosts)\n", (routerCount + switchCount + hostCount), routerCount, switchCount, hostCount)
 }
 
 func show(hostname string) {
@@ -477,17 +594,27 @@ func show(hostname string) {
 		device_type = "router"
 	}
 
-	if device_type == "host" {
-		id := -1
-		for i := range snet.Hosts {
-			if snet.Hosts[i].Hostname == hostname {
-				id = i
-			}
+	id := -1
+	for i := range snet.Hosts {
+		if snet.Hosts[i].Hostname == hostname {
+			device_type = "host"
+			id = i
 		}
-		if id == -1 {
+	}
+
+	for i := range snet.Switches {
+		if snet.Switches[i].Hostname == hostname {
+			device_type = "switch"
+			id = i
+		}
+	}
+
+	if id == -1 {
 			fmt.Printf("Hostname not found\n")
 			return
 		}
+
+	if device_type == "host" {
 		fmt.Printf("\nHost %v\n", snet.Hosts[id].Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[id].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[id].Model)
@@ -496,19 +623,22 @@ func show(hostname string) {
 		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].DefaultGateway)
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[id].SubnetMask)
 		uplinkHostname := ""
-		for dev := range snet.Hosts {
-			//Router
-			if(snet.Hosts[id].UplinkID == snet.Router.ID) {
-				uplinkHostname = snet.Router.Hostname
-			}
-			//TODO: Switches
-			//Hosts (pointless since host cant be uplink, just here to show how to do switches)
-			if(snet.Hosts[id].UplinkID == snet.Hosts[dev].ID) {
-				uplinkHostname = snet.Hosts[dev].Hostname
+		if(snet.Hosts[id].UplinkID == snet.Router.ID) {
+			uplinkHostname = snet.Router.Hostname
+		}
+		for i := range snet.Switches {
+			if(snet.Hosts[id].UplinkID == snet.Switches[i].ID) {
+				uplinkHostname = snet.Switches[i].Hostname
 			}
 		}
 		//fmt.Printf("\tUplink ID:\t%s\n", snet.Hosts[i].UplinkID)
 		fmt.Printf("\tUplink to:\t%s\n\n", uplinkHostname)
+	} else if device_type == "switch" {
+		fmt.Printf("\nSwitch %s\n", snet.Switches[id].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Switches[id].ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[id].Model)
+		fmt.Printf("\tMAC:\t\t%s\n", snet.Switches[id].MACAddr)
+		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Switches[id].MgmtIP)
 	} else if device_type == "router" {
 		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
@@ -550,22 +680,28 @@ func actions() {
 		case "add device router":
 			addRouter()
 			save()
+		case "add device switch":
+			addSwitch()
+			save()
 		case "add device host":
 			addHost()
 			save()
 		default:
-			fmt.Println(" Usage: add device <host|router>")
+			fmt.Println(" Usage: add device <host|switch|router>")
 		}
 	case "del":
 		switch action_selection {
 		case "del device router":
 			delRouter()
 			save()
+		case "del device switch":
+			delSwitch()
+			save()
 		case "del device host":
 			delHost()
 			save()
 		default:
-			fmt.Println(" Usage: del device <host|router>")
+			fmt.Println(" Usage: del device <host|switch|router>")
 		}
 	case "link":
 		switch action_selection {
@@ -592,10 +728,10 @@ func actions() {
 			case "router":
 				save()
 			default:
-				fmt.Println(" Usage: control <host|router> <hostname>")
+				fmt.Println(" Usage: control <host|switch|router> <hostname>")
 			}
 		} else {
-			fmt.Println(" Usage: control <host|router> <hostname>")
+			fmt.Println(" Usage: control <host|switch|router> <hostname>")
 		}
 	case "save":
 		save()
@@ -605,11 +741,13 @@ func actions() {
 		switch action_selection {
 		case "show network overview":
 			overview()
+		case "show diagram":
+			drawDiagram(snet.Router.ID)
 		default:
-			if len(action_selection) > 5{
-				show(action_selection[5:])
+			if len(action_selection) > 12{
+				show(action_selection[12:])
 			} else {
-				fmt.Println(" Usage: show network overview\n\tshow <hostname>")
+				fmt.Println(" Usage: show network overview\n\tshow device <hostname>\n\tshow diagram")
 			}
 		}
 	case "filedump":
