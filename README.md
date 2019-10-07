@@ -64,11 +64,14 @@ Router-specific functions
 ### helpers.go
 Helper functions for common operations
 
-### datagrams.go
+### structs.go
 Defines datagram structs and related functions
 
 ### debug.go
 Functions for debugging and testing
+
+### diagram.go
+Functions for drawing ASCII network diagrams
 
 ### run.sh
 Simple run script to run *.go

@@ -161,7 +161,6 @@ func arp_reply(i int, device_type string, frame Frame) {
 
 func dhcp_discover(host Host) {
 	//get info
-	srchost := host.Hostname
 	srcIP := host.IPAddr
 	srcMAC := host.MACAddr
 	srcID := host.ID
@@ -179,7 +178,7 @@ func dhcp_discover(host Host) {
 	offer := <-internal[srcID]
 	if(offer.Data.Data.Data != "") {
 		if offer.Data.Data.Data == "DHCPOFFER NOAVAILABLE" {
-			fmt.Println("[Host %s] Failed to obtain IP address: No free addresses available", srchost)
+			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
 		} else {
 			word := strings.Fields(offer.Data.Data.Data)
 			if(len(word) > 0){

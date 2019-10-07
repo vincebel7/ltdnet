@@ -33,6 +33,7 @@ type Router struct {
 	Gateway		string `json:"gway"`
 	DHCPPool	int `json:"dpol"` //maximum, not just available
 	Downports	int `json:"dpts"`
+	Ports		[]string `json:"prtt"`
 	MACTable	map[string]string `json:"mact"`
 	DHCPIndex	[]string `json:"dhci"`
 	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
@@ -45,7 +46,7 @@ type Switch struct {
 	Hostname	string `json:"hnme"`
 	MgmtIP		string `json:"mgip"`
 	MACTable	map[string]string `json:"mact"`
-	Ports		[]map[int]string `json:"prts"` // maps port # to ID
+	Ports		[]string `json:"prts"` // maps port # to ID
 }
 
 type Host struct {

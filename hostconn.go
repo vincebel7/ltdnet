@@ -48,7 +48,7 @@ func Conn(device string, id string) {
 			case "ping":
 				if(host.UplinkID == "") {
 					fmt.Println("Device is not connected. Please set an uplink")
-				} else if(host.IPAddr == "0.0.0.0") {
+				} else if((host.IPAddr == "0.0.0.0") || (host.IPAddr == "")) {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
 				}else {
 					if len(action) > 1 {

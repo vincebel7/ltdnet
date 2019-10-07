@@ -17,9 +17,9 @@ import(
 )
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.2")
+	fmt.Println("ltdnet v0.2.3")
 	fmt.Println("by vincebel\n")
-
+	fmt.Println("Please note that switch functionality is limited and in development\n")
 	selection := false
 	fmt.Println("Please create or select a network:")
 	fmt.Println(" 1) Create new network")
@@ -163,30 +163,6 @@ func loadnetwork(netname string) {
 	fmt.Printf("Loaded %s\n", snet.Name)
 }
 
-func NewBobcat(hostname string) Router {
-	b := Router{}
-	b.ID = idgen(8)
-	b.Model = "Bobcat 100"
-	b.MACAddr = macgen()
-	b.Hostname = hostname
-	b.DHCPPool = 253
-	b.Downports = 4
-
-	return b
-}
-
-func NewOsiris(hostname string) Router {
-	o := Router{}
-	o.ID = idgen(8)
-	o.Model = "Osiris 2-I"
-	o.MACAddr = macgen()
-	o.Hostname = hostname
-	o.DHCPPool = 2
-	o.Downports = 2
-
-	return o
-}
-
 func NewSumerian2100(hostname string) Switch {
 	s := Switch{}
 	s.ID = idgen(8)
@@ -204,88 +180,6 @@ func NewProbox(hostname string) Host {
 	p.Hostname = hostname
 
 	return p
-}
-
-func addRouter() {
-	fmt.Println("What model?")
-	fmt.Println("Available: Bobcat, Osiris")
-	fmt.Print("Model: ")
-	scanner.Scan()
-	routerModel := scanner.Text()
-	routerModel = strings.ToUpper(routerModel)
-
-	fmt.Print("Hostname: ")
-	scanner.Scan()
-	routerHostname := scanner.Text()
-
-	// input validation
-
-	if routerHostname == "" {
-		fmt.Println("Hostname cannot be blank. Please try again")
-		return
-	}
-
-	if hostname_exists(routerHostname) {
-		fmt.Println("Hostname already exists. Please try again")
-		return
-	}
-
-	r := Router{}
-
-	if routerModel == "BOBCAT" {
-		r = NewBobcat(routerHostname)
-	} else if routerModel == "OSIRIS" {
-		r = NewOsiris(routerHostname)
-	} else {
-		fmt.Println("Invalid model. Please try again")
-		return
-	}
-
-	if snet.Class == "A" {
-		r.Gateway = "10.0.0.1"
-	} else if snet.Class == "B" {
-		r.Gateway = "172.16.0.1"
-	} else if snet.Class == "C" {
-		r.Gateway = "192.168.0.1"
-	}
-	addrconstruct := ""
-
-	network_portion := strings.TrimSuffix(r.Gateway, "1")
-
-	r.DHCPTable = make(map[string]string)
-
-	for k := 2; k < (r.DHCPPool + 2); k++ {
-		r.DHCPIndex = append(r.DHCPIndex, strconv.Itoa(k))
-	}
-
-	for i := 0; i < len(r.DHCPIndex); i++ {
-		addrconstruct = network_portion + r.DHCPIndex[i]
-		r.DHCPTable[addrconstruct] = ""
-	}
-
-	snet.Router = r
-}
-
-func delRouter() {
-	fmt.Printf("\nAre you sure you want do delete router %s? [Y/n]: ", snet.Router.Hostname)
-	scanner.Scan()
-	confirmation := scanner.Text()
-	confirmation = strings.ToUpper(confirmation)
-	if confirmation == "Y" {
-		r := Router{}
-
-		r.ID = ""
-		r.Model = ""
-		r.MACAddr = ""
-		r.Hostname = ""
-		r.DHCPPool = 0
-		r.Downports = 0
-
-		snet.Router = r
-		fmt.Printf("\nRouter deleted\n")
-	} else {
-		fmt.Printf("\nRouter %s was not deleted.\n", snet.Router.Hostname)
-	}
 }
 
 func addSwitch() {
@@ -364,7 +258,43 @@ func addHost() {
 }
 
 func delHost() {
-	fmt.Println("Not implemented yet, sorry") //TODO
+	fmt.Println("Delete which host? Please specify by hostname")
+	fmt.Print("Hosts:")
+	for i := range snet.Hosts {
+		fmt.Printf(" %s", snet.Hosts[i].Hostname)
+	}
+	fmt.Print("\nHostname: ")
+	scanner.Scan()
+	hostname := scanner.Text()
+	hostname = strings.ToUpper(hostname)
+
+	fmt.Printf("\nAre you sure you want do delete host %s? [Y/n]: ", hostname)
+	scanner.Scan()
+	confirmation := scanner.Text()
+	confirmation = strings.ToUpper(confirmation)
+	if confirmation == "Y" {
+		//search for host
+		for i := range snet.Hosts {
+			if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
+				//unlink
+				for j := range snet.Router.Ports {
+					if snet.Router.Ports[j] == snet.Hosts[i].ID {
+						snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, j)
+
+						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
+						fmt.Printf("\nHost deleted\n")
+						return
+
+					}
+				}
+
+				snet.Hosts = removeHostFromSlice(snet.Hosts, i)
+				fmt.Printf("\nHost deleted\n")
+				return
+			}
+		}
+	}
+	fmt.Printf("\nHost %s was not deleted.\n", hostname)
 }
 
 func linkHost() {
@@ -393,6 +323,23 @@ func linkHost() {
 	uplinkHostname := scanner.Text()
 	uplinkHostname = strings.ToUpper(uplinkHostname)
 
+	//Make sure there's enough ports - if uplink device is a router
+	if(uplinkHostname == strings.ToUpper(snet.Router.Hostname)) {
+		fmt.Println("test?")
+		if((snet.Router.Model == "Bobcat 100") && (len(snet.Router.Ports) >= BOBCAT_PORTS)) {
+				fmt.Printf("No available ports - Bobcat only has %d ports\n", BOBCAT_PORTS)
+				return
+			}
+
+		if((snet.Router.Model == "Osiris 2-I") && (len(snet.Router.Ports) >= OSIRIS_PORTS)) {
+				fmt.Printf("No available ports - Osiris only has %d ports\n", OSIRIS_PORTS)
+				return
+			}
+	}
+
+	//TODO make sure there's enough ports - if uplink device is a switch
+
+
 	//find host with that hostname
 	for i := range snet.Hosts {
 		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
@@ -400,6 +347,8 @@ func linkHost() {
 			//Router
 			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
 				uplinkID = snet.Router.ID
+
+				snet.Router.Ports = append(snet.Router.Ports, snet.Hosts[i].ID)
 			} else {
 				//Search switches
 				for j := range snet.Switches {
@@ -433,6 +382,7 @@ func unlinkHost() {
 		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
 			uplinkID := ""
 			snet.Hosts[i].UplinkID = uplinkID
+			snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
 			return
 		}
 	}
@@ -451,91 +401,6 @@ func controlHost(hostname string) {
 		fmt.Println("Host not found")
 	}
 	return
-}
-
-func drawDiagram(rootID string) { // TODO make recursive
-	// Identify device info about rootID
-	rootHostname := ""
-	rootType := ""
-	//rootIndex := -1
-	if(rootID == snet.Router.ID) {
-		rootHostname = snet.Router.Hostname
-		rootType = "router"
-	}
-
-	if(rootType == "") {
-		for i := range snet.Switches {
-			if(rootID == snet.Switches[i].ID) {
-				rootHostname = snet.Switches[i].Hostname
-				rootType = "switch"
-				//rootIndex = i
-			}
-		}
-	}
-
-	if(rootType == "") {
-		for i := range snet.Hosts {
-			if(rootID == snet.Hosts[i].ID) {
-				rootHostname = snet.Hosts[i].Hostname
-				rootType = "host"
-				//rootIndex = i
-			}
-		}
-	}
-
-	// ROUTER
-	if(rootType == "router"){
-	if(rootHostname != "") {
-		space1 := 13 - len(snet.Router.Hostname)
-		space2 := 14 - len(snet.Router.Gateway)
-		space3 := 16 - len(snet.Router.Model)
-
-		fmt.Println("|------------------------|")
-		fmt.Println("|         Router         |")
-		 fmt.Printf("| Hostname: %s", snet.Router.Hostname)
-		for i := 0; i < space1; i++ { fmt.Printf(" ") }
-		 fmt.Printf("|\n| Gateway: %s", snet.Router.Gateway)
-		for i := 0; i < space2; i++ { fmt.Printf(" ") }
-		 fmt.Printf("|\n| Model: %s", snet.Router.Model)
-		for i := 0; i < space3; i++ { fmt.Printf(" ") }
-		fmt.Println("|\n|------------------------|")
-	}
-	}
-
-	hostCount := len(snet.Hosts)
-	for i := 0; i < hostCount; i++ {
-		h := snet.Hosts[i]
-		if(h.UplinkID == snet.Router.ID) {
-			space1 := 13 - len(h.Hostname)
-			space2 := 14 - len(h.IPAddr)
-			space3 := 16 - len(h.Model)
-
-			fmt.Println("           ||")
-			fmt.Println("           ||      |------------------------|")
-			fmt.Println("           ||      |          Host          |")
-			 fmt.Printf("           ||------| Hostname: %s", h.Hostname)
-			for i := 0; i < space1; i++ { fmt.Printf(" ") }
-			 fmt.Printf("|\n")
-			 fmt.Printf("           ||------| IP Addr: %s", h.IPAddr)
-			for i := 0; i < space2; i++ { fmt.Printf(" ") }
-			 fmt.Printf("|\n")
-
-			if(i == hostCount - 1) {
-			 fmt.Printf("                   | Model: %s", h.Model)
-			} else  {
-			 fmt.Printf("           ||      | Model: %s", h.Model)
-			}
-			for i := 0; i < space3; i++ { fmt.Printf(" ") }
-			 fmt.Printf("|\n")
-			if(i == hostCount - 1) {
-			 fmt.Println("                   |------------------------|")
-			} else {
-			 fmt.Println("           ||      |------------------------|")
-			}
-		}
-	}
-
-	//Unlinked hosts
 }
 
 func overview() {
@@ -589,12 +454,13 @@ func overview() {
 
 func show(hostname string) {
 	device_type := "host"
+	id := -1
 	//TODO search switches
 	if(snet.Router.Hostname == hostname) {
 		device_type = "router"
+		id = 0
 	}
 
-	id := -1
 	for i := range snet.Hosts {
 		if snet.Hosts[i].Hostname == hostname {
 			device_type = "host"

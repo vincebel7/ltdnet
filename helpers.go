@@ -120,3 +120,12 @@ func hostname_exists(hostname string) bool {
 	return false
 }
 
+func removeHostFromSlice(s []Host, i int) []Host {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+func removeStringFromSlice(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
