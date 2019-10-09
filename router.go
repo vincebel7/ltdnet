@@ -22,8 +22,11 @@ func NewBobcat(hostname string) Router {
 	b.MACAddr = macgen()
 	b.Hostname = hostname
 	b.DHCPPool = 253
-	b.Downports = BOBCAT_PORTS
 
+	v := addVirtualSwitch()
+	v.Maxports = BOBCAT_PORTS
+
+	b.VSwitch = v
 	return b
 }
 
@@ -34,9 +37,20 @@ func NewOsiris(hostname string) Router {
 	o.MACAddr = macgen()
 	o.Hostname = hostname
 	o.DHCPPool = 2
-	o.Downports = OSIRIS_PORTS
 
+	v := addVirtualSwitch()
+	v.Maxports = OSIRIS_PORTS
+
+	o.VSwitch = v
 	return o
+}
+
+func addVirtualSwitch() Switch {
+	v := Switch{}
+	v.ID = idgen(8)
+	v.Model = "virtual"
+	v.Hostname = "v" + v.ID
+	return v
 }
 
 func addRouter() {
@@ -87,16 +101,25 @@ func addRouter() {
 
 	r.DHCPTable = make(map[string]string)
 
-	for k := 2; k < (r.DHCPPool + 2); k++ {
+	for k := 2; k < (r.DHCPPool + 1); k++ {
 		r.DHCPIndex = append(r.DHCPIndex, strconv.Itoa(k))
 	}
 
-	for i := 0; i < len(r.DHCPIndex); i++ {
+	for i := 0; i < len(r.DHCPIndex) - 1; i++ {
 		addrconstruct = network_portion + r.DHCPIndex[i]
 		r.DHCPTable[addrconstruct] = ""
 	}
 
 	snet.Router = r
+
+	channels[snet.Router.ID] = make(chan Frame)
+	internal[snet.Router.ID] = make(chan Frame)
+	go routerlisten()
+
+	//virtual switch
+	channels[snet.Router.VSwitch.ID] = make(chan Frame)
+	internal[snet.Router.VSwitch.ID] = make(chan Frame)
+	go vswitchlisten()
 }
 
 func delRouter() {
@@ -112,8 +135,9 @@ func delRouter() {
 		r.MACAddr = ""
 		r.Hostname = ""
 		r.DHCPPool = 0
-		r.Downports = 0
-		r.Ports = nil
+		//r.Downports = 0
+		//r.Ports = nil
+		r.VSwitch = addVirtualSwitch()
 
 		snet.Router = r
 		fmt.Printf("\nRouter deleted\n")
@@ -122,16 +146,37 @@ func delRouter() {
 	}
 }
 
+func next_free_addr() string {
+	//find open address
+	for _, v := range snet.Router.DHCPIndex {
+		if snet.Router.DHCPTable[v] == "" {
+			net_prefix := ""
+			//get network portion
+			if(snet.Class == "A") {
+				net_prefix = "10.0.0."
+			} else if(snet.Class == "B") {
+				net_prefix = "172.16.0."
+			} else if(snet.Class == "C") {
+				net_prefix = "192.168.0."
+			}
+			ipaddr := net_prefix + v
+			return ipaddr
+		}
+	}
+	return ""
+}
 
 func routerforward(frame Frame) {
 	srcIP := frame.Data.SrcIP
 	dstIP := frame.Data.DstIP
-	srcMAC := snet.Router.MACAddr
-	dstMAC := arp_request(snet.Router.ID, "router", dstIP)
-	linkID := snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+	srcMAC := frame.SrcMAC
+	dstMAC := frame.DstMAC
+	linkID := getIDfromMAC(dstMAC)
 
 	s := frame.Data.Data
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
 	channels[linkID]<-f
 }
+
+

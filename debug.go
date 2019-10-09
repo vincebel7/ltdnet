@@ -12,8 +12,6 @@ import(
 	"strconv"
 )
 
-var debugging = 1
-
 /* DEBUG LEVELS
 0 - No debugging
 1 - Errors
@@ -24,24 +22,29 @@ var debugging = 1
 
 func setDebug(val string) {
 	intval, _ := strconv.Atoi(val)
-	debugging = intval
-	fmt.Printf("Debug level set to %d\n", debugging)
+	snet.DebugLevel = intval
+	fmt.Printf("Debug level set to %d\n", snet.DebugLevel)
 }
 
 func getDebug() int {
-	return debugging
+	return snet.DebugLevel
 }
 
 func debug(level int, generatingFunc string, generatingID string, message string) {
-	if(debugging >= level) {
-		deviceType := getDeviceType(generatingID)
+	if(snet.DebugLevel >= level) {
 		hostname := ""
-		if(deviceType == "host"){
-			hostname = snet.Hosts[getHostIndexFromID(generatingID)].Hostname
+		if(generatingID == "Listener") {
+			hostname = "Listener"
 		} else {
-			hostname = snet.Router.Hostname
+			deviceType := getDeviceType(generatingID)
+			if(deviceType == "host"){
+				hostname = snet.Hosts[getHostIndexFromID(generatingID)].Hostname
+			} else if(deviceType == "router") {
+				hostname = snet.Router.Hostname
+			} else {
+				hostname = generatingID
+			}
 		}
-
 		fmt.Printf("\n[%s] %s\n", hostname, message)
 	}
 }

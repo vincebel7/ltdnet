@@ -36,7 +36,7 @@ func macgen() string {
 
 func getDeviceType(id string) string {
 	if(snet.Router.ID == id) { return "router" }
-
+	if(snet.Router.VSwitch.ID == id) { return "vswitch" }
 	return "host"
 }
 
@@ -74,27 +74,6 @@ func getIDfromMAC(mac string) string {
 	return ""
 }
 
-func next_free_addr() string {
-	//find open address
-	//fmt.Println(snet.Router.DHCPTable)
-	for _, v := range snet.Router.DHCPIndex {
-		if snet.Router.DHCPTable[v] == "" {
-			net_prefix := ""
-			//get network portion
-			if(snet.Class == "A") {
-				net_prefix = "10.0.0."
-			} else if(snet.Class == "B") {
-				net_prefix = "172.16.0."
-			} else if(snet.Class == "C") {
-				net_prefix = "192.168.0."
-			}
-			ipaddr := net_prefix + v
-			return ipaddr
-		}
-	}
-	return ""
-}
-
 func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask string) {
 	for h := range snet.Hosts {
 		if snet.Hosts[h].ID == id {
@@ -109,6 +88,10 @@ func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask 
 
 func hostname_exists(hostname string) bool {
 	if snet.Router.Hostname == hostname {
+		return true
+	}
+
+	if snet.Router.VSwitch.Hostname == hostname {
 		return true
 	}
 

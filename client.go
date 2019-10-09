@@ -17,7 +17,7 @@ import(
 )
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.3")
+	fmt.Println("ltdnet v0.2.4")
 	fmt.Println("by vincebel\n")
 	fmt.Println("Please note that switch functionality is limited and in development\n")
 	selection := false
@@ -74,6 +74,7 @@ func newnetwork() {
 		Name: netname,
 		Author: user_name,
 		Class: network_class,
+		DebugLevel: 1,
 	}
 
 	// Print to demonstrate
@@ -167,7 +168,6 @@ func NewSumerian2100(hostname string) Switch {
 	s := Switch{}
 	s.ID = idgen(8)
 	s.Model = "Sumerian 2100"
-	s.MACAddr = macgen()
 	s.Hostname = hostname
 	return s
 }
@@ -277,9 +277,9 @@ func delHost() {
 		for i := range snet.Hosts {
 			if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 				//unlink
-				for j := range snet.Router.Ports {
-					if snet.Router.Ports[j] == snet.Hosts[i].ID {
-						snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, j)
+				for j := range snet.Router.VSwitch.Ports {
+					if snet.Router.VSwitch.Ports[j] == snet.Hosts[i].ID {
+						snet.Router.VSwitch.Ports = removeStringFromSlice(snet.Router.VSwitch.Ports, j)
 
 						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
 						fmt.Printf("\nHost deleted\n")
@@ -325,16 +325,10 @@ func linkHost() {
 
 	//Make sure there's enough ports - if uplink device is a router
 	if(uplinkHostname == strings.ToUpper(snet.Router.Hostname)) {
-		fmt.Println("test?")
-		if((snet.Router.Model == "Bobcat 100") && (len(snet.Router.Ports) >= BOBCAT_PORTS)) {
-				fmt.Printf("No available ports - Bobcat only has %d ports\n", BOBCAT_PORTS)
-				return
-			}
-
-		if((snet.Router.Model == "Osiris 2-I") && (len(snet.Router.Ports) >= OSIRIS_PORTS)) {
-				fmt.Printf("No available ports - Osiris only has %d ports\n", OSIRIS_PORTS)
-				return
-			}
+		if(len(snet.Router.VSwitch.Ports) >= snet.Router.VSwitch.Maxports) {
+			fmt.Printf("No available ports - %s only has %d ports\n", snet.Router.Model, snet.Router.VSwitch.Maxports)
+			return
+		}
 	}
 
 	//TODO make sure there's enough ports - if uplink device is a switch
@@ -346,9 +340,9 @@ func linkHost() {
 			uplinkID := ""
 			//Router
 			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
-				uplinkID = snet.Router.ID
+				uplinkID = snet.Router.VSwitch.ID
 
-				snet.Router.Ports = append(snet.Router.Ports, snet.Hosts[i].ID)
+				snet.Router.VSwitch.Ports = append(snet.Router.VSwitch.Ports, snet.Hosts[i].ID)
 			} else {
 				//Search switches
 				for j := range snet.Switches {
@@ -382,7 +376,7 @@ func unlinkHost() {
 		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
 			uplinkID := ""
 			snet.Hosts[i].UplinkID = uplinkID
-			snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
+			//snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
 			return
 		}
 	}
@@ -418,7 +412,6 @@ func overview() {
 		fmt.Printf("\nSwitch %v\n", snet.Switches[i].Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Switches[i].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[i].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Switches[i].MACAddr)
 		fmt.Printf("\tMgmt IP:\t%s\n", snet.Switches[i].MgmtIP)
 		switchCount = i + 1
 	}
@@ -436,8 +429,8 @@ func overview() {
 		uplinkHostname := ""
 		for dev := range snet.Hosts {
 			//Router
-			if(snet.Hosts[i].UplinkID == snet.Router.ID) {
-				uplinkHostname = snet.Router.Hostname
+			if(snet.Hosts[i].UplinkID == snet.Router.VSwitch.ID) {
+				uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
 			}
 			//TODO: Switches
 			//Hosts (pointless since host cant be uplink, just here to show how to do switches)
@@ -489,7 +482,7 @@ func show(hostname string) {
 		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].DefaultGateway)
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[id].SubnetMask)
 		uplinkHostname := ""
-		if(snet.Hosts[id].UplinkID == snet.Router.ID) {
+		if(snet.Hosts[id].UplinkID == snet.Router.VSwitch.ID) {
 			uplinkHostname = snet.Router.Hostname
 		}
 		for i := range snet.Switches {
@@ -503,7 +496,6 @@ func show(hostname string) {
 		fmt.Printf("\nSwitch %s\n", snet.Switches[id].Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Switches[id].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[id].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Switches[id].MACAddr)
 		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Switches[id].MgmtIP)
 	} else if device_type == "router" {
 		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
@@ -513,7 +505,7 @@ func show(hostname string) {
 		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
 		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
 		fmt.Printf("\tDHCP index:\t%d addresses\n", len(snet.Router.DHCPIndex))
-		fmt.Printf("\tUser ports:\t%d ports\n\n", snet.Router.Downports)
+		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
 	}
 }
 
@@ -617,10 +609,11 @@ func actions() {
 			}
 		}
 	case "filedump":
-		fmt.Println(snet)
+		fmt.Println(snet, "")
 	case "debug":
 		if actionword2 != "" {
 			setDebug(actionword2)
+			save()
 		} else {
 			fmt.Printf("Current debug level: %d\n", getDebug())
 			fmt.Println("\nAll levels:\n",
@@ -642,7 +635,7 @@ func actions() {
 		"control <args>\t\tLogs in as device\n",
 		"save\t\t\tManually saves network changes\n",
 		"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
-		"debug <0-4>\t\tSets debug level. Defaults to 1 each runtime\n",
+		"debug <0-4>\t\tSets debug level. Default is 1\n",
 		"filedump\t\tOutputs JSON file of loaded network file (developer use)\n",
 		"exit\t\t\tExits the program\n",
 		)

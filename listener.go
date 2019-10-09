@@ -25,13 +25,19 @@ func Listener() {
 		channels[snet.Router.ID] = make(chan Frame)
 		internal[snet.Router.ID] = make(chan Frame)
 		go routerlisten()
+
+		//virtual switch
+		channels[snet.Router.VSwitch.ID] = make(chan Frame)
+		internal[snet.Router.VSwitch.ID] = make(chan Frame)
+		go vswitchlisten()
 	}
+
 }
 
 func broadcastlisten() { //Listens for broadcast frames on FF.. and broadcasts
 	for true {
 		frame := <-channels["FFFFFFFF"]
-		//fmt.Println("[Listener] Detected broadcast")
+		debug(4, "broadcastlisten", "Listener", "detected broadcast")
 		go routeractionhandler(frame)
 
 		for i := range snet.Hosts {
@@ -60,7 +66,7 @@ func hostlisten(index int) {
 }
 
 func hostactionhandler(frame Frame, index int) {
-	//debug(3, "hostactionhandler", snet.Hosts[index].ID, "My packet")
+	debug(4, "hostactionhandler", snet.Hosts[index].ID, "My packet")
 	data := frame.Data.Data.Data
 	if data == "ping!" {
 		srcid := snet.Hosts[index].ID
@@ -102,6 +108,21 @@ func hostactionhandler(frame Frame, index int) {
 	}
 }
 
+func vswitchlisten() {
+	for true {
+		frame := <-channels[snet.Router.VSwitch.ID]
+		go vswitchactionhandler(frame)
+	}
+}
+
+func vswitchactionhandler(frame Frame) {
+	if(frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
+		channels["FFFFFFFF"]<-frame
+	} else {
+		routerforward(frame)
+	}
+}
+
 func routerlisten() {
 	for true {
 		frame := <-channels[snet.Router.ID]
@@ -111,15 +132,13 @@ func routerlisten() {
 
 func routeractionhandler(frame Frame) {
 	if((frame.Data.DstIP == snet.Router.Gateway) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF")) {
-		//fmt.Println("\n[Debug] [Router] My packet") // debug
+		debug(4, "routeractionhandler", snet.Router.ID, "My packet")
 		data := frame.Data.Data.Data
 		srcid := snet.Router.ID
 		dstIP := frame.Data.SrcIP
-		//fmt.Printf("\n[Debug] [Router] Data: %s DstIP: %s", data, frame.Data.DstIP)
 		if data == "ping!" {
 			pong(srcid, dstIP, frame)
 		}
-
 		if data == "pong!" {
 			internal[snet.Router.ID]<-frame
 		}
@@ -154,7 +173,7 @@ func routeractionhandler(frame Frame) {
 		}
 
 	} else {
-		debug(3, "routeractionhandler", snet.Router.ID, "Not my packet, will forward")
-		routerforward(frame)
+		debug(1, "routeractionhandler", snet.Router.ID, "Error: Still expecting router to forward? (not vswitch)")
+		//routerforward(frame)
 	}
 }

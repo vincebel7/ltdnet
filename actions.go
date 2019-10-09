@@ -15,20 +15,22 @@ import(
 )
 
 func ping(srcid string, dstIP string, secs int) {
+	debug(4, "ping", srcid, "About to ping")
+
 	linkID := ""
 	srcIP := ""
 	srcMAC := ""
 	dstMAC := ""
 	srchost := ""
 
-	if snet.Router.ID == srcid {
+	if snet.Router.ID == srcid { //leave this in here until i implement controlling router and can ping from rtr
 		srchost = snet.Router.Hostname
 		srcIP = snet.Router.Gateway
 		srcMAC = snet.Router.MACAddr
 
 		//TODO: Implement MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcid, "router", dstIP)
-		fmt.Println("Got dstmac", dstMAC) //leave this in here until i implement controlling router and can ping from rtr
+		fmt.Println("Got dstmac", dstMAC) //leave this in here until implemented
 
 		//get link to send ping to
 		linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
@@ -43,25 +45,58 @@ func ping(srcid string, dstIP string, secs int) {
 				srcMAC = snet.Hosts[h].MACAddr
 
 				//TODO: Implement MAC learning to avoid ARPing every time
-				dstMAC = getMACfromID(snet.Hosts[h].UplinkID) //This assumes it knows its uplink's MAC address. TODO fix this
+				dstMAC = arp_request(srcid, "host", dstIP)
 			}
 		}
 	}
 	fmt.Printf("\nPinging %s from %s\n", dstIP, srchost)
+	timeoutCounter := 0
+	sendCount := 0
+	recvCount := 0
+	lossCount := 0
 	for i := 0; i < secs; i++ {
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
 
 		channels[linkID]<-f
-		pong := <-internal[srcid]
-
-		if(pong.Data.Data.Data == "pong!") {
-			fmt.Printf("Reply from %s\n", dstIP)
+		sendCount++
+		pong := make(chan bool, 1)
+		select {
+			case pongdata := <-internal[srcid]:
+				if(pongdata.Data.Data.Data == "pong!") {
+					recvCount++
+					pong<-true
+				}
+			case <-time.After(time.Second * 4):
+				lossCount++
+				pong<-false
 		}
-		time.Sleep(time.Second)
+
+		if(<-pong) {
+			fmt.Printf("Reply from %s\n", dstIP)
+			timeoutCounter = 0
+		} else {
+			fmt.Printf("Request timed out.\n")
+			timeoutCounter++
+			i--
+		}
+
+		if(timeoutCounter == 4) { //Skip rest of pings if timeout
+			i = secs
+		}
+		
+		if(i < secs - 1) { //Only wait a second if 
+			time.Sleep(time.Second)
+		}
 	}
 	actionsync[srcid]<-1
+
+	// Ping stats
+	fmt.Printf("\nPing statistics for %s:\n", dstIP)
+	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
+
+
 	return
 }
 
@@ -95,6 +130,7 @@ func pong(srcid string, dstIP string, frame Frame) {
 }
 
 func arp_request(srcid string, device_type string, dstIP string) string {
+	debug(4, "arp_request", srcid, "About to ARP request")
 	//Construct frame
 	linkID := ""
 	srcIP := ""
@@ -109,7 +145,7 @@ func arp_request(srcid string, device_type string, dstIP string) string {
 		index := getHostIndexFromID(srcid)
 		srcIP = snet.Hosts[index].IPAddr
 		srcMAC = snet.Hosts[index].MACAddr
-		linkID = snet.Hosts[index].UplinkID
+		linkID = "FFFFFFFF"
 	}
 
 	s := constructSegment("ARPREQUEST")
@@ -117,6 +153,7 @@ func arp_request(srcid string, device_type string, dstIP string) string {
 	f := constructFrame(p, srcMAC, dstMAC)
 
 	channels[linkID]<-f
+	debug(4, "arp_request", srcid, "Sent ARP request")
 	//computer with address will respond with its MAC
 	replyframe := <-internal[srcid]
 	return replyframe.Data.Data.Data[9:]
@@ -174,7 +211,7 @@ func dhcp_discover(host Host) {
 
 	//need to give it to uplink
 	channels[linkID]<-f
-	//fmt.Printf("[Host %s] DHCPDISCOVER sent up %s\n", srchost, linkID)
+	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 	offer := <-internal[srcID]
 	if(offer.Data.Data.Data != "") {
 		if offer.Data.Data.Data == "DHCPOFFER NOAVAILABLE" {
@@ -185,7 +222,6 @@ func dhcp_discover(host Host) {
 				word2 := word[1]
 				gateway := word[2]
 				snetmask := word[3]
-				debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - " + word2)
 
 				message := "DHCPREQUEST " + word2
 				dstIP = offer.Data.SrcIP
@@ -193,7 +229,7 @@ func dhcp_discover(host Host) {
 				p = constructPacket(srcIP, dstIP, s)
 				f = constructFrame(p, srcMAC, dstMAC)
 				channels[linkID]<-f
-
+				debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - " + word2)
 				//wait for acknowledgement
 
 				ack := <-internal[srcID]

@@ -56,7 +56,7 @@ func Conn(device string, id string) {
 							seconds, _ := strconv.Atoi(action[2])
 							go ping(host.ID, action[1], seconds)
 						} else {
-							go ping(host.ID, action[1], 1)
+							go ping(host.ID, action[1], 4)
 						}
 						<-actionsync[id]
 					}

@@ -19,6 +19,7 @@ type Network struct {
 	Router		Router `json:"rtr"`
 	Switches	[]Switch `json:"swts"`
 	Hosts		[]Host `json:"hsts"`
+	DebugLevel	int	`json:"dbug"`
 }
 
 var snet Network //selected network, essentially the loaded save file
@@ -28,12 +29,13 @@ var scanner = bufio.NewScanner(os.Stdin)
 type Router struct {
 	ID		string `json:"id"`
 	Model		string `json:"modl"`
-	MACAddr		string `json:"maca"`
+	MACAddr		string `json:"maca"` // LAN-facing interface
 	Hostname	string `json:"hnme"`
 	Gateway		string `json:"gway"`
 	DHCPPool	int `json:"dpol"` //maximum, not just available
-	Downports	int `json:"dpts"`
-	Ports		[]string `json:"prtt"`
+	//Downports	int `json:"dpts"`
+	//Ports		[]string `json:"prtt"`
+	VSwitch		Switch	`json:"vsid"` // Virtual built-in switch to router
 	MACTable	map[string]string `json:"mact"`
 	DHCPIndex	[]string `json:"dhci"`
 	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
@@ -42,11 +44,12 @@ type Router struct {
 type Switch struct {
 	ID		string `json:"id"`
 	Model		string `json:"modl"`
-	MACAddr		string `json:"maca"`
 	Hostname	string `json:"hnme"`
 	MgmtIP		string `json:"mgip"`
 	MACTable	map[string]string `json:"mact"`
+	Maxports	int `json:"mxpt"`
 	Ports		[]string `json:"prts"` // maps port # to ID
+	PortMACs	[]string `json:"pmcs"` // maps port # to interface MAC address
 }
 
 type Host struct {
