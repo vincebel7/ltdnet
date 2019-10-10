@@ -10,8 +10,6 @@ import(
 	"fmt"
 	"math/rand"
 	"time"
-	//"strings"
-	//"strconv"
 )
 
 func idgen(n int) string {
@@ -31,29 +29,40 @@ func macgen() string {
 	for n := 0; n < 5; n++ {
 		mac = mac + ":" + idgen(2)
 	}
+
 	return mac
 }
 
 func getDeviceType(id string) string {
 	if(snet.Router.ID == id) { return "router" }
 	if(snet.Router.VSwitch.ID == id) { return "vswitch" }
+
+	for s := range snet.Switches {
+		if(snet.Switches[s].ID == id) { return "switch" }
+	}
+
 	return "host"
 }
 
 func getHostIndexFromID(id string) int {
 	for h := range snet.Hosts {
-		if snet.Hosts[h].ID == id {
-			return h
-		}
+		if snet.Hosts[h].ID == id { return h }
 	}
+
+	return -1
+}
+
+func getSwitchIndexFromID(id string) int {
+	for s := range snet.Switches {
+		if snet.Switches[s].ID == id { return s }
+	}
+
 	return -1
 }
 
 func getMACfromID(id string) string {
 	//Router
-	if id == snet.Router.ID {
-		return snet.Router.MACAddr
-	}
+	if id == snet.Router.ID { return snet.Router.MACAddr }
 
 	//Hosts
 	return snet.Hosts[getHostIndexFromID(id)].MACAddr
@@ -61,16 +70,13 @@ func getMACfromID(id string) string {
 
 func getIDfromMAC(mac string) string {
 	//Router
-	if mac == snet.Router.MACAddr {
-		return snet.Router.ID
-	}
+	if mac == snet.Router.MACAddr { return snet.Router.ID }
 
 	//Hosts
 	for h := range snet.Hosts {
-		if snet.Hosts[h].MACAddr == mac {
-			return snet.Hosts[h].ID
-		}
+		if snet.Hosts[h].MACAddr == mac { return snet.Hosts[h].ID }
 	}
+
 	return ""
 }
 
@@ -87,19 +93,17 @@ func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask 
 }
 
 func hostname_exists(hostname string) bool {
-	if snet.Router.Hostname == hostname {
-		return true
-	}
+	if snet.Router.Hostname == hostname { return true }
+	if snet.Router.VSwitch.Hostname == hostname { return true }
 
-	if snet.Router.VSwitch.Hostname == hostname {
-		return true
+	for s := range snet.Switches {
+		if snet.Switches[s].Hostname == hostname { return true }
 	}
 
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == hostname {
-			return true
-		}
+		if snet.Hosts[h].Hostname == hostname { return true }
 	}
+
 	return false
 }
 

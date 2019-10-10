@@ -1,18 +1,22 @@
 # Known issues and bugs
--Concurrent read/write error upon loading file (Last confirmed 10/7/19)
 
--DHCP table/DHCP index a bit redundant/wasteful. Restructure?
+- DHCP table/DHCP index a bit redundant/wasteful. Restructure?
 
--With MAC address rework, unreachable pings hang on failed ARP requests
+- Broadcasts aren't handled correctly. Should traverse network instead of a global push to all devices
+
+- With MAC address rework, unreachable pings hang on failed ARP requests
+
+- Concurrent read/write error upon loading file (Last confirmed 10/10/19)
+
 
 # Feature ideas
 
--Switch network functionality
+- Switch network functionality
 
--MAC address learning
+- MAC address learning
 
--HTTP over UDP
+- HTTP over UDP
 
--Communicate with running machine somehow (WAN)
+- Communicate with running machine somehow (WAN)
 
--Traceroute
+- Traceroute

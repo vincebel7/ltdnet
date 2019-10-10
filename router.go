@@ -49,7 +49,9 @@ func addVirtualSwitch() Switch {
 	v := Switch{}
 	v.ID = idgen(8)
 	v.Model = "virtual"
-	v.Hostname = "v" + v.ID
+	v.Hostname = "V-" + v.ID
+
+	v.MACTable = make(map[string]int)
 	return v
 }
 
@@ -112,14 +114,7 @@ func addRouter() {
 
 	snet.Router = r
 
-	channels[snet.Router.ID] = make(chan Frame)
-	internal[snet.Router.ID] = make(chan Frame)
-	go routerlisten()
-
-	//virtual switch
-	channels[snet.Router.VSwitch.ID] = make(chan Frame)
-	internal[snet.Router.VSwitch.ID] = make(chan Frame)
-	go vswitchlisten()
+	generateRouterChannels()
 }
 
 func delRouter() {
@@ -165,18 +160,3 @@ func next_free_addr() string {
 	}
 	return ""
 }
-
-func routerforward(frame Frame) {
-	srcIP := frame.Data.SrcIP
-	dstIP := frame.Data.DstIP
-	srcMAC := frame.SrcMAC
-	dstMAC := frame.DstMAC
-	linkID := getIDfromMAC(dstMAC)
-
-	s := frame.Data.Data
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
-	channels[linkID]<-f
-}
-
-

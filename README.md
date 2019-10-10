@@ -49,7 +49,7 @@ For any further questions, please email vince@vincebel.tech
 ### client.go
 Basic menu operations, data structures
 
-### hostconn.go
+### conn.go
 Handles device interfaces
 
 ### listener.go
@@ -61,6 +61,12 @@ All "program" functions run on devices such as ping, DHCP, etc.
 ### router.go
 Router-specific functions
 
+### switch.go
+Switch-specific functions
+
+### host.go
+Host-specific functions
+
 ### helpers.go
 Helper functions for common operations
 
@@ -70,8 +76,8 @@ Defines datagram structs and related functions
 ### debug.go
 Functions for debugging and testing
 
-### diagram.go
-Functions for drawing ASCII network diagrams
+### display.go
+Functions for drawing ASCII network diagrams and displaying network info
 
 ### run.sh
 Simple run script to run *.go

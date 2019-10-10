@@ -9,29 +9,50 @@ package main
 import(
 )
 
-var channels = map[string]chan Frame{}
-var internal = map[string]chan Frame{} //for internal device communication
+var channels = map[string]chan Frame{} // the physical link
+var internal = map[string]chan Frame{} // for internal device communication
 var actionsync = map[string]chan int{}
 
 func Listener() {
 	channels["FFFFFFFF"] = make(chan Frame)
 	go broadcastlisten()
 
+	generateRouterChannels()
+
+	for i := range snet.Switches {
+		generateSwitchChannels(i)
+	}
+
 	for i := range snet.Hosts {
 		generateHostChannels(i)
 	}
+}
 
+func generateRouterChannels() {
 	if snet.Router.Hostname != "" {
 		channels[snet.Router.ID] = make(chan Frame)
 		internal[snet.Router.ID] = make(chan Frame)
 		go routerlisten()
 
-		//virtual switch
+		//vswitch
 		channels[snet.Router.VSwitch.ID] = make(chan Frame)
 		internal[snet.Router.VSwitch.ID] = make(chan Frame)
-		go vswitchlisten()
+		go switchlisten(snet.Router.VSwitch.ID)
 	}
+}
 
+func generateSwitchChannels(i int) {
+	channels[snet.Switches[i].ID] = make(chan Frame)
+	internal[snet.Switches[i].ID] = make(chan Frame)
+	actionsync[snet.Switches[i].ID] = make(chan int)
+	go switchlisten(snet.Switches[i].ID)
+}
+
+func generateHostChannels(i int) {
+	channels[snet.Hosts[i].ID] = make(chan Frame)
+	internal[snet.Hosts[i].ID] = make(chan Frame)
+	actionsync[snet.Hosts[i].ID] = make(chan int)
+	go hostlisten(snet.Hosts[i].ID)
 }
 
 func broadcastlisten() { //Listens for broadcast frames on FF.. and broadcasts
@@ -41,77 +62,87 @@ func broadcastlisten() { //Listens for broadcast frames on FF.. and broadcasts
 		go routeractionhandler(frame)
 
 		for i := range snet.Hosts {
-			go hostactionhandler(frame, i)
+			go hostactionhandler(frame, snet.Hosts[i].ID)
 		}
 	}
 }
 
-func generateHostChannels(i int) {
-	channels[snet.Hosts[i].ID] = make(chan Frame)
-	internal[snet.Hosts[i].ID] = make(chan Frame)
-	actionsync[snet.Hosts[i].ID] = make(chan int)
-	go hostlisten(i)
-}
-
-func hostlisten(index int) {
-	id := snet.Hosts[index].ID
-
-	listenSync<-index //synchronizing with client.go
+func hostlisten(id string) {
+	listenSync<-id //synchronizing with client.go
 
 	for true {
 		frame := <-channels[id]
-		//fmt.Println("[Debug] Received frame - Host ", snet.Hosts[index].Hostname)
-		go hostactionhandler(frame, index)
+		debug(4, "hostlisten", id, "Received frame")
+		go hostactionhandler(frame, id)
 	}
 }
 
-func hostactionhandler(frame Frame, index int) {
-	debug(4, "hostactionhandler", snet.Hosts[index].ID, "My packet")
+func hostactionhandler(frame Frame, id string) {
+	debug(4, "hostactionhandler", id, "My packet")
 	data := frame.Data.Data.Data
 	if data == "ping!" {
-		srcid := snet.Hosts[index].ID
+		srcid := id
 		dstIP := frame.Data.SrcIP
 		pong(srcid, dstIP, frame)
 	}
 
 	if data == "pong!" {
-		internal[snet.Hosts[index].ID]<-frame
+		internal[id]<-frame
 	}
 
 	if(len(data) > 7){
 		if data[0:8] == "ARPREPLY" {
-			debug(3, "hostactionhandler", snet.Hosts[index].ID, "ARPREPLY received")
-			internal[snet.Hosts[index].ID]<-frame
+			debug(3, "hostactionhandler", id, "ARPREPLY received")
+			internal[id]<-frame
 		}
 
 	}
 
 	if(len(data) > 8){
 		if data[0:9] == "DHCPOFFER" {
-			debug(2, "hostactionhandler", snet.Hosts[index].ID, "DHCPOFFER received")
-			internal[snet.Hosts[index].ID]<-frame
+			debug(2, "hostactionhandler", id, "DHCPOFFER received")
+			internal[id]<-frame
 		}
 	}
 
 	if(len(data) > 9){
 		if data[0:10] == "ARPREQUEST" {
-			debug(3, "hostactionhandler", snet.Hosts[index].ID, "ARPREQUEST received")
-			arp_reply(index, "host", frame)
+			debug(3, "hostactionhandler", id, "ARPREQUEST received")
+			arp_reply(getHostIndexFromID(id), "host", frame)
 		}
 	}
 
 	if(len(data) > 17){
 		if data[0:19] == "DHCPACKNOWLEDGEMENT" {
-			debug(2, "hostactionhandler", snet.Hosts[index].ID, "DHCPACKNOWLEDGEMENT received")
-			internal[snet.Hosts[index].ID]<-frame
+			debug(2, "hostactionhandler", id, "DHCPACKNOWLEDGEMENT received")
+			internal[id]<-frame
 		}
 	}
 }
 
-func vswitchlisten() {
+func switchlisten(id string) {
 	for true {
-		frame := <-channels[snet.Router.VSwitch.ID]
-		go vswitchactionhandler(frame)
+		frame := <-channels[id]
+		debug(4, "switchlisten", id, "Received frame")
+
+		port := 0 //TODO temporary.
+		//port = number of id. need to add new map 
+		checkMACTable(frame.SrcMAC, id, port)
+
+		if(id == snet.Router.VSwitch.ID) {
+			go vswitchactionhandler(frame)
+		} else {
+			go switchactionhandler(frame, id)
+		}
+	}
+}
+
+func switchactionhandler(frame Frame, id string) {
+	debug(4, "hostactionhandler", id, "My packet")
+	if(1 == 2) { //TODO how to receive mgmt frames
+		//data := frame.Data.Data.Data
+	} else{
+		switchforward(frame, id)
 	}
 }
 
@@ -119,13 +150,14 @@ func vswitchactionhandler(frame Frame) {
 	if(frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
 		channels["FFFFFFFF"]<-frame
 	} else {
-		routerforward(frame)
+		switchforward(frame, snet.Router.VSwitch.ID)
 	}
 }
 
 func routerlisten() {
 	for true {
 		frame := <-channels[snet.Router.ID]
+		debug(4, "routerlisten", snet.Router.ID, "Frame received")
 		go routeractionhandler(frame)
 	}
 }
@@ -174,6 +206,5 @@ func routeractionhandler(frame Frame) {
 
 	} else {
 		debug(1, "routeractionhandler", snet.Router.ID, "Error: Still expecting router to forward? (not vswitch)")
-		//routerforward(frame)
 	}
 }

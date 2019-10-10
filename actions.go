@@ -11,7 +11,6 @@ import(
 	"time"
 	"strings"
 	"net"
-	//"strconv"
 )
 
 func ping(srcid string, dstIP string, secs int) {

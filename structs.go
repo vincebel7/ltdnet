@@ -23,7 +23,7 @@ type Network struct {
 }
 
 var snet Network //selected network, essentially the loaded save file
-var listenSync = make(chan int)
+var listenSync = make(chan string)
 var scanner = bufio.NewScanner(os.Stdin)
 
 type Router struct {
@@ -36,7 +36,7 @@ type Router struct {
 	//Downports	int `json:"dpts"`
 	//Ports		[]string `json:"prtt"`
 	VSwitch		Switch	`json:"vsid"` // Virtual built-in switch to router
-	MACTable	map[string]string `json:"mact"`
+	//MACTable	map[string]int `json:"mact"`
 	DHCPIndex	[]string `json:"dhci"`
 	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
 }
@@ -46,9 +46,10 @@ type Switch struct {
 	Model		string `json:"modl"`
 	Hostname	string `json:"hnme"`
 	MgmtIP		string `json:"mgip"`
-	MACTable	map[string]string `json:"mact"`
+	MACTable	map[string]int `json:"mact"`
 	Maxports	int `json:"mxpt"`
-	Ports		[]string `json:"prts"` // maps port # to ID
+	Ports		[]string `json:"prts"` // maps port # to downlink ID
+	PortIDs		[]string `json:"pids"` // maps port # to Port ID
 	PortMACs	[]string `json:"pmcs"` // maps port # to interface MAC address
 }
 

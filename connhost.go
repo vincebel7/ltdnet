@@ -1,5 +1,5 @@
 /*
-File:		hostconn.go
+File:		connhost.go
 Author: 	https://bitbucket.org/vincebel
 Purpose:	Handles connection and interface for hosts
 */

@@ -17,7 +17,7 @@ import(
 )
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.4")
+	fmt.Println("ltdnet v0.2.4b")
 	fmt.Println("by vincebel\n")
 	fmt.Println("Please note that switch functionality is limited and in development\n")
 	selection := false
@@ -44,7 +44,6 @@ func mainmenu() {
 
 func newnetwork() {
 	fmt.Println("Creating a new network")
-
 	fmt.Print("Your new network's name: ")
 	scanner.Scan()
 	netname := scanner.Text()
@@ -77,7 +76,6 @@ func newnetwork() {
 		DebugLevel: 1,
 	}
 
-	// Print to demonstrate
 	marshString, err := json.Marshal(net)
 	if err != nil {
 		log.Println(err)
@@ -164,139 +162,6 @@ func loadnetwork(netname string) {
 	fmt.Printf("Loaded %s\n", snet.Name)
 }
 
-func NewSumerian2100(hostname string) Switch {
-	s := Switch{}
-	s.ID = idgen(8)
-	s.Model = "Sumerian 2100"
-	s.Hostname = hostname
-	return s
-}
-
-func NewProbox(hostname string) Host {
-	p := Host{}
-	p.ID = idgen(8)
-	p.Model = "ProBox 1"
-	p.MACAddr = macgen()
-	p.Hostname = hostname
-
-	return p
-}
-
-func addSwitch() {
-	fmt.Println("What model?")
-	fmt.Println("Available: Sumerian 2100")
-	fmt.Print("Model: ")
-	scanner.Scan()
-	switchModel := scanner.Text()
-	switchModel = strings.ToUpper(switchModel)
-
-	fmt.Print("Hostname: ")
-	scanner.Scan()
-	switchHostname := scanner.Text()
-
-	// input validation
-	if switchHostname == "" {
-		fmt.Println("Hostname cannot be blank. Please try again")
-		return
-	}
-
-	if hostname_exists(switchHostname) { //TODO make hostname_exists check switches
-		fmt.Println("Hostname already exists. Please try again")
-		return
-	}
-
-	s := Switch{}
-	if switchModel == "SUMERIAN 2100" {
-		s = NewSumerian2100(switchHostname)
-	} else {
-		fmt.Println("Invalid model. Please try again")
-		return
-	}
-
-	snet.Switches = append(snet.Switches, s)
-}
-
-func delSwitch() {}
-
-func addHost() {
-	fmt.Println("What model?")
-	fmt.Println("Available: ProBox")
-	fmt.Print("Model: ")
-	scanner.Scan()
-	hostModel := scanner.Text()
-	hostModel = strings.ToUpper(hostModel)
-
-	fmt.Print("Hostname: ")
-	scanner.Scan()
-	hostHostname := scanner.Text()
-
-	// input validation
-	if hostHostname == "" {
-		fmt.Println("Hostname cannot be blank. Please try again")
-		return
-	}
-
-	if hostname_exists(hostHostname) {
-		fmt.Println("Hostname already exists. Please try again")
-		return
-	}
-
-	h := Host{}
-	if hostModel == "PROBOX" {
-		h = NewProbox(hostHostname)
-	} else {
-		fmt.Println("Invalid model. Please try again")
-		return
-	}
-
-	h.IPAddr = "0.0.0.0"
-
-	snet.Hosts = append(snet.Hosts, h)
-
-	generateHostChannels(getHostIndexFromID(h.ID))
-	<-listenSync
-}
-
-func delHost() {
-	fmt.Println("Delete which host? Please specify by hostname")
-	fmt.Print("Hosts:")
-	for i := range snet.Hosts {
-		fmt.Printf(" %s", snet.Hosts[i].Hostname)
-	}
-	fmt.Print("\nHostname: ")
-	scanner.Scan()
-	hostname := scanner.Text()
-	hostname = strings.ToUpper(hostname)
-
-	fmt.Printf("\nAre you sure you want do delete host %s? [Y/n]: ", hostname)
-	scanner.Scan()
-	confirmation := scanner.Text()
-	confirmation = strings.ToUpper(confirmation)
-	if confirmation == "Y" {
-		//search for host
-		for i := range snet.Hosts {
-			if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
-				//unlink
-				for j := range snet.Router.VSwitch.Ports {
-					if snet.Router.VSwitch.Ports[j] == snet.Hosts[i].ID {
-						snet.Router.VSwitch.Ports = removeStringFromSlice(snet.Router.VSwitch.Ports, j)
-
-						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
-						fmt.Printf("\nHost deleted\n")
-						return
-
-					}
-				}
-
-				snet.Hosts = removeHostFromSlice(snet.Hosts, i)
-				fmt.Printf("\nHost deleted\n")
-				return
-			}
-		}
-	}
-	fmt.Printf("\nHost %s was not deleted.\n", hostname)
-}
-
 func linkHost() {
 	fmt.Println("Link which host? Please specify by hostname")
 	fmt.Print("Available hosts:")
@@ -332,7 +197,15 @@ func linkHost() {
 	}
 
 	//TODO make sure there's enough ports - if uplink device is a switch
+	for s := range snet.Switches {
+		if(uplinkHostname == snet.Switches[s].Hostname) {
+			if(len(snet.Switches[s].Ports) >= snet.Switches[s].Maxports) {
+				fmt.Printf("No available ports - %s only has %d ports\n", snet.Switches[s].Model, snet.Switches[s].Maxports)
 
+				return
+			}
+		}
+	}
 
 	//find host with that hostname
 	for i := range snet.Hosts {
@@ -340,15 +213,27 @@ func linkHost() {
 			uplinkID := ""
 			//Router
 			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
-				uplinkID = snet.Router.VSwitch.ID
+				//find next free port
+				for k := range snet.Router.VSwitch.Ports {
+					if snet.Router.VSwitch.Ports[k] == "" {
+						uplinkID = snet.Router.VSwitch.PortIDs[k]
+					}
+				}
+				//uplinkID = snet.Router.VSwitch.ID
 
 				snet.Router.VSwitch.Ports = append(snet.Router.VSwitch.Ports, snet.Hosts[i].ID)
 			} else {
 				//Search switches
 				for j := range snet.Switches {
 					if uplinkHostname == strings.ToUpper(snet.Switches[j].Hostname) {
-						uplinkID = snet.Switches[j].ID
-						fmt.Println("DEBUG TEST")
+
+						//find next free port
+						for k := range snet.Switches[j].Ports {
+							if snet.Switches[j].Ports[k] == "" {
+								uplinkID = snet.Switches[j].PortIDs[k]
+								fmt.Println("DEBUG TEST")
+							}
+						}
 					}
 				}
 			}
@@ -395,118 +280,6 @@ func controlHost(hostname string) {
 		fmt.Println("Host not found")
 	}
 	return
-}
-
-func overview() {
-	fmt.Printf("Network name:\t\t%s\n", snet.Name)
-	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
-	fmt.Printf("Network class:\t\tClass %s\n", snet.Class)
-
-	// router
-	routerCount := 1
-	show(snet.Router.Hostname)
-
-	//switches
-	switchCount := 0
-	for i := 0; i < len(snet.Switches); i++ {
-		fmt.Printf("\nSwitch %v\n", snet.Switches[i].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Switches[i].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[i].Model)
-		fmt.Printf("\tMgmt IP:\t%s\n", snet.Switches[i].MgmtIP)
-		switchCount = i + 1
-	}
-
-	//hosts
-	hostCount := 0
-	for i := 0; i < len(snet.Hosts); i++ {
-		fmt.Printf("\nHost %v\n", snet.Hosts[i].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[i].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[i].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[i].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[i].IPAddr)
-		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].DefaultGateway)
-		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].SubnetMask)
-		uplinkHostname := ""
-		for dev := range snet.Hosts {
-			//Router
-			if(snet.Hosts[i].UplinkID == snet.Router.VSwitch.ID) {
-				uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
-			}
-			//TODO: Switches
-			//Hosts (pointless since host cant be uplink, just here to show how to do switches)
-			if(snet.Hosts[i].UplinkID == snet.Hosts[dev].ID) {
-				uplinkHostname = snet.Hosts[dev].Hostname
-			}
-		}
-		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
-		hostCount = i + 1
-	}
-
-	fmt.Printf("\nTotal devices: %d (%d Router, %d Switches, %d Hosts)\n", (routerCount + switchCount + hostCount), routerCount, switchCount, hostCount)
-}
-
-func show(hostname string) {
-	device_type := "host"
-	id := -1
-	//TODO search switches
-	if(snet.Router.Hostname == hostname) {
-		device_type = "router"
-		id = 0
-	}
-
-	for i := range snet.Hosts {
-		if snet.Hosts[i].Hostname == hostname {
-			device_type = "host"
-			id = i
-		}
-	}
-
-	for i := range snet.Switches {
-		if snet.Switches[i].Hostname == hostname {
-			device_type = "switch"
-			id = i
-		}
-	}
-
-	if id == -1 {
-			fmt.Printf("Hostname not found\n")
-			return
-		}
-
-	if device_type == "host" {
-		fmt.Printf("\nHost %v\n", snet.Hosts[id].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[id].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[id].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[id].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[id].IPAddr)
-		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].DefaultGateway)
-		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[id].SubnetMask)
-		uplinkHostname := ""
-		if(snet.Hosts[id].UplinkID == snet.Router.VSwitch.ID) {
-			uplinkHostname = snet.Router.Hostname
-		}
-		for i := range snet.Switches {
-			if(snet.Hosts[id].UplinkID == snet.Switches[i].ID) {
-				uplinkHostname = snet.Switches[i].Hostname
-			}
-		}
-		//fmt.Printf("\tUplink ID:\t%s\n", snet.Hosts[i].UplinkID)
-		fmt.Printf("\tUplink to:\t%s\n\n", uplinkHostname)
-	} else if device_type == "switch" {
-		fmt.Printf("\nSwitch %s\n", snet.Switches[id].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Switches[id].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[id].Model)
-		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Switches[id].MgmtIP)
-	} else if device_type == "router" {
-		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
-		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
-		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
-		fmt.Printf("\tDHCP index:\t%d addresses\n", len(snet.Router.DHCPIndex))
-		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
-	}
 }
 
 func actions() {

@@ -39,6 +39,10 @@ func debug(level int, generatingFunc string, generatingID string, message string
 			deviceType := getDeviceType(generatingID)
 			if(deviceType == "host"){
 				hostname = snet.Hosts[getHostIndexFromID(generatingID)].Hostname
+			} else if(deviceType == "switch") {
+				hostname = snet.Switches[getSwitchIndexFromID(generatingID)].Hostname
+			} else if(deviceType == "vswitch") {
+				hostname = snet.Router.VSwitch.Hostname
 			} else if(deviceType == "router") {
 				hostname = snet.Router.Hostname
 			} else {
