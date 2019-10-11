@@ -35,17 +35,24 @@ func generateRouterChannels() {
 		go routerlisten()
 
 		//vswitch
-		channels[snet.Router.VSwitch.ID] = make(chan Frame)
-		internal[snet.Router.VSwitch.ID] = make(chan Frame)
-		go switchlisten(snet.Router.VSwitch.ID)
+		//channels[snet.Router.VSwitch.ID] = make(chan Frame)
+		//internal[snet.Router.VSwitch.ID] = make(chan Frame)
+		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
+			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
+			internal[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
+			go switchportlisten(snet.Router.VSwitch.PortIDs[i])
+		}
 	}
 }
 
 func generateSwitchChannels(i int) {
-	channels[snet.Switches[i].ID] = make(chan Frame)
-	internal[snet.Switches[i].ID] = make(chan Frame)
-	actionsync[snet.Switches[i].ID] = make(chan int)
-	go switchlisten(snet.Switches[i].ID)
+	for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
+		channels[snet.Switches[i].PortIDs[j]] = make(chan Frame)
+		internal[snet.Switches[i].PortIDs[j]] = make(chan Frame)
+		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
+
+		go switchportlisten(snet.Switches[i].PortIDs[j])
+	}
 }
 
 func generateHostChannels(i int) {
@@ -81,6 +88,7 @@ func hostactionhandler(frame Frame, id string) {
 	debug(4, "hostactionhandler", id, "My packet")
 	data := frame.Data.Data.Data
 	if data == "ping!" {
+		debug(4, "routeractionhandler", snet.Router.ID, "ping received")
 		srcid := id
 		dstIP := frame.Data.SrcIP
 		pong(srcid, dstIP, frame)
@@ -107,7 +115,7 @@ func hostactionhandler(frame Frame, id string) {
 
 	if(len(data) > 9){
 		if data[0:10] == "ARPREQUEST" {
-			debug(3, "hostactionhandler", id, "ARPREQUEST received")
+			debug(4, "hostactionhandler", id, "ARPREQUEST received")
 			arp_reply(getHostIndexFromID(id), "host", frame)
 		}
 	}
@@ -120,7 +128,7 @@ func hostactionhandler(frame Frame, id string) {
 	}
 }
 
-func switchlisten(id string) {
+func switchportlisten(id string) {
 	for true {
 		frame := <-channels[id]
 		debug(4, "switchlisten", id, "Received frame")
@@ -129,28 +137,18 @@ func switchlisten(id string) {
 		//port = number of id. need to add new map 
 		checkMACTable(frame.SrcMAC, id, port)
 
-		if(id == snet.Router.VSwitch.ID) {
-			go vswitchactionhandler(frame)
-		} else {
-			go switchactionhandler(frame, id)
-		}
+		go switchportactionhandler(frame, id)
 	}
 }
 
-func switchactionhandler(frame Frame, id string) {
-	debug(4, "hostactionhandler", id, "My packet")
-	if(1 == 2) { //TODO how to receive mgmt frames
-		//data := frame.Data.Data.Data
-	} else{
-		switchforward(frame, id)
-	}
-}
-
-func vswitchactionhandler(frame Frame) {
+func switchportactionhandler(frame Frame, id string) {
+	debug(4, "switchportactionhandler", id, "My packet")
 	if(frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
 		channels["FFFFFFFF"]<-frame
+	} else if(1 == 2) { //TODO how to receive mgmt frames
+		//data := frame.Data.Data.Data
 	} else {
-		switchforward(frame, snet.Router.VSwitch.ID)
+		switchforward(frame, id)
 	}
 }
 
@@ -169,6 +167,7 @@ func routeractionhandler(frame Frame) {
 		srcid := snet.Router.ID
 		dstIP := frame.Data.SrcIP
 		if data == "ping!" {
+			debug(3, "routeractionhandler", snet.Router.ID, "ping received")
 			pong(srcid, dstIP, frame)
 		}
 		if data == "pong!" {
@@ -206,5 +205,6 @@ func routeractionhandler(frame Frame) {
 
 	} else {
 		debug(1, "routeractionhandler", snet.Router.ID, "Error: Still expecting router to forward? (not vswitch)")
+		inspectFrame(frame)
 	}
 }

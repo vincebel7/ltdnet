@@ -62,7 +62,7 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 			drawRouter(snet.Router.ID)
 		}
 
-		for i := range snet.Router.VSwitch.Ports {
+		for i := 1; i < getActivePorts(snet.Router.VSwitch); i++ { //1 bc switch
 			drawConnectedHost(snet.Router.VSwitch.Ports[i], i)
 		}
 	}
@@ -115,15 +115,9 @@ func drawHost(id string) {
 func drawConnectedHost(id string, iter int) {
 	h := snet.Hosts[getHostIndexFromID(id)]
 
-	space1 := 0
-	space2 := 0
-	space3 := 0
-
-	if(snet.Hosts[getHostIndexFromID(id)].UplinkID != "") {
-		space1 = 13 - len(h.Hostname)
-		space2 = 14 - len(h.IPAddr)
-		space3 = 16 - len(h.Model)
-	}
+	space1 := 13 - len(h.Hostname)
+	space2 := 14 - len(h.IPAddr)
+	space3 := 16 - len(h.Model)
 
 	fmt.Println("            ||")
 	fmt.Println("            ||      |------------------------|")
@@ -135,14 +129,14 @@ func drawConnectedHost(id string, iter int) {
 	for i := 0; i < space2; i++ { fmt.Printf(" ") }
 	 fmt.Printf("|\n")
 
-	if(iter == len(snet.Router.VSwitch.Ports) - 1) {
+	if(iter == getActivePorts(snet.Router.VSwitch) - 1) {
 	 fmt.Printf("                    | Model: %s", h.Model)
 	} else {
 	 fmt.Printf("            ||      | Model: %s", h.Model)
 	}
 	for i := 0; i < space3; i++ { fmt.Printf(" ") }
 	 fmt.Printf("|\n")
-	if(iter == len(snet.Router.VSwitch.Ports) - 1) {
+	if(iter == getActivePorts(snet.Router.VSwitch) - 1) {
 	 fmt.Println("                    |------------------------|")
 	} else {
 	 fmt.Println("            ||      |------------------------|")

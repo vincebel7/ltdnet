@@ -8,6 +8,7 @@
 
 - Concurrent read/write error upon loading file (Last confirmed 10/10/19)
 
+- Since switch rework, MAC learning is fucky
 
 # Feature ideas
 

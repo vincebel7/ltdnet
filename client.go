@@ -17,7 +17,7 @@ import(
 )
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.4b")
+	fmt.Println("ltdnet v0.2.4c")
 	fmt.Println("by vincebel\n")
 	fmt.Println("Please note that switch functionality is limited and in development\n")
 	selection := false
@@ -190,18 +190,17 @@ func linkHost() {
 
 	//Make sure there's enough ports - if uplink device is a router
 	if(uplinkHostname == strings.ToUpper(snet.Router.Hostname)) {
-		if(len(snet.Router.VSwitch.Ports) >= snet.Router.VSwitch.Maxports) {
+		if(getActivePorts(snet.Router.VSwitch) >= snet.Router.VSwitch.Maxports) {
 			fmt.Printf("No available ports - %s only has %d ports\n", snet.Router.Model, snet.Router.VSwitch.Maxports)
 			return
 		}
 	}
 
-	//TODO make sure there's enough ports - if uplink device is a switch
+	//Make sure there's enough ports - if uplink device is a switch
 	for s := range snet.Switches {
-		if(uplinkHostname == snet.Switches[s].Hostname) {
-			if(len(snet.Switches[s].Ports) >= snet.Switches[s].Maxports) {
+		if(uplinkHostname == strings.ToUpper(snet.Switches[s].Hostname)) {
+			if(getActivePorts(snet.Switches[s]) >= snet.Switches[s].Maxports) {
 				fmt.Printf("No available ports - %s only has %d ports\n", snet.Switches[s].Model, snet.Switches[s].Maxports)
-
 				return
 			}
 		}
@@ -215,13 +214,13 @@ func linkHost() {
 			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
 				for k := range snet.Router.VSwitch.Ports {
-					if snet.Router.VSwitch.Ports[k] == "" {
+					if ((snet.Router.VSwitch.Ports[k] == "") && (uplinkID == ""))  {
 						uplinkID = snet.Router.VSwitch.PortIDs[k]
 					}
 				}
 				//uplinkID = snet.Router.VSwitch.ID
 
-				snet.Router.VSwitch.Ports = append(snet.Router.VSwitch.Ports, snet.Hosts[i].ID)
+				assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
 			} else {
 				//Search switches
 				for j := range snet.Switches {
@@ -229,8 +228,9 @@ func linkHost() {
 
 						//find next free port
 						for k := range snet.Switches[j].Ports {
-							if snet.Switches[j].Ports[k] == "" {
+							if ((snet.Switches[j].Ports[k] == "") && (uplinkID == "")) {
 								uplinkID = snet.Switches[j].PortIDs[k]
+								k = len(snet.Switches[j].Ports)
 								fmt.Println("DEBUG TEST")
 							}
 						}

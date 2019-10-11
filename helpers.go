@@ -48,7 +48,6 @@ func getHostIndexFromID(id string) int {
 	for h := range snet.Hosts {
 		if snet.Hosts[h].ID == id { return h }
 	}
-
 	return -1
 }
 

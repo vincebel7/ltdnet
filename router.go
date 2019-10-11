@@ -23,8 +23,7 @@ func NewBobcat(hostname string) Router {
 	b.Hostname = hostname
 	b.DHCPPool = 253
 
-	v := addVirtualSwitch()
-	v.Maxports = BOBCAT_PORTS
+	v := addVirtualSwitch(BOBCAT_PORTS)
 
 	b.VSwitch = v
 	return b
@@ -38,20 +37,33 @@ func NewOsiris(hostname string) Router {
 	o.Hostname = hostname
 	o.DHCPPool = 2
 
-	v := addVirtualSwitch()
-	v.Maxports = OSIRIS_PORTS
+	v := addVirtualSwitch(OSIRIS_PORTS)
 
 	o.VSwitch = v
 	return o
 }
 
-func addVirtualSwitch() Switch {
+func addVirtualSwitch(maxports int) Switch {
 	v := Switch{}
 	v.ID = idgen(8)
 	v.Model = "virtual"
 	v.Hostname = "V-" + v.ID
+	v.Maxports = maxports
+
+	v.PortIDs = make([]string, v.Maxports)
+	for i := range v.PortIDs {
+		v.PortIDs[i] = idgen(8)
+	}
+
+	v.Ports = make([]string, v.Maxports)
+	for i := range v.Ports {
+		v.Ports[i] = ""
+	}
 
 	v.MACTable = make(map[string]int)
+
+
+
 	return v
 }
 
@@ -115,6 +127,8 @@ func addRouter() {
 	snet.Router = r
 
 	generateRouterChannels()
+
+	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
 }
 
 func delRouter() {
@@ -132,7 +146,7 @@ func delRouter() {
 		r.DHCPPool = 0
 		//r.Downports = 0
 		//r.Ports = nil
-		r.VSwitch = addVirtualSwitch()
+		r.VSwitch = addVirtualSwitch(0)
 
 		snet.Router = r
 		fmt.Printf("\nRouter deleted\n")

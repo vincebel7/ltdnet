@@ -57,7 +57,7 @@ func ping(srcid string, dstIP string, secs int) {
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
-
+		
 		channels[linkID]<-f
 		sendCount++
 		pong := make(chan bool, 1)
@@ -192,10 +192,13 @@ func arp_reply(i int, device_type string, frame Frame) {
 	s := constructSegment(message)
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
+	inspectFrame(f)
+	fmt.Println("SENDING OUT CHANNEL: ", linkID)
 	channels[linkID]<-f
 }
 
 func dhcp_discover(host Host) {
+	debug(4, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
 	//get info
 	srcIP := host.IPAddr
 	srcMAC := host.MACAddr
