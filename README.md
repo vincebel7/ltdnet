@@ -1,5 +1,7 @@
 # ltdnet
 ### by Vince Belanger
+### https://github.com/vincebel7/ltdnet
+
 
 A limited-functionality network simulator that serves as a practical application of goroutines, taking advantage of lightweight multi-threading for network traffic and device-listening.
 Includes fictional LAN appliances as well as simple applications of essential TCP/IP protocols
