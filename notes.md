@@ -8,16 +8,17 @@
 
 - Concurrent read/write error upon loading file (Last confirmed 10/10/19)
 
-- Since switch rework, MAC learning is fucky
-
 # Feature ideas
+- MAC learning for hosts
+
+- Flood frame if not in MAC table of switch
 
 - Switch network functionality
-
-- MAC address learning
 
 - HTTP over UDP
 
 - Communicate with running machine somehow (WAN)
 
-- Traceroute
+- Multiple routers, with static routing
+
+- Traceroute (after routing is added)

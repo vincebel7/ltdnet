@@ -197,7 +197,6 @@ func overview() {
 func show(hostname string) {
 	device_type := "host"
 	id := -1
-	//TODO search switches
 	if(snet.Router.Hostname == hostname) {
 		device_type = "router"
 		id = 0

@@ -133,8 +133,8 @@ func switchportlisten(id string) {
 		frame := <-channels[id]
 		debug(4, "switchlisten", id, "Received frame")
 
-		port := 0 //TODO temporary.
-		//port = number of id. need to add new map 
+		port := getSwitchportIDFromLink(id)
+
 		checkMACTable(frame.SrcMAC, id, port)
 
 		go switchportactionhandler(frame, id)

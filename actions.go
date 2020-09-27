@@ -27,7 +27,7 @@ func ping(srcid string, dstIP string, secs int) {
 		srcIP = snet.Router.Gateway
 		srcMAC = snet.Router.MACAddr
 
-		//TODO: Implement MAC learning to avoid ARPing every time
+		//TODO: Implement hostside MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcid, "router", dstIP)
 		fmt.Println("Got dstmac", dstMAC) //leave this in here until implemented
 
@@ -43,7 +43,7 @@ func ping(srcid string, dstIP string, secs int) {
 				srcIP = snet.Hosts[h].IPAddr
 				srcMAC = snet.Hosts[h].MACAddr
 
-				//TODO: Implement MAC learning to avoid ARPing every time
+				//TODO: Implement hostside MAC learning to avoid ARPing every time
 				dstMAC = arp_request(srcid, "host", dstIP)
 			}
 		}
@@ -192,8 +192,6 @@ func arp_reply(i int, device_type string, frame Frame) {
 	s := constructSegment(message)
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
-	inspectFrame(f)
-	fmt.Println("SENDING OUT CHANNEL: ", linkID)
 	channels[linkID]<-f
 }
 

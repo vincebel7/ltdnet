@@ -120,8 +120,9 @@ func checkMACTable(macaddr string, id string, port int) { // For checking table 
 		}
 	}
 
-	if(result == 0) {
-		debug(3, "learnMACTable", id, "Address not found in MAC table. Adding")
+	if(result == -1) {
+		msg := "Address " + macaddr + " not found in MAC table. Adding"
+		debug(3, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
 	}
 }
@@ -183,13 +184,13 @@ func switchforward(frame Frame, id string) {
 	linkID := ""
 
 	outboundPort := lookupMACTable(dstMAC, id)
+
 	if(outboundPort == -1) {
 		debug(1, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
 		linkID = getIDfromMAC(dstMAC)
 	} else {
 		if(isSwitchportID(snet.Router.VSwitch, id)) {
 			linkID = snet.Router.VSwitch.Ports[outboundPort]
-			fmt.Println("linkID: ", linkID)
 		} else {
 			for i := range snet.Switches {
 				fmt.Println("Should never print this yet")

@@ -59,6 +59,26 @@ func getSwitchIndexFromID(id string) int {
 	return -1
 }
 
+func getSwitchportIDFromLink(link string) int {
+	s := snet.Router.VSwitch
+
+	if(isSwitchportID(snet.Router.VSwitch, link)) {
+		s = snet.Router.VSwitch
+	} else {
+		for i := range snet.Switches {
+			if(isSwitchportID(snet.Switches[i], link)) {
+				s = snet.Switches[i]
+			}
+		}
+	}
+
+	for i := range s.PortIDs {
+		if s.PortIDs[i] == link { return i }
+	}
+
+	return -1
+}
+
 func getMACfromID(id string) string {
 	//Router
 	if id == snet.Router.ID { return snet.Router.MACAddr }
