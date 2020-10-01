@@ -206,3 +206,16 @@ func switchforward(frame Frame, id string) {
 	f := constructFrame(p, srcMAC, dstMAC)
 	channels[linkID]<-f
 }
+
+func freeSwitchport(link string) {
+
+	switchport := getSwitchportIDFromLink(link)
+	switchID := getSwitchIDFromLink(link)
+
+	if(snet.Router.VSwitch.ID == switchID) {
+		snet.Router.VSwitch.PortIDs[switchport] = ""
+	} else {
+		i := getSwitchIndexFromID(switchID)
+		snet.Switches[i].PortIDs[switchport] = ""
+	}
+}

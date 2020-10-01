@@ -1,6 +1,6 @@
 /*
 File:		display.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Functions related to drawing network diagrams and displaying info
 */
 

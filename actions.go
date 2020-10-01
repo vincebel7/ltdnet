@@ -1,6 +1,6 @@
 /*
 File:		actions.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Defines network functions such as ARP, DHCP, etc.
 */
 
@@ -57,7 +57,7 @@ func ping(srcid string, dstIP string, secs int) {
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
-		
+
 		channels[linkID]<-f
 		sendCount++
 		pong := make(chan bool, 1)

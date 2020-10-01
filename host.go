@@ -1,6 +1,6 @@
 /*
 File:		host.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Host-specific functions
 */
 

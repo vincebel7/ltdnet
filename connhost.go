@@ -59,6 +59,8 @@ func Conn(device string, id string) {
 							go ping(host.ID, action[1], 4)
 						}
 						<-actionsync[id]
+					} else {
+						fmt.Println("Usage: ping <dest_ip> [seconds]")
 					}
 				}
 			case "dhcp":
@@ -82,12 +84,13 @@ func Conn(device string, id string) {
 				save()
 			case "exit":
 				return
-			case "help":
+			case "help","?":
 				fmt.Println("",
 				"ping <dest_ip> [seconds]\tPings an IP address\n",
 				"dhcp\t\t\t\tGets IP configuration via DHCP\n",
 				"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
-				"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)",
+				"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)\n",
+				"exit\t\t\t\tReturns to main menu",
 			)
 			default:
 				fmt.Println(" Invalid command. Type 'help' for a list of commands.")

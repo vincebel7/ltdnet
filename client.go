@@ -1,6 +1,6 @@
 /*
 File:		client.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	General network configuration, main menu+general program functions
 */
 
@@ -17,7 +17,7 @@ import(
 )
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.4c")
+	fmt.Println("ltdnet v0.2.5")
 	fmt.Println("by vincebel\n")
 	fmt.Println("Please note that switch functionality is limited and in development\n")
 	selection := false
@@ -259,9 +259,14 @@ func unlinkHost() {
 
 	for i := range snet.Hosts {
 		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
+			//first, unplug from switch
+			freeSwitchport(snet.Hosts[i].UplinkID)
+
+			//next, remove host uplink
 			uplinkID := ""
 			snet.Hosts[i].UplinkID = uplinkID
 			//snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
+
 			return
 		}
 	}
@@ -398,7 +403,7 @@ func actions() {
 		}
 	case "exit":
 		os.Exit(0)
-	case "help":
+	case "help", "?":
 		fmt.Println("",
 		"show <args>\t\tDisplays information\n",
 		"add <args>\t\tAdds device to network\n",

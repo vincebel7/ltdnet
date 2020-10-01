@@ -1,6 +1,6 @@
 /*
 File:		helpers.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Various misc helper functions
 */
 
@@ -60,16 +60,11 @@ func getSwitchIndexFromID(id string) int {
 }
 
 func getSwitchportIDFromLink(link string) int {
-	s := snet.Router.VSwitch
+	switchID := getSwitchIDFromLink(link)
 
-	if(isSwitchportID(snet.Router.VSwitch, link)) {
-		s = snet.Router.VSwitch
-	} else {
-		for i := range snet.Switches {
-			if(isSwitchportID(snet.Switches[i], link)) {
-				s = snet.Switches[i]
-			}
-		}
+	s := snet.Router.VSwitch
+	if(switchID != snet.Router.VSwitch.ID) {
+		s = snet.Switches[getSwitchIndexFromID(switchID)]
 	}
 
 	for i := range s.PortIDs {
@@ -77,6 +72,22 @@ func getSwitchportIDFromLink(link string) int {
 	}
 
 	return -1
+}
+
+func getSwitchIDFromLink(link string) string {
+	s := snet.Router.VSwitch
+
+	if(isSwitchportID(snet.Router.VSwitch, link)) {
+		s = snet.Router.VSwitch
+	} else {
+		for i := range snet.Switches {
+			if(isSwitchportID(snet.Switches[i], link)) {
+				return snet.Switches[i].ID
+			}
+		}
+	}
+
+	return s.ID
 }
 
 func getMACfromID(id string) string {
