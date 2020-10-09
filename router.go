@@ -10,6 +10,7 @@ import(
 	"fmt"
 	"strings"
 	"strconv"
+	"sort"
 )
 
 const BOBCAT_PORTS = 4
@@ -115,12 +116,8 @@ func addRouter() {
 
 	r.DHCPTable = make(map[string]string)
 
-	for k := 2; k < (r.DHCPPool + 1); k++ {
-		r.DHCPIndex = append(r.DHCPIndex, strconv.Itoa(k))
-	}
-
-	for i := 0; i < len(r.DHCPIndex) - 1; i++ {
-		addrconstruct = network_portion + r.DHCPIndex[i]
+	for i := 2; i < (r.DHCPPool - 1); i++ {
+		addrconstruct = network_portion + strconv.Itoa(i)
 		r.DHCPTable[addrconstruct] = ""
 	}
 
@@ -156,20 +153,17 @@ func delRouter() {
 }
 
 func next_free_addr() string {
+	//TODO: Make sorting work correctly, 1-255
+	keys := make([]string, 0, len(snet.Router.DHCPTable))
+	for k := range snet.Router.DHCPTable {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	//find open address
-	for _, v := range snet.Router.DHCPIndex {
-		if snet.Router.DHCPTable[v] == "" {
-			net_prefix := ""
-			//get network portion
-			if(snet.Class == "A") {
-				net_prefix = "10.0.0."
-			} else if(snet.Class == "B") {
-				net_prefix = "172.16.0."
-			} else if(snet.Class == "C") {
-				net_prefix = "192.168.0."
-			}
-			ipaddr := net_prefix + v
-			return ipaddr
+	for _, k := range keys {
+		if snet.Router.DHCPTable[k] == "" {
+			return k
 		}
 	}
 	return ""

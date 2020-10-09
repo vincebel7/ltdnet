@@ -22,6 +22,15 @@ func ping(srcID string, dstIP string, secs int) {
 	dstMAC := ""
 	srchost := ""
 
+	// Get srchost
+	if snet.Router.ID == srcID {
+		srchost = snet.Router.Hostname
+	} else {
+		for h := range snet.Hosts {
+			if snet.Hosts[h].ID == srcID { srchost = snet.Hosts[h].Hostname}
+		}
+	}
+
 	fmt.Printf("\nPinging %s from %s\n", dstIP, srchost)
 	timeoutCounter := 0
 	sendCount := 0
@@ -319,12 +328,10 @@ func dhcp_offer(inc_f Frame){
 	channels[linkID]<-f
 
 	// Setting leasee's MAC in pool
-	network_portion := strings.TrimSuffix(snet.Router.Gateway, "1")
-	for i := 0; i < len(snet.Router.DHCPIndex); i++ {
-		//fmt.Printf("\n[Router] Debugging sum: %s\n", network_portion + snet.Router.DHCPIndex[i])
-		if (network_portion + snet.Router.DHCPIndex[i]) == addr_to_give {
-			debug(2, "dhcp_offer", snet.Router.ID, "Removing address " + addr_to_give + " from pool")
-			snet.Router.DHCPTable[snet.Router.DHCPIndex[i]] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
+	for k, _ := range snet.Router.DHCPTable {
+		if k == addr_to_give {
+			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address " + addr_to_give + " from pool")
+			snet.Router.DHCPTable[k] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
 }

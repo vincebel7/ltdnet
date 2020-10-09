@@ -1,10 +1,10 @@
 # Known issues and bugs
 
-- DHCP table/DHCP index a bit redundant/wasteful. Restructure, do this before MAC learning for hosts (same code)
+- Fix map sorting in router.go next_free_addr(), it is string sorting 10, 100, etc.
 
 - Broadcasts aren't handled correctly. Should traverse network instead of a global push to all devices
 
-- With MAC address rework, unreachable pings hang on failed ARP requests
+- Unreachable pings hang on failed ARP requests
 
 # Feature ideas
 - MAC learning for hosts

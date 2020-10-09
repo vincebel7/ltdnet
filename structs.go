@@ -37,7 +37,6 @@ type Router struct {
 	//Ports		[]string `json:"prtt"`
 	VSwitch		Switch	`json:"vsid"` // Virtual built-in switch to router
 	//MACTable	map[string]int `json:"mact"`
-	DHCPIndex	[]string `json:"dhci"`
 	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
 }
 
