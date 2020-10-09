@@ -17,7 +17,7 @@ import(
 )
 
 func mainmenu() {
-	fmt.Println("ltdnet v0.2.5")
+	fmt.Println("ltdnet v0.2.6")
 	fmt.Println("by vincebel\n")
 	fmt.Println("Please note that switch functionality is limited and in development\n")
 	selection := false

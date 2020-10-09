@@ -13,8 +13,8 @@ import(
 	"net"
 )
 
-func ping(srcid string, dstIP string, secs int) {
-	debug(4, "ping", srcid, "About to ping")
+func ping(srcID string, dstIP string, secs int) {
+	debug(4, "ping", srcID, "About to ping")
 
 	linkID := ""
 	srcIP := ""
@@ -22,47 +22,51 @@ func ping(srcid string, dstIP string, secs int) {
 	dstMAC := ""
 	srchost := ""
 
-	if snet.Router.ID == srcid { //leave this in here until i implement controlling router and can ping from rtr
-		srchost = snet.Router.Hostname
-		srcIP = snet.Router.Gateway
-		srcMAC = snet.Router.MACAddr
-
-		//TODO: Implement hostside MAC learning to avoid ARPing every time
-		dstMAC = arp_request(srcid, "router", dstIP)
-		fmt.Println("Got dstmac", dstMAC) //leave this in here until implemented
-
-		//get link to send ping to
-		linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
-	}
-
-	if dstMAC == "" || srcMAC == "" {
-		for h := range snet.Hosts {
-			if snet.Hosts[h].ID == srcid {
-				linkID = snet.Hosts[h].UplinkID
-				srchost = snet.Hosts[h].Hostname
-				srcIP = snet.Hosts[h].IPAddr
-				srcMAC = snet.Hosts[h].MACAddr
-
-				//TODO: Implement hostside MAC learning to avoid ARPing every time
-				dstMAC = arp_request(srcid, "host", dstIP)
-			}
-		}
-	}
 	fmt.Printf("\nPinging %s from %s\n", dstIP, srchost)
 	timeoutCounter := 0
 	sendCount := 0
 	recvCount := 0
 	lossCount := 0
+
 	for i := 0; i < secs; i++ {
+		// Get MAC addresses
+		if snet.Router.ID == srcID { //leave this in here until i implement controlling router and can ping from rtr
+			srchost = snet.Router.Hostname
+			srcIP = snet.Router.Gateway
+			srcMAC = snet.Router.MACAddr
+
+			//TODO: Implement MAC learning to avoid ARPing every time
+			dstMAC = arp_request(srcID, "router", dstIP)
+			fmt.Println("Got dstmac", dstMAC) //leave this in here until implemented
+
+			//get link to send ping to
+			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+		}
+
+		if srcMAC == "" {
+			for h := range snet.Hosts {
+				if snet.Hosts[h].ID == srcID {
+					linkID = snet.Hosts[h].UplinkID
+					srchost = snet.Hosts[h].Hostname
+					srcIP = snet.Hosts[h].IPAddr
+					srcMAC = snet.Hosts[h].MACAddr
+				}
+			}
+		}
+
+		//TODO: Implement MAC learning to avoid ARPing every time
+		dstMAC = arp_request(srcID, "host", dstIP)
+
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
 
 		channels[linkID]<-f
 		sendCount++
+		debug(2, "ping", srcID, "Ping sent")
 		pong := make(chan bool, 1)
 		select {
-			case pongdata := <-internal[srcid]:
+			case pongdata := <-internal[srcID]:
 				if(pongdata.Data.Data.Data == "pong!") {
 					recvCount++
 					pong<-true
@@ -84,37 +88,36 @@ func ping(srcid string, dstIP string, secs int) {
 		if(timeoutCounter == 4) { //Skip rest of pings if timeout
 			i = secs
 		}
-		
+
 		if(i < secs - 1) { //Only wait a second if 
 			time.Sleep(time.Second)
 		}
 	}
-	actionsync[srcid]<-1
+	actionsync[srcID]<-1
 
 	// Ping stats
 	fmt.Printf("\nPing statistics for %s:\n", dstIP)
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
 
-
 	return
 }
 
-func pong(srcid string, dstIP string, frame Frame) {
+func pong(srcID string, dstIP string, frame Frame) {
 	linkID := ""
 	srcIP := ""
 	srcMAC := ""
 	dstMAC := frame.SrcMAC
-	if snet.Router.ID == srcid {
+	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway
 
 		//TODO: Implement MAC learning to avoid ARPing every time
-		dstMAC = arp_request(srcid, "router", dstIP)
+		dstMAC = arp_request(srcID, "router", dstIP)
 
 		//get link to send ping to
 		linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
 	} else {
-		index := getHostIndexFromID(srcid)
+		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
 		srcIP = snet.Hosts[index].IPAddr
 
@@ -125,11 +128,12 @@ func pong(srcid string, dstIP string, frame Frame) {
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
 	channels[linkID]<-f
+	debug(2, "pong", srcID, "Pong sent")
 	return
 }
 
-func arp_request(srcid string, device_type string, dstIP string) string {
-	debug(4, "arp_request", srcid, "About to ARP request")
+func arp_request(srcID string, device_type string, dstIP string) string {
+	debug(4, "arp_request", srcID, "About to ARP request")
 	//Construct frame
 	linkID := ""
 	srcIP := ""
@@ -141,7 +145,7 @@ func arp_request(srcid string, device_type string, dstIP string) string {
 		srcMAC = snet.Router.MACAddr
 		linkID = "FFFFFFFF"
 	} else {
-		index := getHostIndexFromID(srcid)
+		index := getHostIndexFromID(srcID)
 		srcIP = snet.Hosts[index].IPAddr
 		srcMAC = snet.Hosts[index].MACAddr
 		linkID = "FFFFFFFF"
@@ -152,9 +156,9 @@ func arp_request(srcid string, device_type string, dstIP string) string {
 	f := constructFrame(p, srcMAC, dstMAC)
 
 	channels[linkID]<-f
-	debug(4, "arp_request", srcid, "Sent ARP request")
+	debug(2, "arp_request", srcID, "ARPREQUEST sent")
 	//computer with address will respond with its MAC
-	replyframe := <-internal[srcid]
+	replyframe := <-internal[srcID]
 	return replyframe.Data.Data.Data[9:]
 }
 
@@ -165,6 +169,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 	srcIP := ""
 	dstMAC := frame.SrcMAC
 	dstIP := frame.Data.SrcIP
+	srcID := ""
 
 	if (device_type == "router") {
 		if (request_addr != snet.Router.Gateway) {
@@ -173,7 +178,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 			//fmt.Printf("[Router] THIS ME! I am %s\n", snet.Router.Hostname, request_addr)
 			srcIP = snet.Router.Gateway
 			srcMAC = snet.Router.MACAddr
-
+			srcID = snet.Router.ID
 			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
 		}
 	} else {
@@ -183,7 +188,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 			//fmt.Printf("[Host %s] THIS ME! I am %s\n", snet.Hosts[i].Hostname, request_addr)
 			srcIP = snet.Hosts[i].IPAddr
 			srcMAC = snet.Hosts[i].MACAddr
-
+			srcID = snet.Hosts[i].ID
 			linkID = snet.Hosts[i].UplinkID
 		}
 	}
@@ -192,6 +197,8 @@ func arp_reply(i int, device_type string, frame Frame) {
 	s := constructSegment(message)
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
+	//inspectFrame(f)
+	debug(2, "arp_reply", srcID, "ARPREPLY sent")
 	channels[linkID]<-f
 }
 
