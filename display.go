@@ -149,7 +149,7 @@ func drawConnectedHost(id string, iter int) {
 func overview() {
 	fmt.Printf("Network name:\t\t%s\n", snet.Name)
 	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
-	fmt.Printf("Network class:\t\tClass %s\n", snet.Class)
+	fmt.Printf("Network size:\t\t/%s\n", snet.Netsize)
 
 	// router
 	routerCount := 1

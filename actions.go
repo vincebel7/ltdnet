@@ -284,11 +284,11 @@ func dhcp_offer(inc_f Frame){
 	addr_to_give := next_free_addr()
 	gateway := snet.Router.Gateway
 	subnetmask := ""
-	if snet.Class == "A" {
+	if snet.Netsize == "8" {
 		subnetmask = "255.0.0.0"
-	} else if snet.Class == "B" {
+	} else if snet.Netsize == "16" {
 		subnetmask = "255.255.0.0"
-	} else if snet.Class == "C" {
+	} else if snet.Netsize == "24" {
 		subnetmask = "255.255.255.0"
 	}
 

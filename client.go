@@ -14,12 +14,16 @@ import(
 	"strings"
 	"strconv"
 	"path/filepath"
+	"time"
 )
 
-func mainmenu() {
+func intro() {
 	fmt.Println("ltdnet v0.2.6")
 	fmt.Println("by vincebel\n")
 	fmt.Println("Please note that switch functionality is limited and in development\n")
+}
+
+func mainmenu() {
 	selection := false
 	fmt.Println("Please create or select a network:")
 	fmt.Println(" 1) Create new network")
@@ -53,16 +57,16 @@ func newnetwork() {
 	user_name := scanner.Text()
 
 	class_valid := false
-	network_class := "C"
+	network_snmask := "24"
 	for class_valid == false {
-		fmt.Print("\nNetwork class (A, B, or C): ")
+		fmt.Print("\nNetwork size (/24, /16, or /8): /")
 		scanner.Scan()
-		network_class = scanner.Text()
-		network_class = strings.ToUpper(network_class)
+		network_snmask = scanner.Text()
+		network_snmask = strings.ToUpper(network_snmask)
 
-		if network_class == "A" ||
-		network_class == "B" ||
-		network_class == "C" {
+		if network_snmask == "24" ||
+		network_snmask == "16" ||
+		network_snmask == "8" {
 			class_valid = true
 		}
 	}
@@ -72,7 +76,7 @@ func newnetwork() {
 		ID: netid,
 		Name: netname,
 		Author: user_name,
-		Class: network_class,
+		Netsize: network_snmask,
 		DebugLevel: 1,
 	}
 
@@ -119,6 +123,13 @@ func selectnetwork() {
 			option_map[i] = file
 		}
 		i = i+1
+	}
+
+	if i == 1 {
+		fmt.Println("No networks to load. Try creating a new one.\n")
+		time.Sleep(1 * time.Second)
+		mainmenu()
+		return
 	}
 
 	fmt.Print("\nLoad: ")
@@ -440,6 +451,7 @@ func save() {
 }
 
 func main() {
+	intro()
 	mainmenu()
 	go Listener()
 

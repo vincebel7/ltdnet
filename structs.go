@@ -15,7 +15,7 @@ type Network struct {
 	ID		string `json:"id"`
 	Name		string `json:"name"`
 	Author		string `json:"auth"`
-	Class		string `json:"clas"`
+	Netsize		string `json:"size"`
 	Router		Router `json:"rtr"`
 	Switches	[]Switch `json:"swts"`
 	Hosts		[]Host `json:"hsts"`

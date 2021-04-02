@@ -11,7 +11,6 @@ import(
 	"strings"
 )
 
-
 func NewProbox(hostname string) Host {
 	p := Host{}
 	p.ID = idgen(8)

@@ -15,8 +15,9 @@
 
 - HTTP over UDP
 
-- Communicate with running machine somehow (WAN)
-
 - Multiple routers, with static routing
 
 - Traceroute (after routing is added)
+
+- DNS server
+

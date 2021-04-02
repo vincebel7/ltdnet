@@ -103,11 +103,11 @@ func addRouter() {
 		return
 	}
 
-	if snet.Class == "A" {
+	if snet.Netsize == "8" {
 		r.Gateway = "10.0.0.1"
-	} else if snet.Class == "B" {
+	} else if snet.Netsize == "16" {
 		r.Gateway = "172.16.0.1"
-	} else if snet.Class == "C" {
+	} else if snet.Netsize == "24" {
 		r.Gateway = "192.168.0.1"
 	}
 	addrconstruct := ""
