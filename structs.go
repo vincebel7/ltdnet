@@ -14,12 +14,12 @@ import(
 type Network struct {
 	ID		string `json:"id"`
 	Name		string `json:"name"`
-	Author		string `json:"auth"`
-	Netsize		string `json:"size"`
-	Router		Router `json:"rtr"`
-	Switches	[]Switch `json:"swts"`
-	Hosts		[]Host `json:"hsts"`
-	DebugLevel	int	`json:"dbug"`
+	Author		string `json:"author"`
+	Netsize		string `json:"netsize"`
+	Router		Router `json:"router"`
+	Switches	[]Switch `json:"switches"`
+	Hosts		[]Host `json:"hosts"`
+	DebugLevel	int	`json:"debug_level"`
 }
 
 var snet Network //selected network, essentially the loaded save file
@@ -28,39 +28,40 @@ var scanner = bufio.NewScanner(os.Stdin)
 
 type Router struct {
 	ID		string `json:"id"`
-	Model		string `json:"modl"`
-	MACAddr		string `json:"maca"` // LAN-facing interface
-	Hostname	string `json:"hnme"`
-	Gateway		string `json:"gway"`
-	DHCPPool	int `json:"dpol"` //maximum, not just available
+	Model		string `json:"model"`
+	MACAddr		string `json:"macaddr"` // LAN-facing interface
+	Hostname	string `json:"hostname"`
+	Gateway		string `json:"gateway"`
+	DHCPPool	int `json:"dhcppool"` //maximum, not just available
 	//Downports	int `json:"dpts"`
 	//Ports		[]string `json:"prtt"`
-	VSwitch		Switch	`json:"vsid"` // Virtual built-in switch to router
+	VSwitch		Switch	`json:"vswitchid"` // Virtual built-in switch to router
 	//MACTable	map[string]int `json:"mact"`
-	DHCPTable	map[string]string `json:"dhct"` //maps IP address to MAC address
+	DHCPTable	map[string]string `json:"dhcptable"` //maps IP address to MAC address
+	DHCPTableOrder	[]string `json:"dhcptableorder"` //reference for proper sorting of IP addresses
 }
 
 type Switch struct {
 	ID		string `json:"id"`
-	Model		string `json:"modl"`
-	Hostname	string `json:"hnme"`
-	MgmtIP		string `json:"mgip"`
-	MACTable	map[string]int `json:"mact"`
-	Maxports	int `json:"mxpt"`
-	Ports		[]string `json:"prts"` // maps port # to downlink ID
-	PortIDs		[]string `json:"pids"` // maps port # to Port ID
-	PortMACs	[]string `json:"pmcs"` // maps port # to interface MAC address
+	Model		string `json:"model"`
+	Hostname	string `json:"hostname"`
+	MgmtIP		string `json:"mgmtip"`
+	MACTable	map[string]int `json:"mactable"`
+	Maxports	int `json:"maxports"`
+	Ports		[]string `json:"ports"` // maps port # to downlink ID
+	PortIDs		[]string `json:"portids"` // maps port # to Port ID
+	PortMACs	[]string `json:"portmacs"` // maps port # to interface MAC address
 }
 
 type Host struct {
 	ID		string `json:"id"`
-	Model		string `json:"modl"`
-	MACAddr		string `json:"maca"`
-	Hostname	string `json:"hnme"`
-	IPAddr		string `json:"ipa"`
+	Model		string `json:"model"`
+	MACAddr		string `json:"macaddr"`
+	Hostname	string `json:"hostname"`
+	IPAddr		string `json:"ipaddr"`
 	SubnetMask	string `json:"mask"`
-	DefaultGateway	string `json:"gway"`
-	UplinkID	string `json:"upid"`
+	DefaultGateway	string `json:"gateway"`
+	UplinkID	string `json:"uplinkid"`
 }
 
 /* DATAGRAMS */

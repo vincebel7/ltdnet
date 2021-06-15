@@ -10,7 +10,6 @@ import(
 	"fmt"
 	"strings"
 	"strconv"
-	"sort"
 )
 
 const BOBCAT_PORTS = 4
@@ -115,10 +114,12 @@ func addRouter() {
 	network_portion := strings.TrimSuffix(r.Gateway, "1")
 
 	r.DHCPTable = make(map[string]string)
+	r.DHCPTableOrder = make([]string, r.DHCPPool)
 
-	for i := 2; i < (r.DHCPPool - 1); i++ {
+	for i := 2; i < (r.DHCPPool + 2); i++ {
 		addrconstruct = network_portion + strconv.Itoa(i)
 		r.DHCPTable[addrconstruct] = ""
+		r.DHCPTableOrder[i - 2] = addrconstruct
 	}
 
 	snet.Router = r
@@ -153,18 +154,11 @@ func delRouter() {
 }
 
 func next_free_addr() string {
-	//TODO: Make sorting work correctly, 1-255
-	keys := make([]string, 0, len(snet.Router.DHCPTable))
-	for k := range snet.Router.DHCPTable {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	//find open address
-	for _, k := range keys {
-		if snet.Router.DHCPTable[k] == "" {
-			return k
+	for _, v := range snet.Router.DHCPTableOrder {
+		if snet.Router.DHCPTable[v] == "" {
+			return v
 		}
 	}
+
 	return ""
 }

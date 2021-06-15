@@ -1,23 +1,20 @@
 # Known issues and bugs
 
-- Fix map sorting in router.go next_free_addr(), it is string sorting 10, 100, etc.
-
 - Broadcasts aren't handled correctly. Should traverse network instead of a global push to all devices
 
 - Unreachable pings hang on failed ARP requests
 
 # Feature ideas
-- MAC learning for hosts
+- MAC learning for hosts (1)
 
-- Flood frame if not in MAC table of switch
+- Flood frame if not in MAC table of switch (2)
 
-- Switch network functionality
+- Switch network functionality (3)
 
-- HTTP over UDP
+- HTTP over UDP (4)
 
-- Multiple routers, with static routing
+- Multiple routers, with static routing (5)
 
-- Traceroute (after routing is added)
+- Traceroute (after routing is added) (6)
 
-- DNS server
-
+- DNS server (7)
