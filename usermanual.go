@@ -6,7 +6,6 @@ import (
 	"os"
 )
 
-// launchManual reads the USER-MANUAL.md file and prints its content to the screen.
 func launchManual() {
 	file, err := os.Open("USER-MANUAL.md")
 	if err != nil {
