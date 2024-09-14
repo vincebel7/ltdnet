@@ -14,18 +14,18 @@ Includes fictional LAN appliances as well as simple implementations of essential
 ## Using ltdnet
 First, create a network and pick a class (A, B, or C)
 Currently, each network can only have one router. It is best to start off by creating a router:
-`add device router`
+`add router`
 Then, pick the model. Right now there are two models: The Osiris 2-I and the Bobcat 100. The Osiris is better-suited for small networks, as it only has two user ports, and only two addresses available on its DHCP address pool. The Bobcat, however, has four user ports and 253 addresses available in its DHCP address pool.
 
 Next, you will want to create a host:
-`add device host`
+`add host`
 Currently the only host model available in ltdnet is the ProBox.
 
 You can now take a look at your network by running a show command. The most comprehensive of these is:
 `show network overview`
 
 Once you have created a host, you can "plug in" the host to the router by *linking* them.
-`link device host`
+`link host`
 This will allow you to set your host's uplink to your router.
 
 Next, you will need to set the IP configuration for your host. There are two ways to do this: Statically, or dynamically through DHCP. Both ways require you to be in device control mode.

@@ -1,0 +1,34 @@
+===============
+ltdnet manual
+v0.2.8
+===============
+
+Welcome to ltdnet! Using this program, you can simulate a LAN (Local Area Network) with virtual computers, switches, and routers. ltdnet features fictional device models, such as the ProBox, a state-of-the-art PC workstation, and the Bobcat 100, a sturdy small business router (with no recurring license fees!).
+
+
+## Running Commands
+
+To make this program simple and quick to run, all user input is done via commands, similar to command-line interfaces on real computers. You may find yourself unfamiliar with using commands, or just confused by ltdnet's syntax. Either way, this guide will teach you how to set up your first network in no time.
+
+To run a command, simply type a word (or words), and hit Enter. If you are reading this from within ltdnet, you've already figured this out!
+
+Always remember that entering the 'help' command will give you a complete list of commands you can run from the scope you're currently in.
+
+
+## Your first LAN
+
+In ltdnet, all devices must connect to a router (this will change in future releases). To create your network's router, enter this command:
+
+> add router r1
+
+Now you can verify the state of your network with:
+
+> show network overview
+
+This is a handy command to view all the devices which exist in your network, their IP addresses, and where they're connected. If you're having trouble visualizing how everything connects together, try the diagram feature (known to be buggy when unlinking devices, and on larger networks):
+
+> show diagram
+
+
+## Create and connect a PC
+TODO

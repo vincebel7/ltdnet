@@ -6,47 +6,48 @@ Purpose:	General network configuration, main menu+general program functions
 
 package main
 
-import(
-	"fmt"
+import (
 	"encoding/json"
-	"os"
+	"fmt"
 	"log"
-	"strings"
-	"strconv"
+	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
 func intro() {
-	fmt.Println("ltdnet v0.2.7")
-	fmt.Println("by vincebel\n")
-	fmt.Println("Please note that switch functionality is limited and in development\n")
+	fmt.Println("ltdnet v0.2.8")
+	fmt.Println("by vincebel")
+	fmt.Println("\nPlease note that switch functionality is limited and in development")
 }
 
-func mainmenu() {
+func startMenu() {
 	selection := false
-	fmt.Println("Please create or select a network:")
+	fmt.Println("\nPlease create or select a network:")
 	fmt.Println(" 1) Create new network")
 	fmt.Println(" 2) Select saved network")
-	for selection == false {
+	for !selection {
 		fmt.Print("\nAction: ")
 
 		scanner.Scan()
 		option := scanner.Text()
 
-		if option == "1" || strings.ToUpper(option) == "C" || strings.ToUpper(option) == "NEW" {
+		switch strings.ToUpper(option) {
+		case "1", "C", "NEW", "CREATE":
 			selection = true
-			newnetwork()
-		} else if option == "2" || strings.ToUpper(option) == "S" || strings.ToUpper(option) == "select" {
+			newNetwork()
+		case "2", "S", "SELECT":
 			selection = true
-			selectnetwork()
-		} else {
-			fmt.Println("Not a valid option.")
+			selectNetwork()
+		default:
+			fmt.Println("Not a valid option. Options: 1, 2")
 		}
 	}
 }
 
-func newnetwork() {
+func newNetwork() {
 	fmt.Println("Creating a new network")
 	fmt.Print("Your new network's name: ")
 	scanner.Scan()
@@ -58,25 +59,25 @@ func newnetwork() {
 
 	class_valid := false
 	network_snmask := "24"
-	for class_valid == false {
+	for !class_valid {
 		fmt.Print("\nNetwork size (/24, /16, or /8): /")
 		scanner.Scan()
 		network_snmask = scanner.Text()
 		network_snmask = strings.ToUpper(network_snmask)
 
 		if network_snmask == "24" ||
-		network_snmask == "16" ||
-		network_snmask == "8" {
+			network_snmask == "16" ||
+			network_snmask == "8" {
 			class_valid = true
 		}
 	}
 
 	netid := idgen(8)
 	net := Network{
-		ID: netid,
-		Name: netname,
-		Author: user_name,
-		Netsize: network_snmask,
+		ID:         netid,
+		Name:       netname,
+		Author:     user_name,
+		Netsize:    network_snmask,
 		DebugLevel: 1,
 	}
 
@@ -95,10 +96,10 @@ func newnetwork() {
 	f.Write([]byte("\n"))
 
 	fmt.Println("\nNetwork created!")
-	loadnetwork(netname)
+	loadNetwork(netname)
 }
 
-func selectnetwork() {
+func selectNetwork() {
 	fmt.Println("\nPlease select a saved network")
 
 	//display files
@@ -114,21 +115,21 @@ func selectnetwork() {
 
 	i := 0
 	option_map := make(map[int]string)
-	for _, file := range fileList{
-		if(i >= 1){
+	for _, file := range fileList {
+		if i >= 1 {
 			file = file[6:] //strip saves
 			fmt.Printf(" %d) %s\n", i, file)
 
 			//map i to file somehow for select
 			option_map[i] = file
 		}
-		i = i+1
+		i = i + 1
 	}
 
 	if i == 1 {
-		fmt.Println("No networks to load. Try creating a new one.\n")
+		fmt.Println("No networks to load. Try creating a new one.")
 		time.Sleep(1 * time.Second)
-		mainmenu()
+		startMenu()
 		return
 	}
 
@@ -137,7 +138,7 @@ func selectnetwork() {
 	network_selection := scanner.Text()
 	int_select, err := strconv.Atoi(network_selection)
 
-	for ((network_selection == "") || (int_select >= i) || (int_select < 1)) {
+	for (network_selection == "") || (int_select >= i) || (int_select < 1) {
 		fmt.Println("Not a valid option.")
 		fmt.Print("\nLoad: ")
 		scanner.Scan()
@@ -147,10 +148,10 @@ func selectnetwork() {
 	netname := option_map[int_select]
 	netname = netname[:len(netname)-len(".json")]
 
-	loadnetwork(netname)
+	loadNetwork(netname)
 }
 
-func loadnetwork(netname string) {
+func loadNetwork(netname string) {
 	//open file
 	filename := "saves/" + netname + ".json"
 	f, err := os.Open(filename)
@@ -173,35 +174,13 @@ func loadnetwork(netname string) {
 	fmt.Printf("Loaded %s\n", snet.Name)
 }
 
-func linkHost() {
-	fmt.Println("Link which host? Please specify by hostname")
-	fmt.Print("Available hosts:")
-	for availh := range snet.Hosts {
-		if len(snet.Hosts[availh].UplinkID) < 1 {
-			fmt.Printf(" %s", snet.Hosts[availh].Hostname)
-		}
-	}
-	fmt.Print("\nHostname: ")
-	scanner.Scan()
-	hostname := scanner.Text()
-	hostname = strings.ToUpper(hostname)
-
-	fmt.Println("Uplink to which device? Please specify by hostname")
-	fmt.Printf("Router: %s\n", snet.Router.Hostname)
-	fmt.Printf("Switches: ")
-	for i := range snet.Switches {
-		fmt.Printf(snet.Switches[i].Hostname)
-	}
-	fmt.Printf("\n")
-
-	fmt.Print("Hostname: ")
-	scanner.Scan()
-	uplinkHostname := scanner.Text()
-	uplinkHostname = strings.ToUpper(uplinkHostname)
+func linkHost(localDevice string, remoteDevice string) {
+	localDevice = strings.ToUpper(localDevice)
+	remoteDevice = strings.ToUpper(remoteDevice)
 
 	//Make sure there's enough ports - if uplink device is a router
-	if(uplinkHostname == strings.ToUpper(snet.Router.Hostname)) {
-		if(getActivePorts(snet.Router.VSwitch) >= snet.Router.VSwitch.Maxports) {
+	if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
+		if getActivePorts(snet.Router.VSwitch) >= snet.Router.VSwitch.Maxports {
 			fmt.Printf("No available ports - %s only has %d ports\n", snet.Router.Model, snet.Router.VSwitch.Maxports)
 			return
 		}
@@ -209,8 +188,8 @@ func linkHost() {
 
 	//Make sure there's enough ports - if uplink device is a switch
 	for s := range snet.Switches {
-		if(uplinkHostname == strings.ToUpper(snet.Switches[s].Hostname)) {
-			if(getActivePorts(snet.Switches[s]) >= snet.Switches[s].Maxports) {
+		if remoteDevice == strings.ToUpper(snet.Switches[s].Hostname) {
+			if getActivePorts(snet.Switches[s]) >= snet.Switches[s].Maxports {
 				fmt.Printf("No available ports - %s only has %d ports\n", snet.Switches[s].Model, snet.Switches[s].Maxports)
 				return
 			}
@@ -219,13 +198,13 @@ func linkHost() {
 
 	//find host with that hostname
 	for i := range snet.Hosts {
-		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
+		if strings.ToUpper(snet.Hosts[i].Hostname) == localDevice {
 			uplinkID := ""
 			//Router
-			if uplinkHostname == strings.ToUpper(snet.Router.Hostname) {
+			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
 				for k := range snet.Router.VSwitch.Ports {
-					if ((snet.Router.VSwitch.Ports[k] == "") && (uplinkID == ""))  {
+					if (snet.Router.VSwitch.Ports[k] == "") && (uplinkID == "") {
 						uplinkID = snet.Router.VSwitch.PortIDs[k]
 					}
 				}
@@ -235,11 +214,11 @@ func linkHost() {
 			} else {
 				//Search switches
 				for j := range snet.Switches {
-					if uplinkHostname == strings.ToUpper(snet.Switches[j].Hostname) {
+					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
 
 						//find next free port
 						for k := range snet.Switches[j].Ports {
-							if ((snet.Switches[j].Ports[k] == "") && (uplinkID == "")) {
+							if (snet.Switches[j].Ports[k] == "") && (uplinkID == "") {
 								uplinkID = snet.Switches[j].PortIDs[k]
 								k = len(snet.Switches[j].Ports)
 								fmt.Println("DEBUG TEST")
@@ -255,21 +234,11 @@ func linkHost() {
 	}
 }
 
-func unlinkHost() {
-	fmt.Println("Unlink which host? Please specify by hostname")
-	fmt.Print("Linked hosts:")
-	for availh := range snet.Hosts {
-		if snet.Hosts[availh].UplinkID != "" {
-			fmt.Printf(" %s", snet.Hosts[availh].Hostname)
-		}
-	}
-	fmt.Print("\nHostname: ")
-	scanner.Scan()
-	hostname := scanner.Text()
+func unlinkHost(hostname string) {
 	hostname = strings.ToUpper(hostname)
 
 	for i := range snet.Hosts {
-		if(strings.ToUpper(snet.Hosts[i].Hostname) == hostname) {
+		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 			//first, unplug from switch
 			freeSwitchport(snet.Hosts[i].UplinkID)
 
@@ -287,7 +256,7 @@ func controlHost(hostname string) {
 	fmt.Printf("Attempting to control host %s...\n", hostname)
 	host := Host{}
 	for i := range snet.Hosts {
-		if(snet.Hosts[i].Hostname == hostname){
+		if snet.Hosts[i].Hostname == hostname {
 			host = snet.Hosts[i]
 			Conn("host", host.ID)
 		}
@@ -295,27 +264,31 @@ func controlHost(hostname string) {
 	if host.Hostname == "" {
 		fmt.Println("Host not found")
 	}
-	return
 }
 
-func actions() {
+func actionsMenu() {
 	fmt.Print("> ")
 	scanner.Scan()
 	action_selection := scanner.Text()
 	actionword1 := ""
 	actionword2 := ""
 	actionword3 := ""
+	actionword4 := ""
 	if action_selection != "" {
 		actionword0 := strings.Fields(action_selection)
-		if(len(actionword0) > 0){
+		if len(actionword0) > 0 {
 			actionword1 = actionword0[0]
 		}
 
-		if(len(actionword0) > 1) {
+		if len(actionword0) > 1 {
 			actionword2 = actionword0[1]
 
-			if(len(actionword0) > 2) {
+			if len(actionword0) > 2 {
 				actionword3 = actionword0[2]
+
+				if len(actionword0) > 3 {
+					actionword4 = actionword0[3]
+				}
 			}
 		}
 	}
@@ -323,82 +296,128 @@ func actions() {
 	case "":
 
 	case "add":
-		switch action_selection {
-		case "add device router":
-			addRouter()
-			save()
-		case "add device switch":
-			addSwitch()
-			save()
-		case "add device host":
-			addHost()
-			save()
-		default:
-			fmt.Println(" Usage: add device <host|switch|router>")
+		if actionword3 != "" {
+			switch actionword2 {
+			case "router":
+				if actionword4 == "" {
+					actionword4 = "Bobcat"
+				}
+				addRouter(actionword3, actionword4)
+				save()
+
+			case "switch":
+				addSwitch(actionword3)
+				save()
+
+			case "host":
+				addHost(actionword3)
+				save()
+
+			default:
+				fmt.Println(" Usage: add <host|switch|router> <hostname>")
+			}
+		} else {
+			fmt.Println(" Usage: add <host|switch|router> <hostname>")
 		}
-	case "del":
-		switch action_selection {
-		case "del device router":
-			delRouter()
-			save()
-		case "del device switch":
-			delSwitch()
-			save()
-		case "del device host":
-			delHost()
-			save()
+
+	case "del", "delete":
+		switch actionword2 {
+		case "router":
+			fmt.Printf("\nAre you sure you want do delete router %s? [y/n]: ", actionword3)
+			scanner.Scan()
+			confirmation := scanner.Text()
+			confirmation = strings.ToUpper(confirmation)
+			if confirmation == "Y" {
+				delRouter(actionword3) //Placeholder. Only one router per network currently
+				save()
+			}
+
+		case "switch":
+			if actionword3 != "" {
+				fmt.Printf("\nAre you sure you want do delete switch %s? [y/n]: ", actionword3)
+				scanner.Scan()
+				confirmation := scanner.Text()
+				confirmation = strings.ToUpper(confirmation)
+				if confirmation == "Y" {
+					delSwitch()
+					save()
+				}
+			}
+
+		case "host":
+			if actionword3 != "" {
+				fmt.Printf("\nAre you sure you want do delete host %s? [y/n]: ", actionword3)
+				scanner.Scan()
+				confirmation := scanner.Text()
+				confirmation = strings.ToUpper(confirmation)
+				if confirmation == "Y" {
+					delHost(actionword3)
+					save()
+				}
+			}
+
 		default:
-			fmt.Println(" Usage: del device <host|switch|router>")
+			fmt.Println(" Usage: del <host|switch|router> <hostname>")
 		}
+
 	case "link":
-		switch action_selection {
-		case "link device host":
-			linkHost()
+		if (actionword2 == "host") && (actionword3 != "") && (actionword4 != "") {
+			linkHost(actionword3, actionword4)
 			save()
-		default:
-			fmt.Println(" Usage: link device host")
+		} else {
+			fmt.Println(" Usage: link host <hostname> <router_hostname>")
 		}
+
 	case "unlink":
-		switch action_selection {
-		case "unlink device host":
-			unlinkHost()
+		if (actionword2 == "host") && (actionword3 != "") {
+			unlinkHost(actionword3)
 			save()
-		default:
-			fmt.Println(" Usage: unlink device host")
+		} else {
+			fmt.Println(" Usage: unlink host <hostname>")
 		}
+
 	case "control":
 		if actionword2 != "" {
 			switch actionword2 {
 			case "host":
 				controlHost(actionword3)
 				save()
+
 			case "router":
 				save()
+
 			default:
 				fmt.Println(" Usage: control <host|switch|router> <hostname>")
 			}
 		} else {
 			fmt.Println(" Usage: control <host|switch|router> <hostname>")
 		}
+
 	case "save":
 		save()
+
 	case "reload":
-		loadnetwork(snet.Name)
-	case "show":
+		loadNetwork(snet.Name)
+
+	case "show", "sh":
 		switch action_selection {
-		case "show network overview":
+		case "show network overview", "sh network overview":
 			overview()
+
 		case "show diagram":
 			drawDiagram(snet.Router.ID)
+
 		default:
-			if len(action_selection) > 12{
+			if len(action_selection) > 12 { // show device
 				show(action_selection[12:])
 			} else {
 				fmt.Println(" Usage: show network overview\n\tshow device <hostname>\n\tshow diagram")
 			}
 		}
-	case "filedump":
+
+	case "netdump":
 		fmt.Println(snet, "")
+
 	case "debug":
 		if actionword2 != "" {
 			setDebug(actionword2)
@@ -406,28 +425,35 @@ func actions() {
 		} else {
 			fmt.Printf("Current debug level: %d\n", getDebug())
 			fmt.Println("\nAll levels:\n",
-			"0 - No debugging\n",
-			"1 - Errors\n",
-			"2 - General network traffic\n",
-			"3 - All network traffic\n",
-			"4 - All sorts of garbage (dev use)\n")
+				"0 - No debugging\n",
+				"1 - Errors\n",
+				"2 - General network traffic\n",
+				"3 - All network traffic\n",
+				"4 - All sorts of garbage (dev use)")
 		}
-	case "exit":
+
+	case "manual", "man":
+		launchManual()
+
+	case "exit", "quit":
 		os.Exit(0)
+
 	case "help", "?":
 		fmt.Println("",
-		"show <args>\t\tDisplays information\n",
-		"add <args>\t\tAdds device to network\n",
-		"del <args>\t\tRemoves device from network\n",
-		"link <args>\t\tLinks two devices\n",
-		"unlink <args>\t\tUnlinks two devices\n",
-		"control <args>\t\tLogs in as device\n",
-		"save\t\t\tManually saves network changes\n",
-		"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
-		"debug <0-4>\t\tSets debug level. Default is 1\n",
-		"filedump\t\tOutputs JSON file of loaded network file (developer use)\n",
-		"exit\t\t\tExits the program\n",
+			"show <args>\t\tDisplays information\n",
+			"add <args>\t\tAdds device to network\n",
+			"del <args>\t\tRemoves device from network\n",
+			"link <args>\t\tLinks two devices\n",
+			"unlink <args>\t\tUnlinks two devices\n",
+			"control <args>\t\tLogs in as device\n",
+			"save\t\t\tManually saves network changes\n",
+			"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
+			"debug <0-4>\t\tSets debug level. Default is 1\n",
+			"manual\t\t\tLaunches the user manual. Great for beginners!\n",
+			"exit\t\t\tExits the program",
+			//"filedump\t\tPrints loaded Network object (developer use)\n", HIDDEN
 		)
+
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
@@ -452,7 +478,7 @@ func save() {
 
 func main() {
 	intro()
-	mainmenu()
+	startMenu()
 	go Listener()
 
 	for range snet.Hosts {
@@ -461,7 +487,7 @@ func main() {
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
 	fmt.Println("\nPlease type an action:")
 
-	for true {
-		actions()
+	for {
+		actionsMenu()
 	}
 }

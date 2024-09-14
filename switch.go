@@ -6,7 +6,7 @@ Purpose:	Switch-specific functions
 
 package main
 
-import(
+import (
 	"fmt"
 	"strings"
 )
@@ -21,24 +21,10 @@ func NewSumerian2100(hostname string) Switch {
 	return s
 }
 
-func addSwitch() {
-	fmt.Println("What model?")
-	fmt.Println("Available: Sumerian")
-	fmt.Print("Model: ")
-	scanner.Scan()
-	switchModel := scanner.Text()
-	switchModel = strings.ToUpper(switchModel)
-
-	fmt.Print("Hostname: ")
-	scanner.Scan()
-	switchHostname := scanner.Text()
+func addSwitch(switchHostname string) {
+	switchModel := strings.ToUpper("Sumerian")
 
 	// input validation
-	if switchHostname == "" {
-		fmt.Println("Hostname cannot be blank. Please try again")
-		return
-	}
-
 	if hostname_exists(switchHostname) {
 		fmt.Println("Hostname already exists. Please try again")
 		return
@@ -62,7 +48,6 @@ func addSwitch() {
 		s.Ports[i] = ""
 	}
 
-
 	s.MACTable = make(map[string]int)
 	snet.Switches = append(snet.Switches, s)
 
@@ -76,11 +61,11 @@ func delSwitch() {
 func lookupMACTable(macaddr string, id string) int { // For looking up addresses
 	resultPort := 0
 	table := make(map[string]int)
-	if(isSwitchportID(snet.Router.VSwitch, id)) {
+	if isSwitchportID(snet.Router.VSwitch, id) {
 		table = snet.Router.VSwitch.MACTable
 	} else {
 		for i := range snet.Switches {
-			if(isSwitchportID(snet.Switches[i], id)) {
+			if isSwitchportID(snet.Switches[i], id) {
 				table = snet.Switches[i].MACTable
 			}
 		}
@@ -88,7 +73,7 @@ func lookupMACTable(macaddr string, id string) int { // For looking up addresses
 
 	//if switch
 	for k, v := range table {
-		if(k == macaddr) {
+		if k == macaddr {
 			resultPort = v
 		}
 	}
@@ -99,19 +84,19 @@ func lookupMACTable(macaddr string, id string) int { // For looking up addresses
 func checkMACTable(macaddr string, id string, port int) { // For checking table on incoming frames
 	result := -1
 	table := make(map[string]int)
-	if(isSwitchportID(snet.Router.VSwitch, id)) {
+	if isSwitchportID(snet.Router.VSwitch, id) {
 		table = snet.Router.VSwitch.MACTable
 	} else {
 		for i := range snet.Switches {
-			if(isSwitchportID(snet.Switches[i], id)) {
-			table = snet.Switches[i].MACTable
+			if isSwitchportID(snet.Switches[i], id) {
+				table = snet.Switches[i].MACTable
 			}
 		}
 	}
 
 	for k, v := range table {
-		if(k == macaddr) {
-			if(v == port) {
+		if k == macaddr {
+			if v == port {
 				debug(4, "lookupMACTable", id, "Address found in MAC table")
 				result = v
 			} else {
@@ -120,7 +105,7 @@ func checkMACTable(macaddr string, id string, port int) { // For checking table 
 		}
 	}
 
-	if(result == -1) {
+	if result == -1 {
 		msg := "Address " + macaddr + " not found in MAC table. Adding"
 		debug(3, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
@@ -128,16 +113,15 @@ func checkMACTable(macaddr string, id string, port int) { // For checking table 
 }
 
 func addMACEntry(macaddr string, id string, port int) {
-	if(isSwitchportID(snet.Router.VSwitch, id)) {
+	if isSwitchportID(snet.Router.VSwitch, id) {
 		snet.Router.VSwitch.MACTable[macaddr] = port
 	} else {
 		for i := range snet.Switches {
-			if(isSwitchportID(snet.Switches[i], id)) {
+			if isSwitchportID(snet.Switches[i], id) {
 				snet.Switches[i].MACTable[macaddr] = port
 			}
 		}
 	}
-
 
 }
 
@@ -146,7 +130,9 @@ func delMACEntry(macaddr string, id string, port int) {
 
 func isSwitchportID(sw Switch, id string) bool {
 	for i := range sw.PortIDs {
-		if(sw.PortIDs[i] == id) { return true }
+		if sw.PortIDs[i] == id {
+			return true
+		}
 	}
 
 	return false
@@ -156,7 +142,7 @@ func getActivePorts(sw Switch) int {
 	count := 0
 
 	for i := range sw.Ports {
-		if(sw.Ports[i] != "") {
+		if sw.Ports[i] != "" {
 			count++
 		}
 	}
@@ -185,16 +171,16 @@ func switchforward(frame Frame, id string) {
 
 	outboundPort := lookupMACTable(dstMAC, id)
 
-	if(outboundPort == -1) {
+	if outboundPort == -1 {
 		debug(1, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
 		linkID = getIDfromMAC(dstMAC)
 	} else {
-		if(isSwitchportID(snet.Router.VSwitch, id)) {
+		if isSwitchportID(snet.Router.VSwitch, id) {
 			linkID = snet.Router.VSwitch.Ports[outboundPort]
 		} else {
 			for i := range snet.Switches {
 				fmt.Println("Should never print this yet")
-				if(isSwitchportID(snet.Switches[i], id)){
+				if isSwitchportID(snet.Switches[i], id) {
 					linkID = snet.Switches[i].Ports[outboundPort]
 				}
 			}
@@ -204,7 +190,7 @@ func switchforward(frame Frame, id string) {
 	s := frame.Data.Data
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
-	channels[linkID]<-f
+	channels[linkID] <- f
 }
 
 func freeSwitchport(link string) {
@@ -212,7 +198,7 @@ func freeSwitchport(link string) {
 	switchport := getSwitchportIDFromLink(link)
 	switchID := getSwitchIDFromLink(link)
 
-	if(snet.Router.VSwitch.ID == switchID) {
+	if snet.Router.VSwitch.ID == switchID {
 		snet.Router.VSwitch.PortIDs[switchport] = ""
 	} else {
 		i := getSwitchIndexFromID(switchID)

@@ -6,9 +6,6 @@ Purpose:	Listener for network and all devices
 
 package main
 
-import(
-)
-
 var channels = map[string]chan Frame{} // the physical link
 var internal = map[string]chan Frame{} // for internal device communication
 var actionsync = map[string]chan int{}
@@ -63,7 +60,7 @@ func generateHostChannels(i int) {
 }
 
 func broadcastlisten() { //Listens for broadcast frames on FF.. and broadcasts
-	for true {
+	for {
 		frame := <-channels["FFFFFFFF"]
 		debug(4, "broadcastlisten", "Listener", "detected broadcast")
 		go routeractionhandler(frame)
@@ -75,9 +72,9 @@ func broadcastlisten() { //Listens for broadcast frames on FF.. and broadcasts
 }
 
 func hostlisten(id string) {
-	listenSync<-id //synchronizing with client.go
+	listenSync <- id //synchronizing with client.go
 
-	for true {
+	for {
 		frame := <-channels[id]
 		debug(4, "hostlisten", id, "Received frame")
 		go hostactionhandler(frame, id)
@@ -95,41 +92,41 @@ func hostactionhandler(frame Frame, id string) {
 	}
 
 	if data == "pong!" {
-		internal[id]<-frame
+		internal[id] <- frame
 	}
 
-	if(len(data) > 7){
+	if len(data) > 7 {
 		if data[0:8] == "ARPREPLY" {
 			debug(3, "hostactionhandler", id, "ARPREPLY received")
-			internal[id]<-frame
+			internal[id] <- frame
 		}
 
 	}
 
-	if(len(data) > 8){
+	if len(data) > 8 {
 		if data[0:9] == "DHCPOFFER" {
 			debug(2, "hostactionhandler", id, "DHCPOFFER received")
-			internal[id]<-frame
+			internal[id] <- frame
 		}
 	}
 
-	if(len(data) > 9){
+	if len(data) > 9 {
 		if data[0:10] == "ARPREQUEST" {
 			debug(4, "hostactionhandler", id, "ARPREQUEST received")
 			arp_reply(getHostIndexFromID(id), "host", frame)
 		}
 	}
 
-	if(len(data) > 17){
+	if len(data) > 17 {
 		if data[0:19] == "DHCPACKNOWLEDGEMENT" {
 			debug(2, "hostactionhandler", id, "DHCPACKNOWLEDGEMENT received")
-			internal[id]<-frame
+			internal[id] <- frame
 		}
 	}
 }
 
 func switchportlisten(id string) {
-	for true {
+	for {
 		frame := <-channels[id]
 		debug(4, "switchlisten", id, "Received frame")
 
@@ -143,9 +140,9 @@ func switchportlisten(id string) {
 
 func switchportactionhandler(frame Frame, id string) {
 	debug(4, "switchportactionhandler", id, "My packet")
-	if(frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
-		channels["FFFFFFFF"]<-frame
-	} else if(1 == 2) { //TODO how to receive mgmt frames
+	if frame.DstMAC == "FF:FF:FF:FF:FF:FF" {
+		channels["FFFFFFFF"] <- frame
+	} else if 1 == 2 { //TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else {
 		switchforward(frame, id)
@@ -153,7 +150,7 @@ func switchportactionhandler(frame Frame, id string) {
 }
 
 func routerlisten() {
-	for true {
+	for {
 		frame := <-channels[snet.Router.ID]
 		debug(4, "routerlisten", snet.Router.ID, "Frame received")
 		go routeractionhandler(frame)
@@ -161,7 +158,7 @@ func routerlisten() {
 }
 
 func routeractionhandler(frame Frame) {
-	if((frame.Data.DstIP == snet.Router.Gateway) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF")) {
+	if (frame.Data.DstIP == snet.Router.Gateway) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
 		debug(4, "routeractionhandler", snet.Router.ID, "My packet")
 		data := frame.Data.Data.Data
 		srcid := snet.Router.ID
@@ -171,18 +168,18 @@ func routeractionhandler(frame Frame) {
 			pong(srcid, dstIP, frame)
 		}
 		if data == "pong!" {
-			internal[snet.Router.ID]<-frame
+			internal[snet.Router.ID] <- frame
 		}
 
-		if(len(data) > 7){
+		if len(data) > 7 {
 			if data[0:8] == "ARPREPLY" {
 				debug(3, "routeractionhandler", snet.Router.ID, "ARPREPLY received")
-				internal[snet.Router.ID]<-frame
+				internal[snet.Router.ID] <- frame
 			}
 
 		}
 
-		if(len(data) > 9){
+		if len(data) > 9 {
 			if data[0:10] == "ARPREQUEST" {
 				debug(3, "routeractionhandler", snet.Router.ID, "ARPREQUEST received")
 				index := 0
@@ -190,16 +187,15 @@ func routeractionhandler(frame Frame) {
 			}
 		}
 
-
 		if data == "DHCPDISCOVER" {
 			debug(2, "routeractionhandler", snet.Router.ID, "DHCPDISCOVER received")
 			dhcp_offer(frame)
 		}
 
-		if(len(data) > 10){
+		if len(data) > 10 {
 			if data[0:11] == "DHCPREQUEST" {
 				debug(2, "routeractionhandler", snet.Router.ID, "DHCPREQUEST received")
-				internal[snet.Router.ID]<-frame
+				internal[snet.Router.ID] <- frame
 			}
 		}
 

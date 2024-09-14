@@ -6,9 +6,8 @@ Purpose:	Functions related to debugging and testing
 
 package main
 
-import(
+import (
 	"fmt"
-	"time"
 	"strconv"
 )
 
@@ -31,23 +30,27 @@ func getDebug() int {
 }
 
 func debug(level int, generatingFunc string, generatingID string, message string) {
-	if(snet.DebugLevel >= level) {
+	if snet.DebugLevel >= level {
 		hostname := ""
-		if(generatingID == "Listener") {
+		if generatingID == "Listener" {
 			hostname = "Listener"
 		} else {
 			deviceType := getDeviceType(generatingID)
-			if(deviceType == "host"){
-				if(getHostIndexFromID(generatingID) != -1){
+			if deviceType == "host" {
+				if getHostIndexFromID(generatingID) != -1 {
 					hostname = snet.Hosts[getHostIndexFromID(generatingID)].Hostname
-				} else { hostname = generatingID }
-			} else if(deviceType == "switch") {
-				if(getSwitchIndexFromID(generatingID) != -1) {
-				hostname = snet.Switches[getSwitchIndexFromID(generatingID)].Hostname
-				} else { hostname = generatingID }
-			} else if(deviceType == "vswitch") {
+				} else {
+					hostname = generatingID
+				}
+			} else if deviceType == "switch" {
+				if getSwitchIndexFromID(generatingID) != -1 {
+					hostname = snet.Switches[getSwitchIndexFromID(generatingID)].Hostname
+				} else {
+					hostname = generatingID
+				}
+			} else if deviceType == "vswitch" {
 				hostname = snet.Router.VSwitch.Hostname
-			} else if(deviceType == "router") {
+			} else if deviceType == "router" {
 				hostname = snet.Router.Hostname
 			} else {
 				hostname = generatingID
@@ -75,10 +78,4 @@ func inspectFrame(f Frame) {
 	fmt.Printf("Data: %s\n", s.Data)
 
 	fmt.Printf("\n")
-}
-
-func sleepDiv() {
-	time.Sleep(time.Second)
-	fmt.Println("---------------------")
-	time.Sleep(time.Second)
 }

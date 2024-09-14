@@ -6,10 +6,10 @@ Purpose:	Router-specific functions
 
 package main
 
-import(
+import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 const BOBCAT_PORTS = 4
@@ -62,30 +62,13 @@ func addVirtualSwitch(maxports int) Switch {
 
 	v.MACTable = make(map[string]int)
 
-
-
 	return v
 }
 
-func addRouter() {
-	fmt.Println("What model?")
-	fmt.Println("Available: Bobcat, Osiris")
-	fmt.Print("Model: ")
-	scanner.Scan()
-	routerModel := scanner.Text()
+func addRouter(routerHostname string, routerModel string) {
 	routerModel = strings.ToUpper(routerModel)
 
-	fmt.Print("Hostname: ")
-	scanner.Scan()
-	routerHostname := scanner.Text()
-
 	// input validation
-
-	if routerHostname == "" {
-		fmt.Println("Hostname cannot be blank. Please try again")
-		return
-	}
-
 	if hostname_exists(routerHostname) {
 		fmt.Println("Hostname already exists. Please try again")
 		return
@@ -119,7 +102,7 @@ func addRouter() {
 	for i := 2; i < (r.DHCPPool + 2); i++ {
 		addrconstruct = network_portion + strconv.Itoa(i)
 		r.DHCPTable[addrconstruct] = ""
-		r.DHCPTableOrder[i - 2] = addrconstruct
+		r.DHCPTableOrder[i-2] = addrconstruct
 	}
 
 	snet.Router = r
@@ -129,28 +112,20 @@ func addRouter() {
 	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
 }
 
-func delRouter() {
-	fmt.Printf("\nAre you sure you want do delete router %s? [Y/n]: ", snet.Router.Hostname)
-	scanner.Scan()
-	confirmation := scanner.Text()
-	confirmation = strings.ToUpper(confirmation)
-	if confirmation == "Y" {
-		r := Router{}
+func delRouter(hostname string) {
+	r := Router{}
 
-		r.ID = ""
-		r.Model = ""
-		r.MACAddr = ""
-		r.Hostname = ""
-		r.DHCPPool = 0
-		//r.Downports = 0
-		//r.Ports = nil
-		r.VSwitch = addVirtualSwitch(0)
+	r.ID = ""
+	r.Model = ""
+	r.MACAddr = ""
+	r.Hostname = ""
+	r.DHCPPool = 0
+	//r.Downports = 0
+	//r.Ports = nil
+	r.VSwitch = addVirtualSwitch(0)
 
-		snet.Router = r
-		fmt.Printf("\nRouter deleted\n")
-	} else {
-		fmt.Printf("\nRouter %s was not deleted.\n", snet.Router.Hostname)
-	}
+	snet.Router = r
+	fmt.Printf("\nRouter deleted\n")
 }
 
 func next_free_addr() string {
