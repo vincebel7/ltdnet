@@ -14,18 +14,17 @@ Includes fictional LAN appliances as well as simple implementations of essential
 ## Using ltdnet
 First, create a network and pick a class (A, B, or C)
 Currently, each network can only have one router. It is best to start off by creating a router:
-`add router`
-Then, pick the model. Right now there are two models: The Osiris 2-I and the Bobcat 100. The Osiris is better-suited for small networks, as it only has two user ports, and only two addresses available on its DHCP address pool. The Bobcat, however, has four user ports and 253 addresses available in its DHCP address pool.
+`add router router1`
 
 Next, you will want to create a host:
-`add host`
-Currently the only host model available in ltdnet is the ProBox.
+`add host host1`
 
 You can now take a look at your network by running a show command. The most comprehensive of these is:
 `show network overview`
 
 Once you have created a host, you can "plug in" the host to the router by *linking* them.
-`link host`
+`link host host1 router1`
+
 This will allow you to set your host's uplink to your router.
 
 Next, you will need to set the IP configuration for your host. There are two ways to do this: Statically, or dynamically through DHCP. Both ways require you to be in device control mode.
@@ -90,17 +89,19 @@ Clears the /saves directory
 ### README.md
 See README.md :)
 
-### notes.md
-Known bugs, and feature ideas. Mostly for my personal use
-
 ## Version History
 What has been accomplished at each major.minor version
 
-### v0.0 - July 17, 2019
-Basic interface
+
+### v0.2.8 - September 25, 2024
+CLI improvements, host linking bugfixes
+
+### v0.2 - October 4, 2019
+ARP, DHCP, complete network functionality, project structuring
 
 ### v0.1 - July 25, 2019
 Creating, saving, and loading JSON savefiles, creating a network, adding and linking hosts, adding routers, host controlling, device listeners, basic host-to-host pinging
 
-### v0.2 - October 4, 2019
-ARP, DHCP, complete network functionality, project structuring
+### v0.0 - July 17, 2019
+Basic interface
+
