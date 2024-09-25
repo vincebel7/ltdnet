@@ -27,12 +27,12 @@ var listenSync = make(chan string)
 var scanner = bufio.NewScanner(os.Stdin)
 
 type Router struct {
-	ID       string `json:"id"`
-	Model    string `json:"model"`
-	MACAddr  string `json:"macaddr"` // LAN-facing interface
-	Hostname string `json:"hostname"`
-	Gateway  string `json:"gateway"`
-	DHCPPool int    `json:"dhcppool"` //maximum, not just available
+	ID           string `json:"id"`
+	Model        string `json:"model"`
+	MACAddr      string `json:"macaddr"` // LAN-facing interface
+	Hostname     string `json:"hostname"`
+	Gateway      string `json:"gateway"`
+	DHCPPoolSize int    `json:"dhcp_pool_size"` //total addresses in DHCP pool
 	//Downports	int `json:"dpts"`
 	//Ports		[]string `json:"prtt"`
 	VSwitch Switch `json:"vswitchid"` // Virtual built-in switch to router

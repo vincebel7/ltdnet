@@ -273,7 +273,7 @@ func show(hostname string) {
 		fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
 		fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
 		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
-		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPool)
+		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPoolSize)
 		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
 	}
 }

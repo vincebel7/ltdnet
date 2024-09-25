@@ -21,7 +21,7 @@ func NewBobcat(hostname string) Router {
 	b.Model = "Bobcat 100"
 	b.MACAddr = macgen()
 	b.Hostname = hostname
-	b.DHCPPool = 253
+	b.DHCPPoolSize = 253
 
 	v := addVirtualSwitch(BOBCAT_PORTS)
 
@@ -35,7 +35,7 @@ func NewOsiris(hostname string) Router {
 	o.Model = "Osiris 2-I"
 	o.MACAddr = macgen()
 	o.Hostname = hostname
-	o.DHCPPool = 2
+	o.DHCPPoolSize = 2
 
 	v := addVirtualSwitch(OSIRIS_PORTS)
 
@@ -97,9 +97,9 @@ func addRouter(routerHostname string, routerModel string) {
 	network_portion := strings.TrimSuffix(r.Gateway, "1")
 
 	r.DHCPTable = make(map[string]string)
-	r.DHCPTableOrder = make([]string, r.DHCPPool)
+	r.DHCPTableOrder = make([]string, r.DHCPPoolSize)
 
-	for i := 2; i < (r.DHCPPool + 2); i++ {
+	for i := 2; i < (r.DHCPPoolSize + 2); i++ {
 		addrconstruct = network_portion + strconv.Itoa(i)
 		r.DHCPTable[addrconstruct] = ""
 		r.DHCPTableOrder[i-2] = addrconstruct
@@ -119,7 +119,7 @@ func delRouter(hostname string) {
 	r.Model = ""
 	r.MACAddr = ""
 	r.Hostname = ""
-	r.DHCPPool = 0
+	r.DHCPPoolSize = 0
 	//r.Downports = 0
 	//r.Ports = nil
 	r.VSwitch = addVirtualSwitch(0)
