@@ -4,10 +4,9 @@ Author: 	https://github.com/vincebel7
 Purpose:	Functions related to drawing network diagrams and displaying info
 */
 
-
 package main
 
-import(
+import (
 	"fmt"
 )
 
@@ -21,7 +20,7 @@ func drawDiagram(rootID string) {
 
 	// Unlinked hosts
 	for i := range snet.Hosts {
-		if(snet.Hosts[i].UplinkID == "") {
+		if snet.Hosts[i].UplinkID == "" {
 			drawHost(snet.Hosts[i].ID)
 		}
 	}
@@ -31,14 +30,14 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 	// Identify device info about rootID
 	rootHostname := ""
 	//rootIndex := -1
-	if(rootID == snet.Router.ID) {
+	if rootID == snet.Router.ID {
 		rootHostname = snet.Router.Hostname
 		rootType = "router"
 	}
 
-	if(rootType == "") {
+	if rootType == "" {
 		for i := range snet.Switches {
-			if(rootID == snet.Switches[i].ID) {
+			if rootID == snet.Switches[i].ID {
 				rootHostname = snet.Switches[i].Hostname
 				rootType = "switch"
 				//rootIndex = i
@@ -46,9 +45,9 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 		}
 	}
 
-	if(rootType == "") {
+	if rootType == "" {
 		for i := range snet.Hosts {
-			if(rootID == snet.Hosts[i].ID) {
+			if rootID == snet.Hosts[i].ID {
 				rootHostname = snet.Hosts[i].Hostname
 				rootType = "host"
 				//rootIndex = i
@@ -57,20 +56,22 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 	}
 
 	// ROUTER
-	if(rootType == "router"){
-		if(rootHostname != "") {
+	if rootType == "router" {
+		if rootHostname != "" {
 			drawRouter(snet.Router.ID)
 		}
 
-		for i := 1; i < getActivePorts(snet.Router.VSwitch); i++ { //1 bc switch
-			drawConnectedHost(snet.Router.VSwitch.Ports[i], i)
+		for i := range snet.Router.VSwitch.Ports {
+			if snet.Router.VSwitch.Ports[i] != "" && i != 0 {
+				drawConnectedHost(snet.Router.VSwitch.Ports[i], i)
+			}
 		}
 	}
 
 	// SWITCH
 
 	// HOST
-	if(rootType == "host"){
+	if rootType == "host" {
 	}
 }
 
@@ -81,12 +82,18 @@ func drawRouter(id string) {
 
 	fmt.Println("|------------------------|")
 	fmt.Println("|         Router         |")
-	 fmt.Printf("| Hostname: %s", snet.Router.Hostname)
-	for i := 0; i < space1; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n| Gateway: %s", snet.Router.Gateway)
-	for i := 0; i < space2; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n| Model: %s", snet.Router.Model)
-	for i := 0; i < space3; i++ { fmt.Printf(" ") }
+	fmt.Printf("| Hostname: %s", snet.Router.Hostname)
+	for i := 0; i < space1; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n| Gateway: %s", snet.Router.Gateway)
+	for i := 0; i < space2; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n| Model: %s", snet.Router.Model)
+	for i := 0; i < space3; i++ {
+		fmt.Printf(" ")
+	}
 	fmt.Println("|\n|------------------------|")
 }
 
@@ -100,16 +107,22 @@ func drawHost(id string) {
 	fmt.Println("")
 	fmt.Println("|------------------------|")
 	fmt.Println("|          Host          |")
-	 fmt.Printf("| Hostname: %s", h.Hostname)
-	for i := 0; i < space1; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n")
-	 fmt.Printf("| IP Addr: %s", h.IPAddr)
-	for i := 0; i < space2; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n")
-	 fmt.Printf("| Model: %s", h.Model)
-	for i := 0; i < space3; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n")
-	 fmt.Println("|------------------------|")
+	fmt.Printf("| Hostname: %s", h.Hostname)
+	for i := 0; i < space1; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Printf("| IP Addr: %s", h.IPAddr)
+	for i := 0; i < space2; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Printf("| Model: %s", h.Model)
+	for i := 0; i < space3; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Println("|------------------------|")
 }
 
 func drawConnectedHost(id string, iter int) {
@@ -122,24 +135,30 @@ func drawConnectedHost(id string, iter int) {
 	fmt.Println("            ||")
 	fmt.Println("            ||      |------------------------|")
 	fmt.Println("            ||      |          Host          |")
-	 fmt.Printf("            ||------| Hostname: %s", h.Hostname)
-	for i := 0; i < space1; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n")
-	 fmt.Printf("            ||------| IP Addr: %s", h.IPAddr)
-	for i := 0; i < space2; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n")
-
-	if(iter == getActivePorts(snet.Router.VSwitch) - 1) {
-	 fmt.Printf("                    | Model: %s", h.Model)
-	} else {
-	 fmt.Printf("            ||      | Model: %s", h.Model)
+	fmt.Printf("            ||------| Hostname: %s", h.Hostname)
+	for i := 0; i < space1; i++ {
+		fmt.Printf(" ")
 	}
-	for i := 0; i < space3; i++ { fmt.Printf(" ") }
-	 fmt.Printf("|\n")
-	if(iter == getActivePorts(snet.Router.VSwitch) - 1) {
-	 fmt.Println("                    |------------------------|")
+	fmt.Printf("|\n")
+	fmt.Printf("            ||------| IP Addr: %s", h.IPAddr)
+	for i := 0; i < space2; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+
+	if iter == getActivePorts(snet.Router.VSwitch)-1 {
+		fmt.Printf("                    | Model: %s", h.Model)
 	} else {
-	 fmt.Println("            ||      |------------------------|")
+		fmt.Printf("            ||      | Model: %s", h.Model)
+	}
+	for i := 0; i < space3; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	if iter == getActivePorts(snet.Router.VSwitch)-1 {
+		fmt.Println("                    |------------------------|")
+	} else {
+		fmt.Println("            ||      |------------------------|")
 	}
 
 }
@@ -176,17 +195,17 @@ func overview() {
 		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].DefaultGateway)
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].SubnetMask)
 		uplinkHostname := ""
-			//Router
-			if(isSwitchportID(snet.Router.VSwitch, snet.Hosts[i].UplinkID)) {
-				uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
-			}
+		//Router
+		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[i].UplinkID) {
+			uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
+		}
 
-			//Switches
-			for j := range snet.Switches {
-				if(isSwitchportID(snet.Switches[j], snet.Hosts[i].UplinkID)){
-					uplinkHostname = snet.Switches[j].Hostname
-				}
+		//Switches
+		for j := range snet.Switches {
+			if isSwitchportID(snet.Switches[j], snet.Hosts[i].UplinkID) {
+				uplinkHostname = snet.Switches[j].Hostname
 			}
+		}
 		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
 		hostCount = i + 1
 	}
@@ -197,7 +216,7 @@ func overview() {
 func show(hostname string) {
 	device_type := "host"
 	id := -1
-	if(snet.Router.Hostname == hostname) {
+	if snet.Router.Hostname == hostname {
 		device_type = "router"
 		id = 0
 	}
@@ -217,9 +236,9 @@ func show(hostname string) {
 	}
 
 	if id == -1 {
-			fmt.Printf("Hostname not found\n")
-			return
-		}
+		fmt.Printf("Hostname not found\n")
+		return
+	}
 
 	if device_type == "host" {
 		fmt.Printf("\nHost %v\n", snet.Hosts[id].Hostname)
@@ -232,12 +251,12 @@ func show(hostname string) {
 		uplinkHostname := ""
 
 		//Router
-		if(isSwitchportID(snet.Router.VSwitch, snet.Hosts[id].UplinkID)) {
+		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[id].UplinkID) {
 			uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
 		}
 		//Switches
 		for j := range snet.Switches {
-			if(isSwitchportID(snet.Switches[j], snet.Hosts[id].UplinkID)){
+			if isSwitchportID(snet.Switches[j], snet.Hosts[id].UplinkID) {
 				uplinkHostname = snet.Switches[j].Hostname
 			}
 		}
@@ -258,5 +277,3 @@ func show(hostname string) {
 		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
 	}
 }
-
-

@@ -6,7 +6,7 @@ Purpose:	Various misc helper functions
 
 package main
 
-import(
+import (
 	"fmt"
 	"math/rand"
 	"time"
@@ -34,11 +34,17 @@ func macgen() string {
 }
 
 func getDeviceType(id string) string {
-	if(snet.Router.ID == id) { return "router" }
-	if(snet.Router.VSwitch.ID == id) { return "vswitch" }
+	if snet.Router.ID == id {
+		return "router"
+	}
+	if snet.Router.VSwitch.ID == id {
+		return "vswitch"
+	}
 
 	for s := range snet.Switches {
-		if(snet.Switches[s].ID == id) { return "switch" }
+		if snet.Switches[s].ID == id {
+			return "switch"
+		}
 	}
 
 	return "host"
@@ -46,14 +52,18 @@ func getDeviceType(id string) string {
 
 func getHostIndexFromID(id string) int {
 	for h := range snet.Hosts {
-		if snet.Hosts[h].ID == id { return h }
+		if snet.Hosts[h].ID == id {
+			return h
+		}
 	}
 	return -1
 }
 
 func getSwitchIndexFromID(id string) int {
 	for s := range snet.Switches {
-		if snet.Switches[s].ID == id { return s }
+		if snet.Switches[s].ID == id {
+			return s
+		}
 	}
 
 	return -1
@@ -63,12 +73,14 @@ func getSwitchportIDFromLink(link string) int {
 	switchID := getSwitchIDFromLink(link)
 
 	s := snet.Router.VSwitch
-	if(switchID != snet.Router.VSwitch.ID) {
+	if switchID != snet.Router.VSwitch.ID {
 		s = snet.Switches[getSwitchIndexFromID(switchID)]
 	}
 
 	for i := range s.PortIDs {
-		if s.PortIDs[i] == link { return i }
+		if s.PortIDs[i] == link {
+			return i
+		}
 	}
 
 	return -1
@@ -77,11 +89,11 @@ func getSwitchportIDFromLink(link string) int {
 func getSwitchIDFromLink(link string) string {
 	s := snet.Router.VSwitch
 
-	if(isSwitchportID(snet.Router.VSwitch, link)) {
+	if isSwitchportID(snet.Router.VSwitch, link) {
 		s = snet.Router.VSwitch
 	} else {
 		for i := range snet.Switches {
-			if(isSwitchportID(snet.Switches[i], link)) {
+			if isSwitchportID(snet.Switches[i], link) {
 				return snet.Switches[i].ID
 			}
 		}
@@ -92,7 +104,9 @@ func getSwitchIDFromLink(link string) string {
 
 func getMACfromID(id string) string {
 	//Router
-	if id == snet.Router.ID { return snet.Router.MACAddr }
+	if id == snet.Router.ID {
+		return snet.Router.MACAddr
+	}
 
 	//Hosts
 	return snet.Hosts[getHostIndexFromID(id)].MACAddr
@@ -100,11 +114,15 @@ func getMACfromID(id string) string {
 
 func getIDfromMAC(mac string) string {
 	//Router
-	if mac == snet.Router.MACAddr { return snet.Router.ID }
+	if mac == snet.Router.MACAddr {
+		return snet.Router.ID
+	}
 
 	//Hosts
 	for h := range snet.Hosts {
-		if snet.Hosts[h].MACAddr == mac { return snet.Hosts[h].ID }
+		if snet.Hosts[h].MACAddr == mac {
+			return snet.Hosts[h].ID
+		}
 	}
 
 	return ""
@@ -123,15 +141,23 @@ func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask 
 }
 
 func hostname_exists(hostname string) bool {
-	if snet.Router.Hostname == hostname { return true }
-	if snet.Router.VSwitch.Hostname == hostname { return true }
+	if snet.Router.Hostname == hostname {
+		return true
+	}
+	if snet.Router.VSwitch.Hostname == hostname {
+		return true
+	}
 
 	for s := range snet.Switches {
-		if snet.Switches[s].Hostname == hostname { return true }
+		if snet.Switches[s].Hostname == hostname {
+			return true
+		}
 	}
 
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == hostname { return true }
+		if snet.Hosts[h].Hostname == hostname {
+			return true
+		}
 	}
 
 	return false

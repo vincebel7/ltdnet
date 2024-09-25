@@ -6,11 +6,11 @@ Purpose:	Defines network functions such as ARP, DHCP, etc.
 
 package main
 
-import(
+import (
 	"fmt"
-	"time"
-	"strings"
 	"net"
+	"strings"
+	"time"
 )
 
 func ping(srcID string, dstIP string, secs int) {
@@ -27,7 +27,9 @@ func ping(srcID string, dstIP string, secs int) {
 		srchost = snet.Router.Hostname
 	} else {
 		for h := range snet.Hosts {
-			if snet.Hosts[h].ID == srcID { srchost = snet.Hosts[h].Hostname}
+			if snet.Hosts[h].ID == srcID {
+				srchost = snet.Hosts[h].Hostname
+			}
 		}
 	}
 
@@ -70,22 +72,22 @@ func ping(srcID string, dstIP string, secs int) {
 		p := constructPacket(srcIP, dstIP, s)
 		f := constructFrame(p, srcMAC, dstMAC)
 
-		channels[linkID]<-f
+		channels[linkID] <- f
 		sendCount++
 		debug(2, "ping", srcID, "Ping sent")
 		pong := make(chan bool, 1)
 		select {
-			case pongdata := <-internal[srcID]:
-				if(pongdata.Data.Data.Data == "pong!") {
-					recvCount++
-					pong<-true
-				}
-			case <-time.After(time.Second * 4):
-				lossCount++
-				pong<-false
+		case pongdata := <-internal[srcID]:
+			if pongdata.Data.Data.Data == "pong!" {
+				recvCount++
+				pong <- true
+			}
+		case <-time.After(time.Second * 4):
+			lossCount++
+			pong <- false
 		}
 
-		if(<-pong) {
+		if <-pong {
 			fmt.Printf("Reply from %s\n", dstIP)
 			timeoutCounter = 0
 		} else {
@@ -94,21 +96,19 @@ func ping(srcID string, dstIP string, secs int) {
 			i--
 		}
 
-		if(timeoutCounter == 4) { //Skip rest of pings if timeout
+		if timeoutCounter == 4 { //Skip rest of pings if timeout
 			i = secs
 		}
 
-		if(i < secs - 1) { //Only wait a second if 
+		if i < secs-1 { //Only wait a second if
 			time.Sleep(time.Second)
 		}
 	}
-	actionsync[srcID]<-1
+	actionsync[srcID] <- 1
 
 	// Ping stats
 	fmt.Printf("\nPing statistics for %s:\n", dstIP)
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
-
-	return
 }
 
 func pong(srcID string, dstIP string, frame Frame) {
@@ -136,9 +136,8 @@ func pong(srcID string, dstIP string, frame Frame) {
 	s := constructSegment("pong!")
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
-	channels[linkID]<-f
+	channels[linkID] <- f
 	debug(2, "pong", srcID, "Pong sent")
-	return
 }
 
 func arp_request(srcID string, device_type string, dstIP string) string {
@@ -149,7 +148,7 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 	srcMAC := ""
 	dstMAC := "FF:FF:FF:FF:FF:FF"
 
-	if(device_type == "router") {
+	if device_type == "router" {
 		srcIP = snet.Router.Gateway
 		srcMAC = snet.Router.MACAddr
 		linkID = "FFFFFFFF"
@@ -164,7 +163,7 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
 
-	channels[linkID]<-f
+	channels[linkID] <- f
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
 	//computer with address will respond with its MAC
 	replyframe := <-internal[srcID]
@@ -180,8 +179,8 @@ func arp_reply(i int, device_type string, frame Frame) {
 	dstIP := frame.Data.SrcIP
 	srcID := ""
 
-	if (device_type == "router") {
-		if (request_addr != snet.Router.Gateway) {
+	if device_type == "router" {
+		if request_addr != snet.Router.Gateway {
 			return
 		} else {
 			//fmt.Printf("[Router] THIS ME! I am %s\n", snet.Router.Hostname, request_addr)
@@ -191,7 +190,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
 		}
 	} else {
-		if (request_addr != snet.Hosts[i].IPAddr) {
+		if request_addr != snet.Hosts[i].IPAddr {
 			return
 		} else {
 			//fmt.Printf("[Host %s] THIS ME! I am %s\n", snet.Hosts[i].Hostname, request_addr)
@@ -208,7 +207,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 	f := constructFrame(p, srcMAC, dstMAC)
 	//inspectFrame(f)
 	debug(2, "arp_reply", srcID, "ARPREPLY sent")
-	channels[linkID]<-f
+	channels[linkID] <- f
 }
 
 func dhcp_discover(host Host) {
@@ -226,15 +225,15 @@ func dhcp_discover(host Host) {
 	f := constructFrame(p, srcMAC, dstMAC)
 
 	//need to give it to uplink
-	channels[linkID]<-f
+	channels[linkID] <- f
 	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 	offer := <-internal[srcID]
-	if(offer.Data.Data.Data != "") {
+	if offer.Data.Data.Data != "" {
 		if offer.Data.Data.Data == "DHCPOFFER NOAVAILABLE" {
 			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
 		} else {
 			word := strings.Fields(offer.Data.Data.Data)
-			if(len(word) > 0){
+			if len(word) > 0 {
 				word2 := word[1]
 				gateway := word[2]
 				snetmask := word[3]
@@ -244,16 +243,16 @@ func dhcp_discover(host Host) {
 				s = constructSegment(message)
 				p = constructPacket(srcIP, dstIP, s)
 				f = constructFrame(p, srcMAC, dstMAC)
-				channels[linkID]<-f
-				debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - " + word2)
+				channels[linkID] <- f
+				debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - "+word2)
 				//wait for acknowledgement
 
 				ack := <-internal[srcID]
-				if(ack.Data.Data.Data != "") {
-					debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - " + ack.Data.Data.Data)
+				if ack.Data.Data.Data != "" {
+					debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+ack.Data.Data.Data)
 
 					word = strings.Fields(ack.Data.Data.Data)
-					if(len(word) > 1) {
+					if len(word) > 1 {
 						fmt.Println("")
 						confirmed_addr := word[1]
 						dynamic_assign(srcID, confirmed_addr, gateway, snetmask)
@@ -262,16 +261,15 @@ func dhcp_discover(host Host) {
 					}
 				}
 
-
 			} else {
 				debug(1, "dhcp_discover", srcID, "Error 2: Empty DHCP offer")
 			}
 		}
 	}
-	actionsync[srcID]<-1
+	actionsync[srcID] <- 1
 }
 
-func dhcp_offer(inc_f Frame){
+func dhcp_offer(inc_f Frame) {
 	srcIP := snet.Router.Gateway
 	dstIP := "255.255.255.255"
 	srcMAC := snet.Router.MACAddr
@@ -292,7 +290,6 @@ func dhcp_offer(inc_f Frame){
 		subnetmask = "255.255.255.0"
 	}
 
-
 	message := ""
 	if addr_to_give == "" {
 		message = "DHCPOFFER NOAVAILABLE"
@@ -302,16 +299,16 @@ func dhcp_offer(inc_f Frame){
 	s := constructSegment(message)
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
-	channels[linkID]<-f
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - " + addr_to_give)
+	channels[linkID] <- f
+	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give)
 
 	//acknowledge
 	request := <-internal[snet.Router.ID]
 	message = ""
-	if(request.Data.Data.Data != "") {
+	if request.Data.Data.Data != "" {
 		word := strings.Fields(request.Data.Data.Data)
-		if(len(word) > 1) {
-			if(word[1] == addr_to_give) {
+		if len(word) > 1 {
+			if word[1] == addr_to_give {
 				message = "DHCPACKNOWLEDGEMENT " + addr_to_give
 			} else {
 				debug(1, "dhcp_offer", snet.Router.ID, "Error 4: DHCP address requested is not same as offer")
@@ -325,12 +322,12 @@ func dhcp_offer(inc_f Frame){
 	s = constructSegment(message)
 	p = constructPacket(srcIP, dstIP, s)
 	f = constructFrame(p, srcMAC, dstMAC)
-	channels[linkID]<-f
+	channels[linkID] <- f
 
 	// Setting leasee's MAC in pool
 	for k, _ := range snet.Router.DHCPTable {
 		if k == addr_to_give {
-			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address " + addr_to_give + " from pool")
+			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
 			snet.Router.DHCPTable[k] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
@@ -359,7 +356,7 @@ func ipset(hostname string) {
 		scanner.Scan()
 		affirmation := scanner.Text()
 
-		if(strings.ToUpper(affirmation) == "Y") {
+		if strings.ToUpper(affirmation) == "Y" {
 			// error checking
 			error := false
 			if net.ParseIP(ipaddr).To4() == nil {
@@ -373,13 +370,13 @@ func ipset(hostname string) {
 				fmt.Printf("Error: '%s' is not a valid default gateway\n", defaultgateway)
 			}
 
-			if(!error) {
+			if !error {
 				correct = true
 			}
-		 } else if(strings.ToUpper(affirmation) == "EXIT") {
+		} else if strings.ToUpper(affirmation) == "EXIT" {
 			fmt.Println("Network changes reverted")
 			return
-		 }
+		}
 	}
 
 	//update info
