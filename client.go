@@ -136,14 +136,14 @@ func selectNetwork() {
 	fmt.Print("\nLoad: ")
 	scanner.Scan()
 	network_selection := scanner.Text()
-	int_select, err := strconv.Atoi(network_selection)
+	int_select, _ := strconv.Atoi(network_selection)
 
 	for (network_selection == "") || (int_select >= i) || (int_select < 1) {
 		fmt.Println("Not a valid option.")
 		fmt.Print("\nLoad: ")
 		scanner.Scan()
 		network_selection = scanner.Text()
-		int_select, err = strconv.Atoi(network_selection)
+		int_select, _ = strconv.Atoi(network_selection)
 	}
 	netname := option_map[int_select]
 	netname = netname[:len(netname)-len(".json")]
@@ -155,6 +155,10 @@ func loadNetwork(netname string) {
 	//open file
 	filename := "saves/" + netname + ".json"
 	f, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("File not found: %s", filename)
+	}
+
 	b1 := make([]byte, 1000000) //TODO: secure this
 	n1, err := f.Read(b1)
 
@@ -164,9 +168,9 @@ func loadNetwork(netname string) {
 
 	//unmarshal
 	var net Network
-	err2 := json.Unmarshal(b1[:n1], &net)
-	if err2 != nil {
-		fmt.Printf("err: %v", err2)
+	err = json.Unmarshal(b1[:n1], &net)
+	if err != nil {
+		fmt.Printf("err: %v", err)
 	}
 
 	//save global
@@ -200,7 +204,7 @@ func linkHost(localDevice string, remoteDevice string) {
 	for i := range snet.Hosts {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == localDevice {
 			uplinkID := ""
-			//Router
+			//Remote device on new link is the Router
 			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
 				for k := range snet.Router.VSwitch.Ports {
@@ -212,7 +216,7 @@ func linkHost(localDevice string, remoteDevice string) {
 
 				assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
 			} else {
-				//Search switches
+				//Remote device on the new link is not the Router. Search switches
 				for j := range snet.Switches {
 					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
 
@@ -239,10 +243,10 @@ func unlinkHost(hostname string) {
 
 	for i := range snet.Hosts {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
-			//first, unplug from switch
+			//first, unplug from switch (switch-end unlink). TODO try/catch this whole block.
 			freeSwitchport(snet.Hosts[i].UplinkID)
 
-			//next, remove host uplink
+			//next, remove the host's uplink (host-end unlink)
 			uplinkID := ""
 			snet.Hosts[i].UplinkID = uplinkID
 			//snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
@@ -435,7 +439,7 @@ func actionsMenu() {
 	case "manual", "man":
 		launchManual()
 
-	case "exit", "quit":
+	case "exit", "quit", "q":
 		os.Exit(0)
 
 	case "help", "?":

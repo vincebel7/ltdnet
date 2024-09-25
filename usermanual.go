@@ -7,7 +7,7 @@ import (
 )
 
 func launchManual() {
-	file, err := os.Open("USER-MANUAL.md")
+	file, err := os.Open("USER-MANUAL")
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return

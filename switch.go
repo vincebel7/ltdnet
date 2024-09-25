@@ -151,13 +151,19 @@ func getActivePorts(sw Switch) int {
 }
 
 func assignSwitchport(sw Switch, id string) Switch {
-	index := getActivePorts(sw)
-	sw.Ports[index] = id
+	portIndex := -1
+	for i := range sw.Ports {
+		if sw.Ports[i] == "" {
+			sw.Ports[i] = id
+			portIndex = i
+			break
+		}
+	}
 
-	channels[sw.PortIDs[index]] = make(chan Frame)
-	internal[sw.PortIDs[index]] = make(chan Frame)
-	debug(4, "generateRouterChannels", sw.PortIDs[index], "listening for id")
-	go switchportlisten(sw.PortIDs[index])
+	channels[sw.PortIDs[portIndex]] = make(chan Frame)
+	internal[sw.PortIDs[portIndex]] = make(chan Frame)
+	debug(4, "generateRouterChannels", sw.PortIDs[portIndex], "listening for id")
+	go switchportlisten(sw.PortIDs[portIndex])
 
 	return sw
 }
@@ -199,9 +205,9 @@ func freeSwitchport(link string) {
 	switchID := getSwitchIDFromLink(link)
 
 	if snet.Router.VSwitch.ID == switchID {
-		snet.Router.VSwitch.PortIDs[switchport] = ""
+		snet.Router.VSwitch.Ports[switchport] = ""
 	} else {
 		i := getSwitchIndexFromID(switchID)
-		snet.Switches[i].PortIDs[switchport] = ""
+		snet.Switches[i].Ports[switchport] = ""
 	}
 }

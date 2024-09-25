@@ -6,11 +6,11 @@ Purpose:	Handles connection and interface for hosts
 
 package main
 
-import(
+import (
 	"fmt"
 	//"time"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func Conn(device string, id string) {
@@ -18,7 +18,7 @@ func Conn(device string, id string) {
 	host := Host{}
 	hostindex := -1
 	for i := range snet.Hosts {
-		if(snet.Hosts[i].ID == id){
+		if snet.Hosts[i].ID == id {
 			hostindex = i
 			host = snet.Hosts[i]
 		}
@@ -38,19 +38,19 @@ func Conn(device string, id string) {
 		action_selection := scanner.Text()
 		actionword1 := ""
 		if action_selection != "" {
-		action := strings.Fields(action_selection)
-		if(len(action) > 0){
-			actionword1 = action[0]
-		}
+			action := strings.Fields(action_selection)
+			if len(action) > 0 {
+				actionword1 = action[0]
+			}
 
-		switch actionword1 {
+			switch actionword1 {
 			case "":
 			case "ping":
-				if(host.UplinkID == "") {
+				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
-				} else if((host.IPAddr == "0.0.0.0") || (host.IPAddr == "")) {
+				} else if (host.IPAddr == "0.0.0.0") || (host.IPAddr == "") {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
-				}else {
+				} else {
 					if len(action) > 1 {
 						if len(action) > 2 { //if seconds is specified
 							seconds, _ := strconv.Atoi(action[2])
@@ -64,7 +64,7 @@ func Conn(device string, id string) {
 					}
 				}
 			case "dhcp":
-				if(host.UplinkID == "") {
+				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
 
@@ -73,7 +73,7 @@ func Conn(device string, id string) {
 					save()
 				}
 			case "ipset":
-				if(host.UplinkID == "") {
+				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
 					ipset(host.Hostname)
@@ -82,19 +82,19 @@ func Conn(device string, id string) {
 			case "ipclear":
 				ipclear(host.ID)
 				save()
-			case "exit":
+			case "exit", "quit", "q":
 				return
-			case "help","?":
+			case "help", "?":
 				fmt.Println("",
-				"ping <dest_ip> [seconds]\tPings an IP address\n",
-				"dhcp\t\t\t\tGets IP configuration via DHCP\n",
-				"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
-				"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)\n",
-				"exit\t\t\t\tReturns to main menu",
-			)
+					"ping <dest_ip> [seconds]\tPings an IP address\n",
+					"dhcp\t\t\t\tGets IP configuration via DHCP\n",
+					"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
+					"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)\n",
+					"exit\t\t\t\tReturns to main menu",
+				)
 			default:
 				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
-		}
+			}
 		}
 	}
 }
