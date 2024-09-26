@@ -257,20 +257,6 @@ func unlinkHost(hostname string) {
 	}
 }
 
-func controlHost(hostname string) {
-	fmt.Printf("Attempting to control host %s...\n", hostname)
-	host := Host{}
-	for i := range snet.Hosts {
-		if snet.Hosts[i].Hostname == hostname {
-			host = snet.Hosts[i]
-			Conn("host", host.ID)
-		}
-	}
-	if host.Hostname == "" {
-		fmt.Println("Host not found")
-	}
-}
-
 func actionsMenu() {
 	fmt.Print("> ")
 	scanner.Scan()
@@ -389,6 +375,7 @@ func actionsMenu() {
 				save()
 
 			case "router":
+				controlRouter(actionword3)
 				save()
 
 			default:

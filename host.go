@@ -9,6 +9,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"net"
 )
 
 type Host struct {
@@ -16,9 +17,9 @@ type Host struct {
 	Model          string `json:"model"`
 	MACAddr        string `json:"macaddr"`
 	Hostname       string `json:"hostname"`
-	IPAddr         string `json:"ipaddr"`
+	IPAddr         net.IP `json:"ipaddr"`
 	SubnetMask     string `json:"mask"`
-	DefaultGateway string `json:"gateway"`
+	DefaultGateway net.IP `json:"gateway"`
 	UplinkID       string `json:"uplinkid"`
 }
 
@@ -49,7 +50,7 @@ func addHost(hostHostname string) {
 		return
 	}
 
-	h.IPAddr = "0.0.0.0"
+	h.IPAddr = net.ParseIP("0.0.0.0")
 
 	snet.Hosts = append(snet.Hosts, h)
 

@@ -13,7 +13,18 @@ import (
 	"strings"
 )
 
-func Conn(device string, id string) {
+func controlHost(hostname string) {
+	fmt.Printf("Attempting to control host %s...\n", hostname)
+	for i := range snet.Hosts {
+		if snet.Hosts[i].Hostname == hostname {
+			HostConn("host", snet.Hosts[i].ID)
+			return
+		}
+	}
+	fmt.Println("Host not found")
+}
+
+func HostConn(device string, id string) {
 	//find host
 	host := Host{}
 	hostindex := -1
@@ -48,7 +59,7 @@ func Conn(device string, id string) {
 			case "ping":
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
-				} else if (host.IPAddr == "0.0.0.0") || (host.IPAddr == "") {
+				} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {

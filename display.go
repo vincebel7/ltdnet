@@ -101,7 +101,7 @@ func drawHost(id string) {
 	h := snet.Hosts[getHostIndexFromID(id)]
 
 	space1 := 13 - len(h.Hostname)
-	space2 := 14 - len(h.IPAddr)
+	space2 := 14 - len(h.IPAddr.String())
 	space3 := 16 - len(h.Model)
 
 	fmt.Println("")
@@ -129,7 +129,7 @@ func drawConnectedHost(id string, iter int) {
 	h := snet.Hosts[getHostIndexFromID(id)]
 
 	space1 := 13 - len(h.Hostname)
-	space2 := 14 - len(h.IPAddr)
+	space2 := 14 - len(h.IPAddr.String())
 	space3 := 16 - len(h.Model)
 
 	fmt.Println("            ||")
@@ -191,8 +191,8 @@ func overview() {
 		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[i].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[i].Model)
 		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[i].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[i].IPAddr)
-		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].DefaultGateway)
+		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[i].IPAddr.String())
+		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].DefaultGateway.String())
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].SubnetMask)
 		uplinkHostname := ""
 		//Router
@@ -245,8 +245,8 @@ func show(hostname string) {
 		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[id].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[id].Model)
 		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[id].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[id].IPAddr)
-		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].DefaultGateway)
+		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[id].IPAddr.String())
+		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].DefaultGateway.String())
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[id].SubnetMask)
 		uplinkHostname := ""
 

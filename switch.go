@@ -9,13 +9,14 @@ package main
 import (
 	"fmt"
 	"strings"
+	"net"
 )
 
 type Switch struct {
 	ID       string         `json:"id"`
 	Model    string         `json:"model"`
 	Hostname string         `json:"hostname"`
-	MgmtIP   string         `json:"mgmtip"`
+	MgmtIP   net.IP         `json:"mgmtip"`
 	MACTable map[string]int `json:"mactable"`
 	Maxports int            `json:"maxports"`
 	Ports    []string       `json:"ports"`    // maps port # to downlink ID

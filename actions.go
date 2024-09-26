@@ -59,7 +59,7 @@ func ping(srcID string, dstIP string, secs int) {
 				if snet.Hosts[h].ID == srcID {
 					linkID = snet.Hosts[h].UplinkID
 					srchost = snet.Hosts[h].Hostname
-					srcIP = snet.Hosts[h].IPAddr
+					srcIP = snet.Hosts[h].IPAddr.String()
 					srcMAC = snet.Hosts[h].MACAddr
 				}
 			}
@@ -128,7 +128,7 @@ func pong(srcID string, dstIP string, frame Frame) {
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
-		srcIP = snet.Hosts[index].IPAddr
+		srcIP = snet.Hosts[index].IPAddr.String()
 
 		linkID = snet.Hosts[index].UplinkID
 	}
@@ -154,7 +154,7 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 		linkID = "FFFFFFFF"
 	} else {
 		index := getHostIndexFromID(srcID)
-		srcIP = snet.Hosts[index].IPAddr
+		srcIP = snet.Hosts[index].IPAddr.String()
 		srcMAC = snet.Hosts[index].MACAddr
 		linkID = "FFFFFFFF"
 	}
@@ -190,11 +190,11 @@ func arp_reply(i int, device_type string, frame Frame) {
 			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
 		}
 	} else {
-		if request_addr != snet.Hosts[i].IPAddr {
+		if request_addr != snet.Hosts[i].IPAddr.String() {
 			return
 		} else {
 			//fmt.Printf("[Host %s] THIS ME! I am %s\n", snet.Hosts[i].Hostname, request_addr)
-			srcIP = snet.Hosts[i].IPAddr
+			srcIP = snet.Hosts[i].IPAddr.String()
 			srcMAC = snet.Hosts[i].MACAddr
 			srcID = snet.Hosts[i].ID
 			linkID = snet.Hosts[i].UplinkID
@@ -213,7 +213,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 func dhcp_discover(host Host) {
 	debug(4, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
 	//get info
-	srcIP := host.IPAddr
+	srcIP := host.IPAddr.String()
 	srcMAC := host.MACAddr
 	srcID := host.ID
 	dstIP := "255.255.255.255"
@@ -255,7 +255,7 @@ func dhcp_discover(host Host) {
 					if len(word) > 1 {
 						fmt.Println("")
 						confirmed_addr := word[1]
-						dynamic_assign(srcID, confirmed_addr, gateway, snetmask)
+						dynamic_assign(srcID, net.ParseIP(confirmed_addr), net.ParseIP(gateway), snetmask)
 					} else {
 						debug(1, "dhcp_discover", srcID, "Error 5: Empty DHCP acknowledgement\n")
 					}
@@ -383,9 +383,9 @@ func ipset(hostname string) {
 	//update info
 	for h := range snet.Hosts {
 		if snet.Hosts[h].Hostname == hostname {
-			snet.Hosts[h].IPAddr = ipaddr
+			snet.Hosts[h].IPAddr = net.ParseIP(ipaddr)
 			snet.Hosts[h].SubnetMask = subnetmask
-			snet.Hosts[h].DefaultGateway = defaultgateway
+			snet.Hosts[h].DefaultGateway = net.ParseIP(defaultgateway)
 			fmt.Println("Network configuration updated")
 		}
 	}
@@ -394,8 +394,8 @@ func ipset(hostname string) {
 
 func ipclear(id string) {
 	index := getHostIndexFromID(id)
-	snet.Hosts[index].IPAddr = ""
+	snet.Hosts[index].IPAddr = nil
 	snet.Hosts[index].SubnetMask = ""
-	snet.Hosts[index].DefaultGateway = ""
+	snet.Hosts[index].DefaultGateway = nil
 	fmt.Println("Network configuration cleared")
 }
