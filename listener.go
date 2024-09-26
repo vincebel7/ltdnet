@@ -37,6 +37,8 @@ func generateRouterChannels() {
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
 			internal[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
+			actionsync[snet.Router.ID] = make(chan int)
+
 			go switchportlisten(snet.Router.VSwitch.PortIDs[i])
 		}
 	}
@@ -56,6 +58,7 @@ func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan Frame)
 	internal[snet.Hosts[i].ID] = make(chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
+	
 	go hostlisten(snet.Hosts[i].ID)
 }
 

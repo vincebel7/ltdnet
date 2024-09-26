@@ -41,17 +41,25 @@ func ping(srcID string, dstIP string, secs int) {
 
 	for i := 0; i < secs; i++ {
 		// Get MAC addresses
-		if snet.Router.ID == srcID { //leave this in here until i implement controlling router and can ping from rtr
+		if snet.Router.ID == srcID {
 			srchost = snet.Router.Hostname
 			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 
 			//TODO: Implement MAC learning to avoid ARPing every time
 			dstMAC = arp_request(srcID, "router", dstIP)
-			fmt.Println("Got dstmac", dstMAC) //leave this in here until implemented
 
 			//get link to send ping to
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			dstID := getIDfromMAC(dstMAC)
+			if getHostIndexFromID(dstID) != -1 {
+				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			} else if snet.Router.ID == dstID {
+				linkID = snet.Router.ID
+			}
+
+		} else { // Assumed to be host source.
+			//TODO: Implement MAC learning to avoid ARPing every time
+			dstMAC = arp_request(srcID, "host", dstIP)
 		}
 
 		if srcMAC == "" {
@@ -64,9 +72,6 @@ func ping(srcID string, dstIP string, secs int) {
 				}
 			}
 		}
-
-		//TODO: Implement MAC learning to avoid ARPing every time
-		dstMAC = arp_request(srcID, "host", dstIP)
 
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
@@ -141,7 +146,7 @@ func pong(srcID string, dstIP string, frame Frame) {
 }
 
 func arp_request(srcID string, device_type string, dstIP string) string {
-	debug(4, "arp_request", srcID, "About to ARP request")
+	debug(4, "arp_request", srcID, srcID + device_type + "About to ARP request")
 	//Construct frame
 	linkID := ""
 	srcIP := ""
@@ -187,7 +192,14 @@ func arp_reply(i int, device_type string, frame Frame) {
 			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 			srcID = snet.Router.ID
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+
+			// Determine linkID
+			dstID := getIDfromMAC(dstMAC)
+			if getHostIndexFromID(dstID) != -1 {
+				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			} else if snet.Router.ID == dstID {
+				linkID = snet.Router.ID
+			}
 		}
 	} else {
 		if request_addr != snet.Hosts[i].IPAddr.String() {
