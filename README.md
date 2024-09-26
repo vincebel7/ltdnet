@@ -60,19 +60,19 @@ Listens for incoming traffic and handles actions accordingly
 All "program" functions run on devices such as ping, DHCP, etc.
 
 ### router.go
-Router-specific functions
+Router-specific functions and structs
 
 ### switch.go
-Switch-specific functions
+Switch-specific functions and structs
 
 ### host.go
-Host-specific functions
+Host-specific functions and structs
+
+### network.go
+Network-specific functions and structs
 
 ### helpers.go
 Helper functions for common operations
-
-### structs.go
-Defines datagram structs and related functions
 
 ### debug.go
 Functions for debugging and testing

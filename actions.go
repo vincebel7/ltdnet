@@ -43,7 +43,7 @@ func ping(srcID string, dstIP string, secs int) {
 		// Get MAC addresses
 		if snet.Router.ID == srcID { //leave this in here until i implement controlling router and can ping from rtr
 			srchost = snet.Router.Hostname
-			srcIP = snet.Router.Gateway
+			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 
 			//TODO: Implement MAC learning to avoid ARPing every time
@@ -118,7 +118,7 @@ func pong(srcID string, dstIP string, frame Frame) {
 	dstMAC := frame.SrcMAC
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
-		srcIP = snet.Router.Gateway
+		srcIP = snet.Router.Gateway.String()
 
 		//TODO: Implement MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcID, "router", dstIP)
@@ -149,7 +149,7 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 	dstMAC := "FF:FF:FF:FF:FF:FF"
 
 	if device_type == "router" {
-		srcIP = snet.Router.Gateway
+		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
 		linkID = "FFFFFFFF"
 	} else {
@@ -180,11 +180,11 @@ func arp_reply(i int, device_type string, frame Frame) {
 	srcID := ""
 
 	if device_type == "router" {
-		if request_addr != snet.Router.Gateway {
+		if request_addr != snet.Router.Gateway.String() {
 			return
 		} else {
 			//fmt.Printf("[Router] THIS ME! I am %s\n", snet.Router.Hostname, request_addr)
-			srcIP = snet.Router.Gateway
+			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 			srcID = snet.Router.ID
 			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
@@ -270,7 +270,7 @@ func dhcp_discover(host Host) {
 }
 
 func dhcp_offer(inc_f Frame) {
-	srcIP := snet.Router.Gateway
+	srcIP := snet.Router.Gateway.String()
 	dstIP := "255.255.255.255"
 	srcMAC := snet.Router.MACAddr
 	dstMAC := inc_f.SrcMAC
@@ -279,8 +279,8 @@ func dhcp_offer(inc_f Frame) {
 	//linkID := snet.Hosts[getHostIndexFromID(dstid)].UplinkID
 
 	//find open address
-	addr_to_give := next_free_addr()
-	gateway := snet.Router.Gateway
+	addr_to_give := snet.Router.NextFreePoolAddress().String()
+	gateway := snet.Router.Gateway.String()
 	subnetmask := ""
 	if snet.Netsize == "8" {
 		subnetmask = "255.0.0.0"
@@ -325,9 +325,9 @@ func dhcp_offer(inc_f Frame) {
 	channels[linkID] <- f
 
 	// Setting leasee's MAC in pool (new)
-	pool := snet.Router.DHCPPool.GetPoolAddresses()
+	pool := snet.Router.GetDHCPPoolAddresses()
 	for k := range pool {
-		if pool[k] == addr_to_give {
+		if pool[k].String() == addr_to_give {
 			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
 			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}

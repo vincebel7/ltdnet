@@ -18,7 +18,7 @@ import (
 )
 
 func intro() {
-	fmt.Println("ltdnet v0.2.8")
+	fmt.Println("ltdnet v0.2.9")
 	fmt.Println("by vincebel")
 	fmt.Println("\nPlease note that switch functionality is limited and in development")
 }
@@ -87,7 +87,7 @@ func newNetwork() {
 	}
 
 	// Write to file
-	filename := "saves/" + netname + ".json"
+	filename := "saves/user_saves/" + netname + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)
@@ -103,7 +103,7 @@ func selectNetwork() {
 	fmt.Println("\nPlease select a saved network")
 
 	//display files
-	searchDir := "saves/"
+	searchDir := "saves/user_saves/"
 	fileList := []string{}
 	err := filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
 		fileList = append(fileList, path)
@@ -113,17 +113,18 @@ func selectNetwork() {
 		fmt.Println(err)
 	}
 
-	i := 0
+	i := 1
 	option_map := make(map[int]string)
 	for _, file := range fileList {
-		if i >= 1 {
-			file = file[6:] //strip saves
+		file = file[17:] //strip "saves/user_saves/"
+		if (file != ".keep") && (file != "") {
 			fmt.Printf(" %d) %s\n", i, file)
 
 			//map i to file somehow for select
 			option_map[i] = file
+
+			i = i + 1
 		}
-		i = i + 1
 	}
 
 	if i == 1 {
@@ -153,7 +154,7 @@ func selectNetwork() {
 
 func loadNetwork(netname string) {
 	//open file
-	filename := "saves/" + netname + ".json"
+	filename := "saves/user_saves/" + netname + ".json"
 	f, err := os.Open(filename)
 	if err != nil {
 		fmt.Printf("File not found: %s", filename)
@@ -469,7 +470,7 @@ func save() {
 		log.Println(err)
 	}
 	//Write to file
-	filename := "saves/" + snet.Name + ".json"
+	filename := "saves/user_saves/" + snet.Name + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)

@@ -66,6 +66,28 @@ func addSwitch(switchHostname string) {
 	generateSwitchChannels(getSwitchIndexFromID(s.ID))
 }
 
+func addVirtualSwitch(maxports int) Switch {
+	v := Switch{}
+	v.ID = idgen(8)
+	v.Model = "virtual"
+	v.Hostname = "V-" + v.ID
+	v.Maxports = maxports
+
+	v.PortIDs = make([]string, v.Maxports)
+	for i := range v.PortIDs {
+		v.PortIDs[i] = idgen(8)
+	}
+
+	v.Ports = make([]string, v.Maxports)
+	for i := range v.Ports {
+		v.Ports[i] = ""
+	}
+
+	v.MACTable = make(map[string]int)
+
+	return v
+}
+
 func delSwitch() {
 	//TODO For all linked devices, unlink. then delete
 }

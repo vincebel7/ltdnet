@@ -158,7 +158,7 @@ func routerlisten() {
 }
 
 func routeractionhandler(frame Frame) {
-	if (frame.Data.DstIP == snet.Router.Gateway) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
+	if (frame.Data.DstIP == snet.Router.Gateway.String()) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
 		debug(4, "routeractionhandler", snet.Router.ID, "My packet")
 		data := frame.Data.Data.Data
 		srcid := snet.Router.ID

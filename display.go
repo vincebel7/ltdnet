@@ -77,7 +77,7 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 
 func drawRouter(id string) {
 	space1 := 13 - len(snet.Router.Hostname)
-	space2 := 14 - len(snet.Router.Gateway)
+	space2 := 14 - len(snet.Router.Gateway.String())
 	space3 := 16 - len(snet.Router.Model)
 
 	fmt.Println("|------------------------|")
@@ -86,7 +86,7 @@ func drawRouter(id string) {
 	for i := 0; i < space1; i++ {
 		fmt.Printf(" ")
 	}
-	fmt.Printf("|\n| Gateway: %s", snet.Router.Gateway)
+	fmt.Printf("|\n| Gateway: %s", snet.Router.Gateway.String())
 	for i := 0; i < space2; i++ {
 		fmt.Printf(" ")
 	}
@@ -272,8 +272,8 @@ func show(hostname string) {
 		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
 		fmt.Printf("\tMAC:\t\t%s\n", snet.Router.MACAddr)
-		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway)
-		fmt.Printf("\tDHCP pool:\t%d addresses\n", snet.Router.DHCPPoolSize)
+		fmt.Printf("\tGateway:\t%s\n", snet.Router.Gateway.String())
+		fmt.Printf("\tDHCP pool:\t%d addresses\n", len(snet.Router.GetDHCPPoolAddresses()))
 		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
 	}
 }

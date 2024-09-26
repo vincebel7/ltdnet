@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"net"
 
 	"github.com/vincebel7/ltdnet/iphelper"
 )
@@ -19,22 +20,21 @@ type Router struct {
 	Model        string   `json:"model"`
 	MACAddr      string   `json:"macaddr"` // LAN-facing interface
 	Hostname     string   `json:"hostname"`
-	Gateway      string   `json:"gateway"`
-	DHCPPoolSize int      `json:"dhcp_pool_size"` //total addresses in DHCP pool
+	Gateway      net.IP   `json:"gateway"`
 	VSwitch      Switch   `json:"vswitchid"`      // Virtual built-in switch to router
 	DHCPPool     DHCPPool `json:"dhcp_pool"`      // Instance of DHCPPool
 }
 
 type DHCPPool struct {
-	DHCPPoolStart  string            `json:"dhcp_pool_start"`  // Starting IP address of DHCP pool
-	DHCPPoolEnd    string            `json:"dhcp_pool_end"`    // Ending IP address of DHCP pool
+	DHCPPoolStart  net.IP            `json:"dhcp_pool_start"`  // Starting IP address of DHCP pool
+	DHCPPoolEnd    net.IP            `json:"dhcp_pool_end"`    // Ending IP address of DHCP pool
 	DHCPPoolLeases map[string]string `json:"dhcp_pool_leases"` // Maps IP address to MAC address
 }
 
 const BOBCAT_PORTS = 4
 const OSIRIS_PORTS = 2
 
-func NewDHCPPool(start_addr string, end_addr string) DHCPPool {
+func NewDHCPPool(start_addr net.IP, end_addr net.IP) DHCPPool {
 	pool := DHCPPool{}
 	pool.DHCPPoolStart = start_addr
 	pool.DHCPPoolEnd = end_addr
@@ -44,53 +44,29 @@ func NewDHCPPool(start_addr string, end_addr string) DHCPPool {
 }
 
 func NewBobcat(hostname string) Router {
-	b := Router{}
-	b.ID = idgen(8)
-	b.Model = "Bobcat 100"
-	b.MACAddr = macgen()
-	b.Hostname = hostname
-	b.DHCPPoolSize = 253
+	bobcat := Router{}
+	bobcat.ID = idgen(8)
+	bobcat.Model = "Bobcat 100"
+	bobcat.MACAddr = macgen()
+	bobcat.Hostname = hostname
 
-	v := addVirtualSwitch(BOBCAT_PORTS)
+	vSwitch := addVirtualSwitch(BOBCAT_PORTS)
+	bobcat.VSwitch = vSwitch
 
-	b.VSwitch = v
-	return b
+	return bobcat
 }
 
 func NewOsiris(hostname string) Router {
-	o := Router{}
-	o.ID = idgen(8)
-	o.Model = "Osiris 2-I"
-	o.MACAddr = macgen()
-	o.Hostname = hostname
-	o.DHCPPoolSize = 2
+	osiris := Router{}
+	osiris.ID = idgen(8)
+	osiris.Model = "Osiris 2-I"
+	osiris.MACAddr = macgen()
+	osiris.Hostname = hostname
 
-	v := addVirtualSwitch(OSIRIS_PORTS)
+	vSwitch := addVirtualSwitch(OSIRIS_PORTS)
+	osiris.VSwitch = vSwitch
 
-	o.VSwitch = v
-	return o
-}
-
-func addVirtualSwitch(maxports int) Switch {
-	v := Switch{}
-	v.ID = idgen(8)
-	v.Model = "virtual"
-	v.Hostname = "V-" + v.ID
-	v.Maxports = maxports
-
-	v.PortIDs = make([]string, v.Maxports)
-	for i := range v.PortIDs {
-		v.PortIDs[i] = idgen(8)
-	}
-
-	v.Ports = make([]string, v.Maxports)
-	for i := range v.Ports {
-		v.Ports[i] = ""
-	}
-
-	v.MACTable = make(map[string]int)
-
-	return v
+	return osiris
 }
 
 func addRouter(routerHostname string, routerModel string) {
@@ -104,30 +80,34 @@ func addRouter(routerHostname string, routerModel string) {
 
 	r := Router{}
 
+	dhcpPoolSize := 0
+
 	if routerModel == "BOBCAT" {
 		r = NewBobcat(routerHostname)
+		dhcpPoolSize = 253
 	} else if routerModel == "OSIRIS" {
 		r = NewOsiris(routerHostname)
+		dhcpPoolSize = 2
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
 	}
 
 	if snet.Netsize == "8" {
-		r.Gateway = "10.0.0.1"
+		r.Gateway = net.ParseIP("10.0.0.1")
 	} else if snet.Netsize == "16" {
-		r.Gateway = "172.16.0.1"
+		r.Gateway = net.ParseIP("172.16.0.1")
 	} else if snet.Netsize == "24" {
-		r.Gateway = "192.168.0.1"
+		r.Gateway = net.ParseIP("192.168.0.1")
 	}
 
-	network_portion := strings.TrimSuffix(r.Gateway, "1")
+	network_portion := strings.TrimSuffix(r.Gateway.String(), "1")
 
-	// DHCP (new)
-	start_ip := network_portion + "2"
+	// Create DHCP Pool
+	start_ip := net.ParseIP(network_portion + "2")
 	end_iph, _ := iphelper.NewIPHelper(start_ip)
-	end_ip := end_iph.IncreaseIPByConstant(r.DHCPPoolSize)
-	r.DHCPPool = NewDHCPPool(start_ip, end_ip.String())
+	end_ip := end_iph.IncreaseIPByConstant(dhcpPoolSize)
+	r.DHCPPool = NewDHCPPool(start_ip, end_ip)
 
 	snet.Router = r
 
@@ -143,36 +123,39 @@ func delRouter(hostname string) {
 	r.Model = ""
 	r.MACAddr = ""
 	r.Hostname = ""
-	r.DHCPPoolSize = 0
-	r.DHCPPool = NewDHCPPool("0.0.0.0", "0.0.0.0")
+	r.DHCPPool = NewDHCPPool(net.ParseIP("0.0.0.0"), net.ParseIP("0.0.0.0"))
 	r.VSwitch = addVirtualSwitch(0)
 
 	snet.Router = r
 	fmt.Printf("\nRouter deleted\n")
 }
 
-func next_free_addr() string {
-	pool := snet.Router.DHCPPool.GetPoolAddresses()
-	for i := range pool {
-		current_addr := pool[i]
-		if snet.Router.DHCPPool.DHCPPoolLeases[current_addr] == "" {
+func (router Router) NextFreePoolAddress() net.IP {
+	poolAddrs := router.GetDHCPPoolAddresses()
+	for i := range poolAddrs {
+		current_addr := poolAddrs[i]
+		if router.DHCPPool.DHCPPoolLeases[current_addr.String()] == "" {
 			return current_addr
 		}
 	}
 
-	return ""
+	return nil
 }
 
-func (p *DHCPPool) GetPoolAddresses() []string {
-	startIP, _ := iphelper.NewIPHelper(p.DHCPPoolStart)
-	endIP, _ := iphelper.NewIPHelper(p.DHCPPoolEnd)
+func (router Router) GetDHCPPoolAddresses() []net.IP {
+	pool := router.DHCPPool
 
+	// Create IP Helper
+	startIP, _ := iphelper.NewIPHelper(pool.DHCPPoolStart)
+	endIP, _ := iphelper.NewIPHelper(pool.DHCPPoolEnd)
+
+	// Convert to BigInt for arithmetic
 	startIPInt := startIP.IPToBigInt()
 	endIPInt := endIP.IPToBigInt()
 
-	var pool []string
+	var poolAddrs []net.IP
 	for i := new(big.Int).Set(startIPInt); i.Cmp(endIPInt) <= 0; i.Add(i, big.NewInt(1)) {
-		pool = append(pool, iphelper.BigIntToIP(i)) // Convert back to string IP
+		poolAddrs = append(poolAddrs, iphelper.BigIntToIP(i)) // Convert back to string IP
 	}
-	return pool
+	return poolAddrs
 }

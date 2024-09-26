@@ -1,13 +1,12 @@
 /*
 File:		iphelper.go
 Author: 	https://github.com/vincebel7
-Purpose:	Functions for working with IPv4 addresses.
+Purpose:	Functions for working with IPv4 addresses (type net.IP) and IP helpers.
 */
 
 package iphelper
 
 import (
-	"fmt"
 	"math/big"
 	"net"
 )
@@ -17,12 +16,8 @@ type IPHelper struct {
 }
 
 // Constructor
-func NewIPHelper(ip string) (*IPHelper, error) {
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		return nil, fmt.Errorf("invalid IP address: %s", ip)
-	}
-	return &IPHelper{IP: parsedIP}, nil
+func NewIPHelper(ip net.IP) (*IPHelper, error) {
+	return &IPHelper{IP: ip}, nil
 }
 
 func (iph *IPHelper) IPToBigInt() *big.Int {
@@ -30,12 +25,12 @@ func (iph *IPHelper) IPToBigInt() *big.Int {
 	return big.NewInt(0).SetBytes(ip)
 }
 
-func BigIntToIP(ipInt *big.Int) string {
+func BigIntToIP(ipInt *big.Int) net.IP {
 	ipBytes := ipInt.Bytes()
 	for len(ipBytes) < 4 {
 		ipBytes = append([]byte{0}, ipBytes...) // Pad with leading zeroes if needed
 	}
-	return net.IP(ipBytes).String()
+	return net.IP(ipBytes)
 }
 
 // Calculate the difference between two IP addresses
