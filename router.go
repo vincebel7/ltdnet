@@ -8,12 +8,40 @@ package main
 
 import (
 	"fmt"
-	"strconv"
+	"math/big"
 	"strings"
+
+	"github.com/vincebel7/ltdnet/iphelper"
 )
+
+type Router struct {
+	ID           string   `json:"id"`
+	Model        string   `json:"model"`
+	MACAddr      string   `json:"macaddr"` // LAN-facing interface
+	Hostname     string   `json:"hostname"`
+	Gateway      string   `json:"gateway"`
+	DHCPPoolSize int      `json:"dhcp_pool_size"` //total addresses in DHCP pool
+	VSwitch      Switch   `json:"vswitchid"`      // Virtual built-in switch to router
+	DHCPPool     DHCPPool `json:"dhcp_pool"`      // Instance of DHCPPool
+}
+
+type DHCPPool struct {
+	DHCPPoolStart  string            `json:"dhcp_pool_start"`  // Starting IP address of DHCP pool
+	DHCPPoolEnd    string            `json:"dhcp_pool_end"`    // Ending IP address of DHCP pool
+	DHCPPoolLeases map[string]string `json:"dhcp_pool_leases"` // Maps IP address to MAC address
+}
 
 const BOBCAT_PORTS = 4
 const OSIRIS_PORTS = 2
+
+func NewDHCPPool(start_addr string, end_addr string) DHCPPool {
+	pool := DHCPPool{}
+	pool.DHCPPoolStart = start_addr
+	pool.DHCPPoolEnd = end_addr
+	pool.DHCPPoolLeases = make(map[string]string)
+
+	return pool
+}
 
 func NewBobcat(hostname string) Router {
 	b := Router{}
@@ -92,18 +120,14 @@ func addRouter(routerHostname string, routerModel string) {
 	} else if snet.Netsize == "24" {
 		r.Gateway = "192.168.0.1"
 	}
-	addrconstruct := ""
 
 	network_portion := strings.TrimSuffix(r.Gateway, "1")
 
-	r.DHCPTable = make(map[string]string)
-	r.DHCPTableOrder = make([]string, r.DHCPPoolSize)
-
-	for i := 2; i < (r.DHCPPoolSize + 2); i++ {
-		addrconstruct = network_portion + strconv.Itoa(i)
-		r.DHCPTable[addrconstruct] = ""
-		r.DHCPTableOrder[i-2] = addrconstruct
-	}
+	// DHCP (new)
+	start_ip := network_portion + "2"
+	end_iph, _ := iphelper.NewIPHelper(start_ip)
+	end_ip := end_iph.IncreaseIPByConstant(r.DHCPPoolSize)
+	r.DHCPPool = NewDHCPPool(start_ip, end_ip.String())
 
 	snet.Router = r
 
@@ -120,8 +144,7 @@ func delRouter(hostname string) {
 	r.MACAddr = ""
 	r.Hostname = ""
 	r.DHCPPoolSize = 0
-	//r.Downports = 0
-	//r.Ports = nil
+	r.DHCPPool = NewDHCPPool("0.0.0.0", "0.0.0.0")
 	r.VSwitch = addVirtualSwitch(0)
 
 	snet.Router = r
@@ -129,11 +152,27 @@ func delRouter(hostname string) {
 }
 
 func next_free_addr() string {
-	for _, v := range snet.Router.DHCPTableOrder {
-		if snet.Router.DHCPTable[v] == "" {
-			return v
+	pool := snet.Router.DHCPPool.GetPoolAddresses()
+	for i := range pool {
+		current_addr := pool[i]
+		if snet.Router.DHCPPool.DHCPPoolLeases[current_addr] == "" {
+			return current_addr
 		}
 	}
 
 	return ""
+}
+
+func (p *DHCPPool) GetPoolAddresses() []string {
+	startIP, _ := iphelper.NewIPHelper(p.DHCPPoolStart)
+	endIP, _ := iphelper.NewIPHelper(p.DHCPPoolEnd)
+
+	startIPInt := startIP.IPToBigInt()
+	endIPInt := endIP.IPToBigInt()
+
+	var pool []string
+	for i := new(big.Int).Set(startIPInt); i.Cmp(endIPInt) <= 0; i.Add(i, big.NewInt(1)) {
+		pool = append(pool, iphelper.BigIntToIP(i)) // Convert back to string IP
+	}
+	return pool
 }

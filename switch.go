@@ -11,6 +11,18 @@ import (
 	"strings"
 )
 
+type Switch struct {
+	ID       string         `json:"id"`
+	Model    string         `json:"model"`
+	Hostname string         `json:"hostname"`
+	MgmtIP   string         `json:"mgmtip"`
+	MACTable map[string]int `json:"mactable"`
+	Maxports int            `json:"maxports"`
+	Ports    []string       `json:"ports"`    // maps port # to downlink ID
+	PortIDs  []string       `json:"portids"`  // maps port # to Port ID
+	PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
+}
+
 func NewSumerian2100(hostname string) Switch {
 	s := Switch{}
 	s.ID = idgen(8)

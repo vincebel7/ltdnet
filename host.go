@@ -11,6 +11,17 @@ import (
 	"strings"
 )
 
+type Host struct {
+	ID             string `json:"id"`
+	Model          string `json:"model"`
+	MACAddr        string `json:"macaddr"`
+	Hostname       string `json:"hostname"`
+	IPAddr         string `json:"ipaddr"`
+	SubnetMask     string `json:"mask"`
+	DefaultGateway string `json:"gateway"`
+	UplinkID       string `json:"uplinkid"`
+}
+
 func NewProbox(hostname string) Host {
 	p := Host{}
 	p.ID = idgen(8)

@@ -324,11 +324,12 @@ func dhcp_offer(inc_f Frame) {
 	f = constructFrame(p, srcMAC, dstMAC)
 	channels[linkID] <- f
 
-	// Setting leasee's MAC in pool
-	for k, _ := range snet.Router.DHCPTable {
-		if k == addr_to_give {
+	// Setting leasee's MAC in pool (new)
+	pool := snet.Router.DHCPPool.GetPoolAddresses()
+	for k := range pool {
+		if pool[k] == addr_to_give {
 			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
-			snet.Router.DHCPTable[k] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
+			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
 }
