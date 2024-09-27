@@ -1,9 +1,12 @@
 package iphelper
 
-import "testing"
+import (
+	"net"
+	"testing"
+)
 
 func TestIncreaseIPByConstant(t *testing.T) {
-	iph, _ := NewIPHelper("192.168.3.240")
+	iph, _ := NewIPHelper(net.ParseIP("192.168.3.240"))
 
 	summedIP := iph.IncreaseIPByConstant(5)
 	if summedIP.String() != "192.168.3.245" {

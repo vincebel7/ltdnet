@@ -14,6 +14,7 @@ type Network struct {
 	Switches   []Switch `json:"switches"`
 	Hosts      []Host   `json:"hosts"`
 	DebugLevel int      `json:"debug_level"`
+	ProgramVer string   `json:"program_ver"`
 }
 
 var snet Network //selected network, essentially the loaded save file
