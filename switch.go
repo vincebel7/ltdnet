@@ -9,7 +9,20 @@ package main
 import (
 	"fmt"
 	"strings"
+	"net"
 )
+
+type Switch struct {
+	ID       string         `json:"id"`
+	Model    string         `json:"model"`
+	Hostname string         `json:"hostname"`
+	MgmtIP   net.IP         `json:"mgmtip"`
+	MACTable map[string]int `json:"mactable"`
+	Maxports int            `json:"maxports"`
+	Ports    []string       `json:"ports"`    // maps port # to downlink ID
+	PortIDs  []string       `json:"portids"`  // maps port # to Port ID
+	PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
+}
 
 func NewSumerian2100(hostname string) Switch {
 	s := Switch{}
@@ -52,6 +65,28 @@ func addSwitch(switchHostname string) {
 	snet.Switches = append(snet.Switches, s)
 
 	generateSwitchChannels(getSwitchIndexFromID(s.ID))
+}
+
+func addVirtualSwitch(maxports int) Switch {
+	v := Switch{}
+	v.ID = idgen(8)
+	v.Model = "virtual"
+	v.Hostname = "V-" + v.ID
+	v.Maxports = maxports
+
+	v.PortIDs = make([]string, v.Maxports)
+	for i := range v.PortIDs {
+		v.PortIDs[i] = idgen(8)
+	}
+
+	v.Ports = make([]string, v.Maxports)
+	for i := range v.Ports {
+		v.Ports[i] = ""
+	}
+
+	v.MACTable = make(map[string]int)
+
+	return v
 }
 
 func delSwitch() {

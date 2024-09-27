@@ -37,6 +37,8 @@ func generateRouterChannels() {
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
 			internal[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
+			actionsync[snet.Router.ID] = make(chan int)
+
 			go switchportlisten(snet.Router.VSwitch.PortIDs[i])
 		}
 	}
@@ -56,6 +58,7 @@ func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan Frame)
 	internal[snet.Hosts[i].ID] = make(chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
+
 	go hostlisten(snet.Hosts[i].ID)
 }
 
@@ -85,7 +88,7 @@ func hostactionhandler(frame Frame, id string) {
 	debug(4, "hostactionhandler", id, "My packet")
 	data := frame.Data.Data.Data
 	if data == "ping!" {
-		debug(4, "routeractionhandler", snet.Router.ID, "ping received")
+		debug(4, "hostactionhandler", id, "ping received")
 		srcid := id
 		dstIP := frame.Data.SrcIP
 		pong(srcid, dstIP, frame)
@@ -158,7 +161,7 @@ func routerlisten() {
 }
 
 func routeractionhandler(frame Frame) {
-	if (frame.Data.DstIP == snet.Router.Gateway) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
+	if (frame.Data.DstIP == snet.Router.Gateway.String()) || (frame.DstMAC == "FF:FF:FF:FF:FF:FF") {
 		debug(4, "routeractionhandler", snet.Router.ID, "My packet")
 		data := frame.Data.Data.Data
 		srcid := snet.Router.ID
@@ -168,6 +171,7 @@ func routeractionhandler(frame Frame) {
 			pong(srcid, dstIP, frame)
 		}
 		if data == "pong!" {
+			debug(3, "routeractionhandler", snet.Router.ID, "pong received")
 			internal[snet.Router.ID] <- frame
 		}
 
@@ -176,7 +180,6 @@ func routeractionhandler(frame Frame) {
 				debug(3, "routeractionhandler", snet.Router.ID, "ARPREPLY received")
 				internal[snet.Router.ID] <- frame
 			}
-
 		}
 
 		if len(data) > 9 {

@@ -41,17 +41,25 @@ func ping(srcID string, dstIP string, secs int) {
 
 	for i := 0; i < secs; i++ {
 		// Get MAC addresses
-		if snet.Router.ID == srcID { //leave this in here until i implement controlling router and can ping from rtr
+		if snet.Router.ID == srcID {
 			srchost = snet.Router.Hostname
-			srcIP = snet.Router.Gateway
+			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 
 			//TODO: Implement MAC learning to avoid ARPing every time
 			dstMAC = arp_request(srcID, "router", dstIP)
-			fmt.Println("Got dstmac", dstMAC) //leave this in here until implemented
 
 			//get link to send ping to
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			dstID := getIDfromMAC(dstMAC)
+			if getHostIndexFromID(dstID) != -1 {
+				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			} else if snet.Router.ID == dstID {
+				linkID = snet.Router.ID
+			}
+
+		} else { // Assumed to be host source.
+			//TODO: Implement MAC learning to avoid ARPing every time
+			dstMAC = arp_request(srcID, "host", dstIP)
 		}
 
 		if srcMAC == "" {
@@ -59,14 +67,11 @@ func ping(srcID string, dstIP string, secs int) {
 				if snet.Hosts[h].ID == srcID {
 					linkID = snet.Hosts[h].UplinkID
 					srchost = snet.Hosts[h].Hostname
-					srcIP = snet.Hosts[h].IPAddr
+					srcIP = snet.Hosts[h].IPAddr.String()
 					srcMAC = snet.Hosts[h].MACAddr
 				}
 			}
 		}
-
-		//TODO: Implement MAC learning to avoid ARPing every time
-		dstMAC = arp_request(srcID, "host", dstIP)
 
 		s := constructSegment("ping!")
 		p := constructPacket(srcIP, dstIP, s)
@@ -81,6 +86,8 @@ func ping(srcID string, dstIP string, secs int) {
 			if pongdata.Data.Data.Data == "pong!" {
 				recvCount++
 				pong <- true
+			} else {
+				debug(1, "ping", srcID, "Out-of-order channel error")
 			}
 		case <-time.After(time.Second * 4):
 			lossCount++
@@ -88,7 +95,7 @@ func ping(srcID string, dstIP string, secs int) {
 		}
 
 		if <-pong {
-			fmt.Printf("Reply from %s\n", dstIP)
+			fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
 			timeoutCounter = 0
 		} else {
 			fmt.Printf("Request timed out.\n")
@@ -118,17 +125,26 @@ func pong(srcID string, dstIP string, frame Frame) {
 	dstMAC := frame.SrcMAC
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
-		srcIP = snet.Router.Gateway
+		srcIP = snet.Router.Gateway.String()
 
 		//TODO: Implement MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcID, "router", dstIP)
-
+		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: "+dstMAC)
 		//get link to send ping to
-		linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+
+		//TODO get link to send ping to
+		dstID := getIDfromMAC(dstMAC)
+		if getHostIndexFromID(dstID) != -1 {
+			//TODO check if host or router!
+			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+		} else if snet.Router.ID == dstID {
+			linkID = snet.Router.ID
+		}
+		//END TODO
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
-		srcIP = snet.Hosts[index].IPAddr
+		srcIP = snet.Hosts[index].IPAddr.String()
 
 		linkID = snet.Hosts[index].UplinkID
 	}
@@ -136,6 +152,7 @@ func pong(srcID string, dstIP string, frame Frame) {
 	s := constructSegment("pong!")
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
+	debug(4, "pong", srcID, "Awaiting pong send")
 	channels[linkID] <- f
 	debug(2, "pong", srcID, "Pong sent")
 }
@@ -149,12 +166,12 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 	dstMAC := "FF:FF:FF:FF:FF:FF"
 
 	if device_type == "router" {
-		srcIP = snet.Router.Gateway
+		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
 		linkID = "FFFFFFFF"
 	} else {
 		index := getHostIndexFromID(srcID)
-		srcIP = snet.Hosts[index].IPAddr
+		srcIP = snet.Hosts[index].IPAddr.String()
 		srcMAC = snet.Hosts[index].MACAddr
 		linkID = "FFFFFFFF"
 	}
@@ -167,6 +184,7 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
 	//computer with address will respond with its MAC
 	replyframe := <-internal[srcID]
+
 	return replyframe.Data.Data.Data[9:]
 }
 
@@ -180,21 +198,28 @@ func arp_reply(i int, device_type string, frame Frame) {
 	srcID := ""
 
 	if device_type == "router" {
-		if request_addr != snet.Router.Gateway {
+		if request_addr != snet.Router.Gateway.String() {
 			return
 		} else {
 			//fmt.Printf("[Router] THIS ME! I am %s\n", snet.Router.Hostname, request_addr)
-			srcIP = snet.Router.Gateway
+			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 			srcID = snet.Router.ID
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+
+			// Determine linkID
+			dstID := getIDfromMAC(dstMAC)
+			if getHostIndexFromID(dstID) != -1 {
+				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			} else if snet.Router.ID == dstID {
+				linkID = snet.Router.ID
+			}
 		}
 	} else {
-		if request_addr != snet.Hosts[i].IPAddr {
+		if request_addr != snet.Hosts[i].IPAddr.String() {
 			return
 		} else {
 			//fmt.Printf("[Host %s] THIS ME! I am %s\n", snet.Hosts[i].Hostname, request_addr)
-			srcIP = snet.Hosts[i].IPAddr
+			srcIP = snet.Hosts[i].IPAddr.String()
 			srcMAC = snet.Hosts[i].MACAddr
 			srcID = snet.Hosts[i].ID
 			linkID = snet.Hosts[i].UplinkID
@@ -213,7 +238,7 @@ func arp_reply(i int, device_type string, frame Frame) {
 func dhcp_discover(host Host) {
 	debug(4, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
 	//get info
-	srcIP := host.IPAddr
+	srcIP := host.IPAddr.String()
 	srcMAC := host.MACAddr
 	srcID := host.ID
 	dstIP := "255.255.255.255"
@@ -255,7 +280,7 @@ func dhcp_discover(host Host) {
 					if len(word) > 1 {
 						fmt.Println("")
 						confirmed_addr := word[1]
-						dynamic_assign(srcID, confirmed_addr, gateway, snetmask)
+						dynamic_assign(srcID, net.ParseIP(confirmed_addr), net.ParseIP(gateway), snetmask)
 					} else {
 						debug(1, "dhcp_discover", srcID, "Error 5: Empty DHCP acknowledgement\n")
 					}
@@ -270,7 +295,7 @@ func dhcp_discover(host Host) {
 }
 
 func dhcp_offer(inc_f Frame) {
-	srcIP := snet.Router.Gateway
+	srcIP := snet.Router.Gateway.String()
 	dstIP := "255.255.255.255"
 	srcMAC := snet.Router.MACAddr
 	dstMAC := inc_f.SrcMAC
@@ -279,8 +304,8 @@ func dhcp_offer(inc_f Frame) {
 	//linkID := snet.Hosts[getHostIndexFromID(dstid)].UplinkID
 
 	//find open address
-	addr_to_give := next_free_addr()
-	gateway := snet.Router.Gateway
+	addr_to_give := snet.Router.NextFreePoolAddress().String()
+	gateway := snet.Router.Gateway.String()
 	subnetmask := ""
 	if snet.Netsize == "8" {
 		subnetmask = "255.0.0.0"
@@ -324,11 +349,12 @@ func dhcp_offer(inc_f Frame) {
 	f = constructFrame(p, srcMAC, dstMAC)
 	channels[linkID] <- f
 
-	// Setting leasee's MAC in pool
-	for k, _ := range snet.Router.DHCPTable {
-		if k == addr_to_give {
+	// Setting leasee's MAC in pool (new)
+	pool := snet.Router.GetDHCPPoolAddresses()
+	for k := range pool {
+		if pool[k].String() == addr_to_give {
 			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
-			snet.Router.DHCPTable[k] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
+			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
 }
@@ -375,6 +401,7 @@ func ipset(hostname string) {
 			}
 		} else if strings.ToUpper(affirmation) == "EXIT" {
 			fmt.Println("Network changes reverted")
+
 			return
 		}
 	}
@@ -382,9 +409,9 @@ func ipset(hostname string) {
 	//update info
 	for h := range snet.Hosts {
 		if snet.Hosts[h].Hostname == hostname {
-			snet.Hosts[h].IPAddr = ipaddr
+			snet.Hosts[h].IPAddr = net.ParseIP(ipaddr)
 			snet.Hosts[h].SubnetMask = subnetmask
-			snet.Hosts[h].DefaultGateway = defaultgateway
+			snet.Hosts[h].DefaultGateway = net.ParseIP(defaultgateway)
 			fmt.Println("Network configuration updated")
 		}
 	}
@@ -393,8 +420,8 @@ func ipset(hostname string) {
 
 func ipclear(id string) {
 	index := getHostIndexFromID(id)
-	snet.Hosts[index].IPAddr = ""
+	snet.Hosts[index].IPAddr = nil
 	snet.Hosts[index].SubnetMask = ""
-	snet.Hosts[index].DefaultGateway = ""
+	snet.Hosts[index].DefaultGateway = nil
 	fmt.Println("Network configuration cleared")
 }

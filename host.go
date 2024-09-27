@@ -9,7 +9,19 @@ package main
 import (
 	"fmt"
 	"strings"
+	"net"
 )
+
+type Host struct {
+	ID             string `json:"id"`
+	Model          string `json:"model"`
+	MACAddr        string `json:"macaddr"`
+	Hostname       string `json:"hostname"`
+	IPAddr         net.IP `json:"ipaddr"`
+	SubnetMask     string `json:"mask"`
+	DefaultGateway net.IP `json:"gateway"`
+	UplinkID       string `json:"uplinkid"`
+}
 
 func NewProbox(hostname string) Host {
 	p := Host{}
@@ -38,7 +50,7 @@ func addHost(hostHostname string) {
 		return
 	}
 
-	h.IPAddr = "0.0.0.0"
+	h.IPAddr = net.ParseIP("0.0.0.0")
 
 	snet.Hosts = append(snet.Hosts, h)
 
@@ -58,8 +70,8 @@ func delHost(hostname string) {
 
 					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
 					fmt.Printf("\nHost deleted\n")
-					return
 
+					return
 				}
 			}
 

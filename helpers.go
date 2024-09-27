@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+	"net"
 )
 
 func idgen(n int) string {
@@ -128,7 +129,7 @@ func getIDfromMAC(mac string) string {
 	return ""
 }
 
-func dynamic_assign(id string, ipaddr string, defaultgateway string, subnetmask string) {
+func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetmask string) {
 	for h := range snet.Hosts {
 		if snet.Hosts[h].ID == id {
 			snet.Hosts[h].IPAddr = ipaddr
