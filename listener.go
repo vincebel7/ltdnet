@@ -58,7 +58,7 @@ func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan Frame)
 	internal[snet.Hosts[i].ID] = make(chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
-	
+
 	go hostlisten(snet.Hosts[i].ID)
 }
 
@@ -88,7 +88,7 @@ func hostactionhandler(frame Frame, id string) {
 	debug(4, "hostactionhandler", id, "My packet")
 	data := frame.Data.Data.Data
 	if data == "ping!" {
-		debug(4, "routeractionhandler", snet.Router.ID, "ping received")
+		debug(4, "hostactionhandler", id, "ping received")
 		srcid := id
 		dstIP := frame.Data.SrcIP
 		pong(srcid, dstIP, frame)
@@ -102,7 +102,6 @@ func hostactionhandler(frame Frame, id string) {
 		if data[0:8] == "ARPREPLY" {
 			debug(3, "hostactionhandler", id, "ARPREPLY received")
 			internal[id] <- frame
-			print("AAAA")
 		}
 
 	}

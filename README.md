@@ -89,12 +89,40 @@ Clears the /saves directory
 ### README.md
 See README.md :)
 
+## Known bugs
+- Program deadlocks on failed ping
+- Save files may break with newer versions (Future fix: Version files, no breaking changes in minor versions)
+- Router hangs when pinging itself (Future fix: Multiple internal channels, similar to ports)
+
 ## Version History
 What has been accomplished at each major.minor version
 
+### v0.2.9 - September 27, 2024
+DHCP improvements, router control, router pinging
 
 ### v0.2.8 - September 25, 2024
 CLI improvements, host linking bugfixes
+
+### v0.2.7 - June 15, 2021
+DHCP pool sorting changes, cleaning up JSON schema
+
+### v0.2.6 - October 9, 2020
+Increase debug output
+
+### v0.2.5 - September 30, 2020
+Improved host unlinking
+
+### v0.2.4 - October 9, 2019
+Implement virtual switch for router, ping improvements
+
+### v0.2.3 - October 7, 2019
+Deleting hosts, improved diagrams
+
+### v0.2.2 - October 6, 2019
+Network diagram, initial design of switches
+
+### v0.2.1 - October 4, 2019
+Debug system, IP configuration clearing
 
 ### v0.2 - October 4, 2019
 ARP, DHCP, complete network functionality, project structuring

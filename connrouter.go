@@ -82,7 +82,7 @@ func displayDHCPServer() {
 	leaseCount := len(snet.Router.DHCPPool.DHCPPoolLeases)
 	poolCount := len(pool)
 
-	print("DHCP Server:\n")
+	fmt.Printf("DHCP Server:\n")
 	fmt.Printf("\tPool range:\t\t%s\n", snet.Router.DHCPPool.DHCPPoolStart.String()+" - "+snet.Router.DHCPPool.DHCPPoolEnd.String())
 	fmt.Printf("\tPool utilization:\t%d/%d (%.2f%% full)\n", leaseCount, poolCount, float64(leaseCount)/float64(poolCount)*100)
 	fmt.Printf("\tNext available address:\t%s\n", snet.Router.NextFreePoolAddress())

@@ -86,6 +86,8 @@ func ping(srcID string, dstIP string, secs int) {
 			if pongdata.Data.Data.Data == "pong!" {
 				recvCount++
 				pong <- true
+			} else {
+				debug(1, "ping", srcID, "Out-of-order channel error")
 			}
 		case <-time.After(time.Second * 4):
 			lossCount++
@@ -127,18 +129,15 @@ func pong(srcID string, dstIP string, frame Frame) {
 
 		//TODO: Implement MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcID, "router", dstIP)
-		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: " + dstMAC)
+		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: "+dstMAC)
 		//get link to send ping to
 
 		//TODO get link to send ping to
 		dstID := getIDfromMAC(dstMAC)
-		fmt.Println("Break 1")
 		if getHostIndexFromID(dstID) != -1 {
-			fmt.Println("Break 3")
 			//TODO check if host or router!
 			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
 		} else if snet.Router.ID == dstID {
-			fmt.Println("Break 2")
 			linkID = snet.Router.ID
 		}
 		//END TODO
