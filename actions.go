@@ -127,9 +127,21 @@ func pong(srcID string, dstIP string, frame Frame) {
 
 		//TODO: Implement MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcID, "router", dstIP)
-
+		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: " + dstMAC)
 		//get link to send ping to
-		linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+
+		//TODO get link to send ping to
+		dstID := getIDfromMAC(dstMAC)
+		fmt.Println("Break 1")
+		if getHostIndexFromID(dstID) != -1 {
+			fmt.Println("Break 3")
+			//TODO check if host or router!
+			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+		} else if snet.Router.ID == dstID {
+			fmt.Println("Break 2")
+			linkID = snet.Router.ID
+		}
+		//END TODO
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
@@ -141,6 +153,7 @@ func pong(srcID string, dstIP string, frame Frame) {
 	s := constructSegment("pong!")
 	p := constructPacket(srcIP, dstIP, s)
 	f := constructFrame(p, srcMAC, dstMAC)
+	debug(4, "pong", srcID, "Awaiting pong send")
 	channels[linkID] <- f
 	debug(2, "pong", srcID, "Pong sent")
 }
@@ -172,6 +185,7 @@ func arp_request(srcID string, device_type string, dstIP string) string {
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
 	//computer with address will respond with its MAC
 	replyframe := <-internal[srcID]
+
 	return replyframe.Data.Data.Data[9:]
 }
 
@@ -388,6 +402,7 @@ func ipset(hostname string) {
 			}
 		} else if strings.ToUpper(affirmation) == "EXIT" {
 			fmt.Println("Network changes reverted")
+
 			return
 		}
 	}

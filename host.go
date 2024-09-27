@@ -70,8 +70,8 @@ func delHost(hostname string) {
 
 					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
 					fmt.Printf("\nHost deleted\n")
-					return
 
+					return
 				}
 			}
 

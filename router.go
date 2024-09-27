@@ -157,5 +157,6 @@ func (router Router) GetDHCPPoolAddresses() []net.IP {
 	for i := new(big.Int).Set(startIPInt); i.Cmp(endIPInt) <= 0; i.Add(i, big.NewInt(1)) {
 		poolAddrs = append(poolAddrs, iphelper.BigIntToIP(i)) // Convert back to string IP
 	}
+	
 	return poolAddrs
 }

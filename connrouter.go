@@ -52,7 +52,7 @@ func RouterConn(device string, id string) {
 					}
 				}
 			case "dhcpserver":
-				dhcpserver()
+				displayDHCPServer()
 				save()
 			case "ipset":
 				ipset(snet.Router.Hostname)
@@ -77,7 +77,7 @@ func RouterConn(device string, id string) {
 	}
 }
 
-func dhcpserver() {
+func displayDHCPServer() {
 	pool := snet.Router.GetDHCPPoolAddresses()
 	leaseCount := len(snet.Router.DHCPPool.DHCPPoolLeases)
 	poolCount := len(pool)

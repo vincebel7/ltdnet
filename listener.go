@@ -102,6 +102,7 @@ func hostactionhandler(frame Frame, id string) {
 		if data[0:8] == "ARPREPLY" {
 			debug(3, "hostactionhandler", id, "ARPREPLY received")
 			internal[id] <- frame
+			print("AAAA")
 		}
 
 	}
@@ -171,6 +172,7 @@ func routeractionhandler(frame Frame) {
 			pong(srcid, dstIP, frame)
 		}
 		if data == "pong!" {
+			debug(3, "routeractionhandler", snet.Router.ID, "pong received")
 			internal[snet.Router.ID] <- frame
 		}
 
@@ -179,7 +181,6 @@ func routeractionhandler(frame Frame) {
 				debug(3, "routeractionhandler", snet.Router.ID, "ARPREPLY received")
 				internal[snet.Router.ID] <- frame
 			}
-
 		}
 
 		if len(data) > 9 {
