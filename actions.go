@@ -158,7 +158,7 @@ func pong(srcID string, dstIP string, frame Frame) {
 }
 
 func arp_request(srcID string, device_type string, dstIP string) string {
-	debug(4, "arp_request", srcID, srcID+device_type+"About to ARP request")
+	debug(4, "arp_request", srcID, "About to ARP request")
 	//Construct frame
 	linkID := ""
 	srcIP := ""
