@@ -9,8 +9,8 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"time"
 	"net"
+	"time"
 )
 
 func idgen(n int) string {

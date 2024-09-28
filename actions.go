@@ -7,6 +7,7 @@ Purpose:	Defines network functions such as ARP, DHCP, etc.
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -42,7 +43,6 @@ func ping(srcID string, dstIP string, secs int) {
 	for i := 0; i < secs; i++ {
 		// Get MAC addresses
 		if snet.Router.ID == srcID {
-			srchost = snet.Router.Hostname
 			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 
@@ -66,28 +66,43 @@ func ping(srcID string, dstIP string, secs int) {
 			for h := range snet.Hosts {
 				if snet.Hosts[h].ID == srcID {
 					linkID = snet.Hosts[h].UplinkID
-					srchost = snet.Hosts[h].Hostname
 					srcIP = snet.Hosts[h].IPAddr.String()
 					srcMAC = snet.Hosts[h].MACAddr
 				}
 			}
 		}
+		debug(4, "ping", srcID, "Constructing ping")
+		protocol := "ICMP"
+		payload, _ := json.Marshal("101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")
 
-		s := constructSegment("ping!")
-		p := constructPacket(srcIP, dstIP, s)
-		f := constructFrame(p, srcMAC, dstMAC)
+		icmpRequestPacket := ICMPPacket{
+			ControlType: 8,
+			Data:        json.RawMessage(payload),
+		}
+		icmpRequestPacketBytes, _ := json.Marshal(icmpRequestPacket)
 
-		channels[linkID] <- f
-		sendCount++
+		ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, protocol, icmpRequestPacketBytes)
+
+		frameBytes := constructFrame(string(ipv4PacketBytes), srcMAC, dstMAC, "IPv4")
+
+		debug(4, "ping", srcID, "Sending the ping now")
+		channels[linkID] <- frameBytes
 		debug(2, "ping", srcID, "Ping sent")
+
+		sendCount++
+
 		pong := make(chan bool, 1)
+
 		select {
-		case pongdata := <-internal[srcID]:
-			if pongdata.Data.Data.Data == "pong!" {
+		case pongFrame := <-internal[srcID]:
+			pongIpv4Packet := readIPv4Packet(string(pongFrame.Data))
+			pongIcmpPacket := readICMPPacket(string(pongIpv4Packet.Data))
+
+			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
 				pong <- true
 			} else {
-				debug(1, "ping", srcID, "Out-of-order channel error")
+				debug(1, "ping", srcID, "Error: Out-of-order channel")
 			}
 		case <-time.After(time.Second * 4):
 			lossCount++
@@ -118,11 +133,15 @@ func ping(srcID string, dstIP string, secs int) {
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
 }
 
-func pong(srcID string, dstIP string, frame Frame) {
+func pong(srcID string, frame Frame) {
+	receivedIpv4Packet := readIPv4Packet(string(frame.Data))
+	receivedIcmpPacket := readICMPPacket(string(receivedIpv4Packet.Data))
+
 	linkID := ""
 	srcIP := ""
 	srcMAC := ""
-	dstMAC := frame.SrcMAC
+	dstIP := readIPv4PacketHeader(string(receivedIpv4Packet.Header)).SrcIP
+	dstMAC := frame.SrcMAC // Get MAC myself via ARP/MAC table, or use request's source MAC?
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway.String()
@@ -130,17 +149,15 @@ func pong(srcID string, dstIP string, frame Frame) {
 		//TODO: Implement MAC learning to avoid ARPing every time
 		dstMAC = arp_request(srcID, "router", dstIP)
 		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: "+dstMAC)
-		//get link to send ping to
 
-		//TODO get link to send ping to
+		//Get link to send ping to
 		dstID := getIDfromMAC(dstMAC)
 		if getHostIndexFromID(dstID) != -1 {
-			//TODO check if host or router!
 			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
 		} else if snet.Router.ID == dstID {
 			linkID = snet.Router.ID
 		}
-		//END TODO
+
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
@@ -149,59 +166,76 @@ func pong(srcID string, dstIP string, frame Frame) {
 		linkID = snet.Hosts[index].UplinkID
 	}
 
-	s := constructSegment("pong!")
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
+	protocol := "ICMP"
+	payload := receivedIcmpPacket.Data
+
+	icmpReplyPacket := ICMPPacket{
+		ControlType: 0,
+		Data:        payload,
+	}
+	icmpReplyPacketBytes, _ := json.Marshal(icmpReplyPacket)
+
+	ipv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, icmpReplyPacketBytes)
+	ipv4PacketBytes, _ := json.Marshal(ipv4Packet)
+
+	frameBytes := constructFrame(string(ipv4PacketBytes), srcMAC, dstMAC, "IPv4")
+
 	debug(4, "pong", srcID, "Awaiting pong send")
-	channels[linkID] <- f
+	channels[linkID] <- frameBytes
 	debug(2, "pong", srcID, "Pong sent")
 }
 
-func arp_request(srcID string, device_type string, dstIP string) string {
+func arp_request(srcID string, device_type string, targetIP string) string {
 	debug(4, "arp_request", srcID, "About to ARP request")
 	//Construct frame
-	linkID := ""
+	linkID := "FFFFFFFF"
 	srcIP := ""
 	srcMAC := ""
-	dstMAC := "FF:FF:FF:FF:FF:FF"
+	dstMAC := "00:00:00:00:00:00"
 
 	if device_type == "router" {
 		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
-		linkID = "FFFFFFFF"
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcIP = snet.Hosts[index].IPAddr.String()
 		srcMAC = snet.Hosts[index].MACAddr
-		linkID = "FFFFFFFF"
 	}
 
-	s := constructSegment("ARPREQUEST")
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
+	arpRequest := ArpMessage{
+		Opcode:    1,
+		SenderMAC: srcMAC,
+		SenderIP:  srcIP,
+		TargetMAC: dstMAC,
+		TargetIP:  targetIP,
+	}
 
-	channels[linkID] <- f
+	arpRequestBytes, _ := json.Marshal(arpRequest)
+	frameBytes := constructFrame(string(arpRequestBytes), srcMAC, dstMAC, "ARP")
+
+	channels[linkID] <- frameBytes
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
-	//computer with address will respond with its MAC
-	replyframe := <-internal[srcID]
 
-	return replyframe.Data.Data.Data[9:]
+	arpReplyFrame := <-internal[srcID]
+	arpReply := readArpMessage(string(arpReplyFrame.Data))
+
+	return arpReply.SenderMAC
 }
 
 func arp_reply(i int, device_type string, frame Frame) {
-	request_addr := frame.Data.DstIP
+	//Inspect Arp message
+	arpRequest := readArpMessage(string(frame.Data))
+
+	requested_addr := arpRequest.TargetIP
 	linkID := ""
 	srcMAC := ""
 	srcIP := ""
-	dstMAC := frame.SrcMAC
-	dstIP := frame.Data.SrcIP
+	dstMAC := arpRequest.SenderMAC
+	dstIP := arpRequest.SenderIP
 	srcID := ""
 
 	if device_type == "router" {
-		if request_addr != snet.Router.Gateway.String() {
-			return
-		} else {
-			//fmt.Printf("[Router] THIS ME! I am %s\n", snet.Router.Hostname, request_addr)
+		if requested_addr == snet.Router.Gateway.String() {
 			srcIP = snet.Router.Gateway.String()
 			srcMAC = snet.Router.MACAddr
 			srcID = snet.Router.ID
@@ -213,26 +247,33 @@ func arp_reply(i int, device_type string, frame Frame) {
 			} else if snet.Router.ID == dstID {
 				linkID = snet.Router.ID
 			}
+		} else { // Not me
+			return
 		}
 	} else {
-		if request_addr != snet.Hosts[i].IPAddr.String() {
-			return
-		} else {
-			//fmt.Printf("[Host %s] THIS ME! I am %s\n", snet.Hosts[i].Hostname, request_addr)
+		if requested_addr == snet.Hosts[i].IPAddr.String() {
 			srcIP = snet.Hosts[i].IPAddr.String()
 			srcMAC = snet.Hosts[i].MACAddr
 			srcID = snet.Hosts[i].ID
 			linkID = snet.Hosts[i].UplinkID
+		} else { // Not me
+			return
 		}
 	}
 
-	message := "ARPREPLY " + srcMAC
-	s := constructSegment(message)
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
-	//inspectFrame(f)
+	arpReply := ArpMessage{
+		Opcode:    2,
+		SenderMAC: srcMAC,
+		SenderIP:  srcIP,
+		TargetMAC: dstMAC,
+		TargetIP:  dstIP,
+	}
+
+	arpReplyBytes, _ := json.Marshal(arpReply)
+	frameBytes := constructFrame(string(arpReplyBytes), srcMAC, dstMAC, "ARP")
+
+	channels[linkID] <- frameBytes
 	debug(2, "arp_reply", srcID, "ARPREPLY sent")
-	channels[linkID] <- f
 }
 
 func dhcp_discover(host Host) {
@@ -245,50 +286,59 @@ func dhcp_discover(host Host) {
 	dstMAC := "FF:FF:FF:FF:FF:FF"
 	linkID := host.UplinkID
 
-	s := constructSegment("DHCPDISCOVER")
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
+	protocol := "UDP"
+	segmentData := constructUDPSegment("DHCPDISCOVER", 68, 67)
+	packetData := constructIPv4Packet(srcIP, dstIP, protocol, segmentData)
+	frameData := constructFrame(string(packetData), srcMAC, dstMAC, "IPv4")
 
 	//need to give it to uplink
-	channels[linkID] <- f
+	channels[linkID] <- frameData
 	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
-	offer := <-internal[srcID]
-	if offer.Data.Data.Data != "" {
-		if offer.Data.Data.Data == "DHCPOFFER NOAVAILABLE" {
-			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
-		} else {
-			word := strings.Fields(offer.Data.Data.Data)
-			if len(word) > 0 {
-				word2 := word[1]
-				gateway := word[2]
-				snetmask := word[3]
+	offerFrame := <-internal[srcID]
 
-				message := "DHCPREQUEST " + word2
-				dstIP = offer.Data.SrcIP
-				s = constructSegment(message)
-				p = constructPacket(srcIP, dstIP, s)
-				f = constructFrame(p, srcMAC, dstMAC)
-				channels[linkID] <- f
-				debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - "+word2)
-				//wait for acknowledgement
+	offerIpv4Packet := readIPv4Packet(string(offerFrame.Data))
+	offerIpv4PacketHeader := readIPv4PacketHeader(string(offerIpv4Packet.Header))
+	offerUDPSegment := readUDPSegment(string(offerIpv4Packet.Data))
 
-				ack := <-internal[srcID]
-				if ack.Data.Data.Data != "" {
-					debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+ack.Data.Data.Data)
+	if offerUDPSegment.Data == "DHCPOFFER NOAVAILABLE" {
+		debug(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
+	} else {
+		word := strings.Fields(offerUDPSegment.Data)
+		if len(word) > 0 {
+			word2 := word[1]
+			gateway := word[2]
+			snetmask := word[3]
 
-					word = strings.Fields(ack.Data.Data.Data)
-					if len(word) > 1 {
-						fmt.Println("")
-						confirmed_addr := word[1]
-						dynamic_assign(srcID, net.ParseIP(confirmed_addr), net.ParseIP(gateway), snetmask)
-					} else {
-						debug(1, "dhcp_discover", srcID, "Error 5: Empty DHCP acknowledgement\n")
-					}
+			message := "DHCPREQUEST " + word2
+			dstIP = offerIpv4PacketHeader.SrcIP
+
+			protocol := "UDP"
+			requestUDPSegment := constructUDPSegment(message, 68, 67)
+			requestIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, requestUDPSegment)
+			requestFrame := constructFrame(string(requestIPv4Packet), srcMAC, dstMAC, "IPv4")
+			channels[linkID] <- requestFrame
+			debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - "+word2)
+			//wait for acknowledgement
+
+			ackFrame := <-internal[srcID]
+			ackIpv4Packet := readIPv4Packet(string(ackFrame.Data))
+			ackUDPSegment := readUDPSegment(string(ackIpv4Packet.Data))
+
+			if ackUDPSegment.Data != "" {
+				debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+ackUDPSegment.Data)
+
+				word = strings.Fields(ackUDPSegment.Data)
+				if len(word) > 1 {
+					fmt.Println("")
+					confirmed_addr := word[1]
+					dynamic_assign(srcID, net.ParseIP(confirmed_addr), net.ParseIP(gateway), snetmask)
+				} else {
+					debug(1, "dhcp_discover", srcID, "Error 5: Empty DHCP acknowledgement\n")
 				}
-
-			} else {
-				debug(1, "dhcp_discover", srcID, "Error 2: Empty DHCP offer")
 			}
+
+		} else {
+			debug(1, "dhcp_discover", srcID, "Error 2: Empty DHCP offer")
 		}
 	}
 	actionsync[srcID] <- 1
@@ -321,17 +371,23 @@ func dhcp_offer(inc_f Frame) {
 	} else {
 		message = "DHCPOFFER " + addr_to_give + " " + gateway + " " + subnetmask
 	}
-	s := constructSegment(message)
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
-	channels[linkID] <- f
+
+	protocol := "UDP"
+	segmentBytes := constructUDPSegment(message, 67, 68)
+	packetBytes := constructIPv4Packet(srcIP, dstIP, protocol, segmentBytes)
+	frameBytes := constructFrame(string(packetBytes), srcMAC, dstMAC, "IPv4")
+	channels[linkID] <- frameBytes
 	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give)
 
-	//acknowledge
-	request := <-internal[snet.Router.ID]
+	// Acknowledge
+	requestFrame := <-internal[snet.Router.ID]
+	requestIpv4Packet := readIPv4Packet(string(requestFrame.Data))
+	requestIpv4PacketHeader := readIPv4PacketHeader(string(requestIpv4Packet.Header))
+	requestUDPSegment := readUDPSegment(string(requestIpv4Packet.Data))
+
 	message = ""
-	if request.Data.Data.Data != "" {
-		word := strings.Fields(request.Data.Data.Data)
+	if requestUDPSegment.Data != "" {
+		word := strings.Fields(requestUDPSegment.Data)
 		if len(word) > 1 {
 			if word[1] == addr_to_give {
 				message = "DHCPACKNOWLEDGEMENT " + addr_to_give
@@ -343,17 +399,18 @@ func dhcp_offer(inc_f Frame) {
 		}
 	}
 
-	dstIP = request.Data.SrcIP
-	s = constructSegment(message)
-	p = constructPacket(srcIP, dstIP, s)
-	f = constructFrame(p, srcMAC, dstMAC)
-	channels[linkID] <- f
+	dstIP = requestIpv4PacketHeader.SrcIP
+
+	ackSegment := constructUDPSegment(message, 67, 68)
+	ackIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, ackSegment)
+	ackFrame := constructFrame(string(ackIPv4Packet), srcMAC, dstMAC, "IPv4")
+	channels[linkID] <- ackFrame
 
 	// Setting leasee's MAC in pool (new)
 	pool := snet.Router.GetDHCPPoolAddresses()
 	for k := range pool {
 		if pool[k].String() == addr_to_give {
-			debug(2, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
+			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
 			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
@@ -416,12 +473,4 @@ func ipset(hostname string) {
 		}
 	}
 
-}
-
-func ipclear(id string) {
-	index := getHostIndexFromID(id)
-	snet.Hosts[index].IPAddr = nil
-	snet.Hosts[index].SubnetMask = ""
-	snet.Hosts[index].DefaultGateway = nil
-	fmt.Println("Network configuration cleared")
 }

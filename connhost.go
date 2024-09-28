@@ -78,7 +78,6 @@ func HostConn(device string, id string) {
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
-
 					go dhcp_discover(host)
 					<-actionsync[id]
 					save()

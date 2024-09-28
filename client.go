@@ -18,7 +18,7 @@ import (
 )
 
 func intro() {
-	fmt.Println("ltdnet v0.2.9")
+	fmt.Println("ltdnet v0.2.10")
 	fmt.Println("by vincebel")
 	fmt.Println("\nPlease note that switch functionality is limited and in development")
 }

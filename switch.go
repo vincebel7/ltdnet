@@ -7,9 +7,10 @@ Purpose:	Switch-specific functions
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 	"net"
+	"strings"
 )
 
 type Switch struct {
@@ -19,9 +20,9 @@ type Switch struct {
 	MgmtIP   net.IP         `json:"mgmtip"`
 	MACTable map[string]int `json:"mactable"`
 	Maxports int            `json:"maxports"`
-	Ports    []string       `json:"ports"`    // maps port # to downlink ID
-	PortIDs  []string       `json:"portids"`  // maps port # to Port ID
-	PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
+	Ports    []string       `json:"ports"`   // maps port # to downlink ID
+	PortIDs  []string       `json:"portids"` // maps port # to Port ID
+	//PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
 }
 
 func NewSumerian2100(hostname string) Switch {
@@ -94,7 +95,7 @@ func delSwitch() {
 }
 
 func lookupMACTable(macaddr string, id string) int { // For looking up addresses
-	resultPort := 0
+	resultPort := -1 // made this recent change that might have fixed? idk
 	table := make(map[string]int)
 	if isSwitchportID(snet.Router.VSwitch, id) {
 		table = snet.Router.VSwitch.MACTable
@@ -117,7 +118,7 @@ func lookupMACTable(macaddr string, id string) int { // For looking up addresses
 }
 
 func checkMACTable(macaddr string, id string, port int) { // For checking table on incoming frames
-	result := -1
+	result := 0
 	table := make(map[string]int)
 	if isSwitchportID(snet.Router.VSwitch, id) {
 		table = snet.Router.VSwitch.MACTable
@@ -132,7 +133,7 @@ func checkMACTable(macaddr string, id string, port int) { // For checking table 
 	for k, v := range table {
 		if k == macaddr {
 			if v == port {
-				debug(4, "lookupMACTable", id, "Address found in MAC table")
+				debug(4, "checkMACTable", id, "Address found in MAC table")
 				result = v
 			} else {
 				delMACEntry(macaddr, id, port)
@@ -195,7 +196,7 @@ func assignSwitchport(sw Switch, id string) Switch {
 		}
 	}
 
-	channels[sw.PortIDs[portIndex]] = make(chan Frame)
+	channels[sw.PortIDs[portIndex]] = make(chan string)
 	internal[sw.PortIDs[portIndex]] = make(chan Frame)
 	debug(4, "generateRouterChannels", sw.PortIDs[portIndex], "listening for id")
 	go switchportlisten(sw.PortIDs[portIndex])
@@ -204,23 +205,21 @@ func assignSwitchport(sw Switch, id string) Switch {
 }
 
 func switchforward(frame Frame, id string) {
-	srcIP := frame.Data.SrcIP
-	dstIP := frame.Data.DstIP
 	srcMAC := frame.SrcMAC
 	dstMAC := frame.DstMAC
 	linkID := ""
 
 	outboundPort := lookupMACTable(dstMAC, id)
 
-	if outboundPort == -1 {
-		debug(1, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
+	if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table.
+		debug(3, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
 		linkID = getIDfromMAC(dstMAC)
 	} else {
 		if isSwitchportID(snet.Router.VSwitch, id) {
 			linkID = snet.Router.VSwitch.Ports[outboundPort]
 		} else {
 			for i := range snet.Switches {
-				fmt.Println("Should never print this yet")
+				debug(3, "switchforward", id, "Should never print this yet")
 				if isSwitchportID(snet.Switches[i], id) {
 					linkID = snet.Switches[i].Ports[outboundPort]
 				}
@@ -228,10 +227,15 @@ func switchforward(frame Frame, id string) {
 		}
 	}
 
-	s := frame.Data.Data
-	p := constructPacket(srcIP, dstIP, s)
-	f := constructFrame(p, srcMAC, dstMAC)
-	channels[linkID] <- f
+	p := frame.Data
+	f := Frame{
+		SrcMAC:    srcMAC,
+		DstMAC:    dstMAC,
+		EtherType: frame.EtherType,
+		Data:      p,
+	}
+	fBytes, _ := json.Marshal(f)
+	channels[linkID] <- string(fBytes)
 }
 
 func freeSwitchport(link string) {
