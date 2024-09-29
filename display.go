@@ -58,7 +58,7 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 	// ROUTER
 	if rootType == "router" {
 		if rootHostname != "" {
-			drawRouter(snet.Router.ID)
+			drawRouter()
 		}
 
 		for i := range snet.Router.VSwitch.Ports {
@@ -75,7 +75,7 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 	}
 }
 
-func drawRouter(id string) {
+func drawRouter() {
 	space1 := 13 - len(snet.Router.Hostname)
 	space2 := 14 - len(snet.Router.Gateway.String())
 	space3 := 16 - len(snet.Router.Model)

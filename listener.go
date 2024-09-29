@@ -8,9 +8,10 @@ package main
 
 import "encoding/json"
 
-var channels = make(map[string]chan json.RawMessage) // Physical links
-var internal = map[string]chan Frame{}               // For internal device communication
-var actionsync = map[string]chan int{}               // Blocks CLI prompt until action completes
+var channels = make(map[string]chan json.RawMessage)     // Physical links
+var internal = map[string]chan Frame{}                   // For internal device communication
+var socketMaps = make(map[string]map[string]chan string) // For internal device communication (new)
+var actionsync = map[string]chan int{}                   // Blocks CLI prompt until action completes
 
 func Listener() {
 	generateBroadcastChannel()
@@ -34,6 +35,7 @@ func generateBroadcastChannel() {
 func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan json.RawMessage)
 	internal[snet.Hosts[i].ID] = make(chan Frame)
+	socketMaps[snet.Hosts[i].ID] = make(map[string]chan string)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
 
 	go listenHostChannel(snet.Hosts[i].ID)
@@ -43,6 +45,7 @@ func generateSwitchChannels(i int) {
 	for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
 		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
 		internal[snet.Switches[i].PortIDs[j]] = make(chan Frame)
+		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan string)
 		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
 
 		go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
@@ -53,12 +56,14 @@ func generateRouterChannels() {
 	if snet.Router.Hostname != "" {
 		channels[snet.Router.ID] = make(chan json.RawMessage)
 		internal[snet.Router.ID] = make(chan Frame)
+		socketMaps[snet.Router.ID] = make(map[string]chan string)
 
 		go listenRouterChannel()
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
 			internal[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
+			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan string)
 			actionsync[snet.Router.ID] = make(chan int)
 
 			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
@@ -69,7 +74,7 @@ func generateRouterChannels() {
 func listenBroadcastChannel() { //Listens for broadcast frames on FF.. and broadcasts
 	for {
 		rawFrame := <-channels["FFFFFFFF"]
-		debug(4, "broadcastlisten", "Listener", "detected broadcast")
+		debug(4, "listenBroadcastChannel", "Listener", "detected broadcast")
 
 		go actionHandler(rawFrame, snet.Router.ID)
 
@@ -84,7 +89,7 @@ func listenHostChannel(id string) {
 
 	for {
 		rawFrame := <-channels[id]
-		debug(4, "hostlisten", id, "Received unicast frame")
+		debug(4, "listenHostChannel", id, "Received unicast frame")
 		go actionHandler(rawFrame, id)
 	}
 }
@@ -92,12 +97,12 @@ func listenHostChannel(id string) {
 func listenRouterChannel() {
 	for {
 		rawFrame := <-channels[snet.Router.ID]
-		debug(4, "routerlisten", snet.Router.ID, "Received unicast frame")
+		debug(4, "listenRouterChannel", snet.Router.ID, "Received unicast frame")
 		go actionHandler(rawFrame, snet.Router.ID)
 	}
 }
 
-// TODO eventually break this down into functions so it isn't so nested
+// Should actions be broken into functions?
 func actionHandler(rawFrame json.RawMessage, id string) {
 	debug(4, "actionHandler", id, "About to handle a frame")
 
@@ -111,33 +116,30 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 		case 2:
 			debug(3, "actionHandler", id, "ARPREPLY received")
 
-			if snet.Router.ID == id {
-				if arpMessage.TargetIP == snet.Router.Gateway.String() {
-					internal[id] <- frame
-				} else {
-					debug(4, "actionhandler", id, "Router: This ARPREPLY does not involve me.")
-				}
-			} else {
-				if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
-					internal[id] <- frame
-				} else {
-					debug(4, "actionhandler", id, "Host: This ARPREPLY does not involve me.")
-				}
+			amTarget := false
+			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.Gateway.String()) {
+				amTarget = true
+			} else if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
+				amTarget = true
+			}
+
+			if amTarget {
+				internal[id] <- frame
 			}
 
 		case 1:
 			debug(3, "actionHandler", id, "ARPREQUEST received")
 
-			// Temporary fix until arp_reply is generalized.
-			if snet.Router.ID == id {
-				if arpMessage.TargetIP == snet.Router.Gateway.String() {
-					index := 0
-					arp_reply(index, "router", frame)
-				}
-			} else {
-				if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
-					arp_reply(getHostIndexFromID(id), "host", frame)
-				}
+			// Check if target device at network-level
+			amTarget := false
+			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.Gateway.String()) {
+				amTarget = true
+			} else if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
+				amTarget = true
+			}
+
+			if amTarget {
+				arp_reply(id, frame)
 			}
 		}
 
@@ -202,10 +204,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 func listenSwitchportChannel(id string) {
 	for {
 		rawFrame := <-channels[id]
-		debug(4, "switchlisten", id, "(Switch) Received unicast frame")
+		debug(4, "listenSwitchportChannel", id, "(Switch) Received unicast frame")
 
 		port := getSwitchportIDFromLink(id)
-
 		checkMACTable(readFrame(rawFrame).SrcMAC, id, port)
 
 		go switchportActionHandler(rawFrame, id)
@@ -216,7 +217,7 @@ func switchportActionHandler(rawFrame json.RawMessage, id string) {
 	debug(4, "switchportActionHandler", id, "My packet")
 	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" {
 		channels["FFFFFFFF"] <- rawFrame
-	} else if 1 == 2 { //TODO how to receive mgmt frames
+	} else if false { //TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else {
 		switchforward(readFrame(rawFrame), id)

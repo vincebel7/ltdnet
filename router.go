@@ -9,20 +9,20 @@ package main
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"net"
+	"strings"
 
 	"github.com/vincebel7/ltdnet/iphelper"
 )
 
 type Router struct {
-	ID           string   `json:"id"`
-	Model        string   `json:"model"`
-	MACAddr      string   `json:"macaddr"` // LAN-facing interface
-	Hostname     string   `json:"hostname"`
-	Gateway      net.IP   `json:"gateway"`
-	VSwitch      Switch   `json:"vswitchid"`      // Virtual built-in switch to router
-	DHCPPool     DHCPPool `json:"dhcp_pool"`      // Instance of DHCPPool
+	ID       string   `json:"id"`
+	Model    string   `json:"model"`
+	MACAddr  string   `json:"macaddr"` // LAN-facing interface
+	Hostname string   `json:"hostname"`
+	Gateway  net.IP   `json:"gateway"`
+	VSwitch  Switch   `json:"vswitchid"` // Virtual built-in switch to router
+	DHCPPool DHCPPool `json:"dhcp_pool"` // Instance of DHCPPool
 }
 
 type DHCPPool struct {
@@ -116,7 +116,7 @@ func addRouter(routerHostname string, routerModel string) {
 	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
 }
 
-func delRouter(hostname string) {
+func delRouter() {
 	r := Router{}
 
 	r.ID = ""
@@ -157,6 +157,6 @@ func (router Router) GetDHCPPoolAddresses() []net.IP {
 	for i := new(big.Int).Set(startIPInt); i.Cmp(endIPInt) <= 0; i.Add(i, big.NewInt(1)) {
 		poolAddrs = append(poolAddrs, iphelper.BigIntToIP(i)) // Convert back to string IP
 	}
-	
+
 	return poolAddrs
 }

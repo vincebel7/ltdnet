@@ -47,7 +47,7 @@ func ping(srcID string, dstIP string, secs int) {
 			srcMAC = snet.Router.MACAddr
 
 			//TODO: Implement MAC learning to avoid ARPing every time
-			dstMAC = arp_request(srcID, "router", dstIP)
+			dstMAC = arp_request(srcID, dstIP)
 
 			//get link to send ping to
 			dstID := getIDfromMAC(dstMAC)
@@ -59,7 +59,7 @@ func ping(srcID string, dstIP string, secs int) {
 
 		} else { // Assumed to be host source.
 			//TODO: Implement MAC learning to avoid ARPing every time
-			dstMAC = arp_request(srcID, "host", dstIP)
+			dstMAC = arp_request(srcID, dstIP)
 		}
 
 		if srcMAC == "" {
@@ -147,7 +147,7 @@ func pong(srcID string, frame Frame) {
 		srcIP = snet.Router.Gateway.String()
 
 		//TODO: Implement MAC learning to avoid ARPing every time
-		dstMAC = arp_request(srcID, "router", dstIP)
+		dstMAC = arp_request(srcID, dstIP)
 		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: "+dstMAC)
 
 		//Get link to send ping to
@@ -185,15 +185,16 @@ func pong(srcID string, frame Frame) {
 	debug(2, "pong", srcID, "Pong sent")
 }
 
-func arp_request(srcID string, device_type string, targetIP string) string {
+func arp_request(srcID string, targetIP string) string {
 	debug(4, "arp_request", srcID, "About to ARP request")
-	//Construct frame
+
+	// Construct frame
 	linkID := "FFFFFFFF"
-	srcIP := ""
 	srcMAC := ""
+	srcIP := ""
 	dstMAC := "00:00:00:00:00:00"
 
-	if device_type == "router" {
+	if srcID == snet.Router.ID {
 		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
 	} else {
@@ -202,7 +203,11 @@ func arp_request(srcID string, device_type string, targetIP string) string {
 		srcMAC = snet.Hosts[index].MACAddr
 	}
 
-	arpRequest := ArpMessage{
+	arpRequestMessage := ArpMessage{
+		HTYPE:     1,
+		PTYPE:     "0x800",
+		HLEN:      6,
+		PLEN:      4,
 		Opcode:    1,
 		SenderMAC: srcMAC,
 		SenderIP:  srcIP,
@@ -210,58 +215,57 @@ func arp_request(srcID string, device_type string, targetIP string) string {
 		TargetIP:  targetIP,
 	}
 
-	arpRequestBytes, _ := json.Marshal(arpRequest)
-	frameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpRequestBytes)
+	arpRequestMessageBytes, _ := json.Marshal(arpRequestMessage)
+	arpRequestFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpRequestMessageBytes)
 
-	channels[linkID] <- frameBytes
+	// Send frame and wait for ARPREPLY
+	channels[linkID] <- arpRequestFrameBytes
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
 
-	arpReplyFrame := <-internal[srcID]
-	arpReply := readArpMessage(arpReplyFrame.Data)
+	arpReplyFrameBytes := <-internal[srcID]
+	arpReplyMessage := readArpMessage(arpReplyFrameBytes.Data)
 
-	return arpReply.SenderMAC
+	return arpReplyMessage.SenderMAC
 }
 
-func arp_reply(i int, device_type string, frame Frame) {
-	//Inspect Arp message
-	arpRequest := readArpMessage(frame.Data)
+func arp_reply(id string, arpRequestFrame Frame) {
+	arpRequestMessage := readArpMessage(arpRequestFrame.Data)
 
-	requested_addr := arpRequest.TargetIP
+	// Construct frame
 	linkID := ""
+	srcID := ""
 	srcMAC := ""
 	srcIP := ""
-	dstMAC := arpRequest.SenderMAC
-	dstIP := arpRequest.SenderIP
-	srcID := ""
+	dstMAC := arpRequestMessage.SenderMAC
+	dstIP := arpRequestMessage.SenderIP
 
-	if device_type == "router" {
-		if requested_addr == snet.Router.Gateway.String() {
-			srcIP = snet.Router.Gateway.String()
-			srcMAC = snet.Router.MACAddr
-			srcID = snet.Router.ID
+	// Network listener decided to reply to this request - no checking needed.
+	if id == snet.Router.ID {
+		srcID = snet.Router.ID
+		srcMAC = snet.Router.MACAddr
+		srcIP = snet.Router.Gateway.String()
 
-			// Determine linkID
-			dstID := getIDfromMAC(dstMAC)
-			if getHostIndexFromID(dstID) != -1 {
-				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
-			} else if snet.Router.ID == dstID {
-				linkID = snet.Router.ID
-			}
-		} else { // Not me
-			return
+		// Determine linkID
+		dstID := getIDfromMAC(dstMAC)
+		if getHostIndexFromID(dstID) != -1 {
+			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+		} else if snet.Router.ID == dstID {
+			linkID = snet.Router.ID
 		}
+
 	} else {
-		if requested_addr == snet.Hosts[i].IPAddr.String() {
-			srcIP = snet.Hosts[i].IPAddr.String()
-			srcMAC = snet.Hosts[i].MACAddr
-			srcID = snet.Hosts[i].ID
-			linkID = snet.Hosts[i].UplinkID
-		} else { // Not me
-			return
-		}
+		i := getHostIndexFromID(id)
+		linkID = snet.Hosts[i].UplinkID
+		srcID = snet.Hosts[i].ID
+		srcMAC = snet.Hosts[i].MACAddr
+		srcIP = snet.Hosts[i].IPAddr.String()
 	}
 
-	arpReply := ArpMessage{
+	arpReplyMessage := ArpMessage{
+		HTYPE:     1,
+		PTYPE:     "0x800",
+		HLEN:      6,
+		PLEN:      4,
 		Opcode:    2,
 		SenderMAC: srcMAC,
 		SenderIP:  srcIP,
@@ -269,10 +273,11 @@ func arp_reply(i int, device_type string, frame Frame) {
 		TargetIP:  dstIP,
 	}
 
-	arpReplyBytes, _ := json.Marshal(arpReply)
-	frameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpReplyBytes)
+	arpReplyMessageBytes, _ := json.Marshal(arpReplyMessage)
+	arpReplyFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpReplyMessageBytes)
 
-	channels[linkID] <- frameBytes
+	// Send frame
+	channels[linkID] <- arpReplyFrameBytes
 	debug(2, "arp_reply", srcID, "ARPREPLY sent")
 }
 

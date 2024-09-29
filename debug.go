@@ -56,7 +56,9 @@ func debug(level int, generatingFunc string, generatingID string, message string
 				hostname = generatingID
 			}
 		}
+		//fmt.Printf("\n[%s] (%s), %s\n", hostname, generatingFunc, message)
 		fmt.Printf("\n[%s] %s\n", hostname, message)
+
 	}
 }
 
@@ -68,7 +70,7 @@ func inspectFrame(frame Frame) {
 	fmt.Printf("Dest MAC:\t%s\n", frame.DstMAC)
 
 	fmt.Printf("\n ========== DATA ========== \n")
-	fmt.Printf(string(frameData))
+	fmt.Print(string(frameData))
 
 	fmt.Printf("\n")
 }

@@ -44,11 +44,15 @@ type Frame struct {
 }
 
 type ArpMessage struct {
-	Opcode    int    `json:"opcode"` // 1 for request, 2 for reply
-	SenderMAC string `json:"sender_mac"`
-	SenderIP  string `json:"sender_ip"`
-	TargetMAC string `json:"target_mac"`
-	TargetIP  string `json:"target_ip"`
+	HTYPE     int    `json:"HTYPE"`
+	PTYPE     string `json:"PTYPE"`
+	HLEN      int    `json:"HLEN"`
+	PLEN      int    `json:"PLEN"`
+	Opcode    int    `json:"OPER"` // 1 for request, 2 for reply
+	SenderMAC string `json:"SHA"`
+	SenderIP  string `json:"SPA"`
+	TargetMAC string `json:"THA"`
+	TargetIP  string `json:"TPA"`
 }
 
 func constructUDPSegment(srcPort int, dstPort int, data string) json.RawMessage {
