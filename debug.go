@@ -1,6 +1,6 @@
 /*
-File:		debug.co
-Author: 	https://bitbucket.org/vincebel
+File:		debug.go
+Author: 	https://github.com/vincebel7
 Purpose:	Functions related to debugging and testing
 */
 
