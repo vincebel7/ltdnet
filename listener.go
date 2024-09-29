@@ -119,7 +119,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			amTarget := false
 			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.Gateway.String()) {
 				amTarget = true
-			} else if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
+			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
 				amTarget = true
 			}
 
@@ -134,7 +134,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			amTarget := false
 			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.Gateway.String()) {
 				amTarget = true
-			} else if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
+			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
 				amTarget = true
 			}
 
