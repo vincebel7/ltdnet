@@ -88,7 +88,7 @@ func constructIPv4Packet(srcIP string, dstIP string, protocolName string, data j
 	return json.RawMessage(packetBytes)
 }
 
-func constructFrame(srcMAC string, dstMAC string, protocolName string, data json.RawMessage) string {
+func constructFrame(srcMAC string, dstMAC string, protocolName string, data json.RawMessage) json.RawMessage {
 	etherType := "0x0"
 	switch protocolName {
 	case "IPv4":
@@ -105,7 +105,7 @@ func constructFrame(srcMAC string, dstMAC string, protocolName string, data json
 	}
 
 	frameBytes, _ := json.Marshal(frame)
-	return string(frameBytes)
+	return frameBytes
 }
 
 // Turns segment into an accessible object

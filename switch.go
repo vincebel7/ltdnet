@@ -196,10 +196,10 @@ func assignSwitchport(sw Switch, id string) Switch {
 		}
 	}
 
-	channels[sw.PortIDs[portIndex]] = make(chan string)
+	channels[sw.PortIDs[portIndex]] = make(chan json.RawMessage)
 	internal[sw.PortIDs[portIndex]] = make(chan Frame)
-	debug(4, "generateRouterChannels", sw.PortIDs[portIndex], "listening for id")
-	go switchportlisten(sw.PortIDs[portIndex])
+	debug(4, "assignSwitchport", sw.PortIDs[portIndex], "listening for id")
+	go listenSwitchportChannel(sw.PortIDs[portIndex])
 
 	return sw
 }
@@ -234,8 +234,8 @@ func switchforward(frame Frame, id string) {
 		EtherType: frame.EtherType,
 		Data:      p,
 	}
-	fBytes, _ := json.Marshal(f)
-	channels[linkID] <- string(fBytes)
+	outFrame, _ := json.Marshal(f)
+	channels[linkID] <- outFrame
 }
 
 func freeSwitchport(link string) {

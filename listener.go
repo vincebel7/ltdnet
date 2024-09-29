@@ -8,14 +8,12 @@ package main
 
 import "encoding/json"
 
-var channels = make(map[string]chan string) // the physical link
-var internal = map[string]chan Frame{}      // for internal device communication
-var actionsync = map[string]chan int{}
+var channels = make(map[string]chan json.RawMessage) // Physical links
+var internal = map[string]chan Frame{}               // For internal device communication
+var actionsync = map[string]chan int{}               // Blocks CLI prompt until action completes
 
 func Listener() {
-	channels["FFFFFFFF"] = make(chan string)
-	go broadcastlisten()
-
+	generateBroadcastChannel()
 	generateRouterChannels()
 
 	for i := range snet.Switches {
@@ -27,103 +25,107 @@ func Listener() {
 	}
 }
 
+func generateBroadcastChannel() {
+	channels["FFFFFFFF"] = make(chan json.RawMessage)
+
+	go listenBroadcastChannel()
+}
+
 func generateHostChannels(i int) {
-	channels[snet.Hosts[i].ID] = make(chan string)
+	channels[snet.Hosts[i].ID] = make(chan json.RawMessage)
 	internal[snet.Hosts[i].ID] = make(chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
 
-	go hostlisten(snet.Hosts[i].ID)
+	go listenHostChannel(snet.Hosts[i].ID)
 }
 
 func generateSwitchChannels(i int) {
 	for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
-		channels[snet.Switches[i].PortIDs[j]] = make(chan string)
+		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
 		internal[snet.Switches[i].PortIDs[j]] = make(chan Frame)
 		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
 
-		go switchportlisten(snet.Switches[i].PortIDs[j])
+		go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
 	}
 }
 
 func generateRouterChannels() {
 	if snet.Router.Hostname != "" {
-		channels[snet.Router.ID] = make(chan string)
+		channels[snet.Router.ID] = make(chan json.RawMessage)
 		internal[snet.Router.ID] = make(chan Frame)
-		go routerlisten()
 
-		//vswitch
-		//channels[snet.Router.VSwitch.ID] = make(chan Frame)
-		//internal[snet.Router.VSwitch.ID] = make(chan Frame)
+		go listenRouterChannel()
+
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan string)
+			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
 			internal[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
 			actionsync[snet.Router.ID] = make(chan int)
 
-			go switchportlisten(snet.Router.VSwitch.PortIDs[i])
+			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
 		}
 	}
 }
 
-func broadcastlisten() { //Listens for broadcast frames on FF.. and broadcasts
+func listenBroadcastChannel() { //Listens for broadcast frames on FF.. and broadcasts
 	for {
-		frameString := <-channels["FFFFFFFF"]
+		rawFrame := <-channels["FFFFFFFF"]
 		debug(4, "broadcastlisten", "Listener", "detected broadcast")
 
-		go actionHandler(frameString, snet.Router.ID)
+		go actionHandler(rawFrame, snet.Router.ID)
 
 		for i := range snet.Hosts {
-			go actionHandler(frameString, snet.Hosts[i].ID)
+			go actionHandler(rawFrame, snet.Hosts[i].ID)
 		}
 	}
 }
 
-func hostlisten(id string) {
+func listenHostChannel(id string) {
 	listenSync <- id //synchronizing with client.go
 
 	for {
-		frameString := <-channels[id]
+		rawFrame := <-channels[id]
 		debug(4, "hostlisten", id, "Received unicast frame")
-
-		go actionHandler(frameString, id)
+		go actionHandler(rawFrame, id)
 	}
 }
 
-func routerlisten() {
+func listenRouterChannel() {
 	for {
-		frameString := <-channels[snet.Router.ID]
+		rawFrame := <-channels[snet.Router.ID]
 		debug(4, "routerlisten", snet.Router.ID, "Received unicast frame")
-		go actionHandler(frameString, snet.Router.ID)
+		go actionHandler(rawFrame, snet.Router.ID)
 	}
 }
 
 // TODO eventually break this down into functions so it isn't so nested
-func actionHandler(frameString string, id string) {
-	debug(4, "actionHandler", id, "My packet")
+func actionHandler(rawFrame json.RawMessage, id string) {
+	debug(4, "actionHandler", id, "About to handle a frame")
 
-	frame := readFrame(json.RawMessage(frameString))
+	frame := readFrame(rawFrame)
 
 	switch frame.EtherType {
 	case "0x0806": // ARP
 		arpMessage := readArpMessage(frame.Data)
-		if arpMessage.Opcode == 2 {
+
+		switch arpMessage.Opcode {
+		case 2:
 			debug(3, "actionHandler", id, "ARPREPLY received")
 
 			if snet.Router.ID == id {
 				if arpMessage.TargetIP == snet.Router.Gateway.String() {
 					internal[id] <- frame
 				} else {
-					debug(4, "actionhandler", id, "I'm the router. Not sure why i got this ARPREPLY not involving me.")
+					debug(4, "actionhandler", id, "Router: This ARPREPLY does not involve me.")
 				}
 			} else {
 				if arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String() {
 					internal[id] <- frame
 				} else {
-					debug(4, "actionhandler", id, "I'm an uninvolved host. Not sure why i got this ARPREPLY not involving me.")
+					debug(4, "actionhandler", id, "Host: This ARPREPLY does not involve me.")
 				}
 			}
-		}
 
-		if arpMessage.Opcode == 1 {
+		case 1:
 			debug(3, "actionHandler", id, "ARPREQUEST received")
 
 			// Temporary fix until arp_reply is generalized.
@@ -145,13 +147,14 @@ func actionHandler(frameString string, id string) {
 		switch readIPv4PacketHeader(packet.Header).Protocol {
 		case 1: // ICMP
 			icmpPacket := readICMPPacket(packet.Data)
-			if icmpPacket.ControlType == 8 {
-				debug(3, "actionHandler", id, "Ping received")
-				pong(id, frame)
-			}
 
-			if icmpPacket.ControlType == 0 {
-				debug(3, "actionHandler", id, "Pong received")
+			switch icmpPacket.ControlType {
+			case 8:
+				debug(3, "actionHandler", id, "Ping request received")
+				pong(id, frame)
+
+			case 0:
+				debug(3, "actionHandler", id, "Ping reply received")
 				internal[id] <- frame
 			}
 
@@ -159,35 +162,34 @@ func actionHandler(frameString string, id string) {
 			udpSegment := readUDPSegment(packet.Data)
 
 			switch udpSegment.DstPort {
-			case 67: // Server-bound messages
+			case 67: // DHCP: Server-bound
 				if snet.Router.ID != id { // Temporary validation
 					debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
-					return
 				}
 
-				if string(udpSegment.Data) == "DHCPDISCOVER" { // TODO not sure if this []byte to string thing works.
-					debug(2, "actionHandler", id, "DHCPDISCOVER received")
+				if string(udpSegment.Data) == "DHCPDISCOVER" {
+					debug(3, "actionHandler", id, "DHCPDISCOVER received")
 					dhcp_offer(frame)
 				}
 
-				if len(string(udpSegment.Data)) > 10 { // TODO not sure if this []byte to string thing works.
-					if string(udpSegment.Data)[0:11] == "DHCPREQUEST" { // TODO not sure if this []byte to string thing works.
-						debug(2, "actionHandler", id, "DHCPREQUEST received")
+				if len(string(udpSegment.Data)) > 10 {
+					if string(udpSegment.Data)[0:11] == "DHCPREQUEST" {
+						debug(3, "actionHandler", id, "DHCPREQUEST received")
 						internal[id] <- frame
 					}
 				}
 
-			case 68: // Client-bound messages
-				if len(string(udpSegment.Data)) > 8 { // TODO not sure if this []byte to string thing works.
-					if string(udpSegment.Data)[0:9] == "DHCPOFFER" { // TODO not sure if this []byte to string thing works.
-						debug(2, "actionHandler", id, "DHCPOFFER received")
+			case 68: // DHCP: Client-bound
+				if len(string(udpSegment.Data)) > 8 {
+					if string(udpSegment.Data)[0:9] == "DHCPOFFER" {
+						debug(3, "actionHandler", id, "DHCPOFFER received")
 						internal[id] <- frame
 					}
 				}
 
-				if len(string(udpSegment.Data)) > 17 { // TODO not sure if this []byte to string thing works.
-					if string(udpSegment.Data)[0:19] == "DHCPACKNOWLEDGEMENT" { // TODO not sure if this []byte to string thing works.
-						debug(2, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
+				if len(string(udpSegment.Data)) > 17 {
+					if string(udpSegment.Data)[0:19] == "DHCPACKNOWLEDGEMENT" {
+						debug(3, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
 						internal[id] <- frame
 					}
 
@@ -197,26 +199,26 @@ func actionHandler(frameString string, id string) {
 	}
 }
 
-func switchportlisten(id string) {
+func listenSwitchportChannel(id string) {
 	for {
-		frameString := <-channels[id]
+		rawFrame := <-channels[id]
 		debug(4, "switchlisten", id, "(Switch) Received unicast frame")
 
 		port := getSwitchportIDFromLink(id)
 
-		checkMACTable(readFrame(json.RawMessage(frameString)).SrcMAC, id, port)
+		checkMACTable(readFrame(rawFrame).SrcMAC, id, port)
 
-		go switchportactionhandler(frameString, id)
+		go switchportActionHandler(rawFrame, id)
 	}
 }
 
-func switchportactionhandler(frameString string, id string) {
-	debug(4, "switchportactionhandler", id, "My packet")
-	if readFrame(json.RawMessage(frameString)).DstMAC == "FF:FF:FF:FF:FF:FF" {
-		channels["FFFFFFFF"] <- frameString
+func switchportActionHandler(rawFrame json.RawMessage, id string) {
+	debug(4, "switchportActionHandler", id, "My packet")
+	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" {
+		channels["FFFFFFFF"] <- rawFrame
 	} else if 1 == 2 { //TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else {
-		switchforward(readFrame(json.RawMessage(frameString)), id)
+		switchforward(readFrame(rawFrame), id)
 	}
 }
