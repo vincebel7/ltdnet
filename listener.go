@@ -6,6 +6,8 @@ Purpose:	Listener for network and all devices
 
 package main
 
+import "encoding/json"
+
 var channels = make(map[string]chan string) // the physical link
 var internal = map[string]chan Frame{}      // for internal device communication
 var actionsync = map[string]chan int{}
@@ -98,11 +100,11 @@ func routerlisten() {
 func actionHandler(frameString string, id string) {
 	debug(4, "actionHandler", id, "My packet")
 
-	frame := readFrame(frameString)
+	frame := readFrame(json.RawMessage(frameString))
 
 	switch frame.EtherType {
 	case "0x0806": // ARP
-		arpMessage := readArpMessage(string(frame.Data))
+		arpMessage := readArpMessage(frame.Data)
 		if arpMessage.Opcode == 2 {
 			debug(3, "actionHandler", id, "ARPREPLY received")
 
@@ -138,11 +140,11 @@ func actionHandler(frameString string, id string) {
 		}
 
 	case "0x0800": // IPv4
-		packet := readIPv4Packet(string(frame.Data))
+		packet := readIPv4Packet(frame.Data)
 
-		switch readIPv4PacketHeader(string(packet.Header)).Protocol {
+		switch readIPv4PacketHeader(packet.Header).Protocol {
 		case 1: // ICMP
-			icmpPacket := readICMPPacket(string(packet.Data))
+			icmpPacket := readICMPPacket(packet.Data)
 			if icmpPacket.ControlType == 8 {
 				debug(3, "actionHandler", id, "Ping received")
 				pong(id, frame)
@@ -154,7 +156,7 @@ func actionHandler(frameString string, id string) {
 			}
 
 		case 17: // UDP
-			udpSegment := readUDPSegment(string(packet.Data))
+			udpSegment := readUDPSegment(packet.Data)
 
 			switch udpSegment.DstPort {
 			case 67: // Server-bound messages
@@ -197,24 +199,24 @@ func actionHandler(frameString string, id string) {
 
 func switchportlisten(id string) {
 	for {
-		frameBytes := <-channels[id]
+		frameString := <-channels[id]
 		debug(4, "switchlisten", id, "(Switch) Received unicast frame")
 
 		port := getSwitchportIDFromLink(id)
 
-		checkMACTable(readFrame(frameBytes).SrcMAC, id, port)
+		checkMACTable(readFrame(json.RawMessage(frameString)).SrcMAC, id, port)
 
-		go switchportactionhandler(frameBytes, id)
+		go switchportactionhandler(frameString, id)
 	}
 }
 
-func switchportactionhandler(frameBytes string, id string) {
+func switchportactionhandler(frameString string, id string) {
 	debug(4, "switchportactionhandler", id, "My packet")
-	if readFrame(frameBytes).DstMAC == "FF:FF:FF:FF:FF:FF" {
-		channels["FFFFFFFF"] <- frameBytes
+	if readFrame(json.RawMessage(frameString)).DstMAC == "FF:FF:FF:FF:FF:FF" {
+		channels["FFFFFFFF"] <- frameString
 	} else if 1 == 2 { //TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else {
-		switchforward(readFrame(frameBytes), id)
+		switchforward(readFrame(json.RawMessage(frameString)), id)
 	}
 }
