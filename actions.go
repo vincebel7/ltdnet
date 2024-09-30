@@ -17,6 +17,7 @@ import (
 func ping(srcID string, dstIP string, secs int) {
 	debug(4, "ping", srcID, "About to ping")
 
+	identifier := idgen_int(5)
 	linkID := ""
 	srcIP := ""
 	srcMAC := ""
@@ -72,16 +73,19 @@ func ping(srcID string, dstIP string, secs int) {
 			}
 		}
 		debug(4, "ping", srcID, "Constructing ping")
-		protocol := "ICMP"
 		payload, _ := json.Marshal("101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")
 
-		icmpRequestPacket := ICMPPacket{
+		icmpRequestPacket := ICMPEchoPacket{
 			ControlType: 8,
+			ControlCode: 0,
+			Checksum:    "checksum",
+			Identifier:  identifier,
+			SeqNumber:   i,
 			Data:        json.RawMessage(payload),
 		}
 		icmpRequestPacketBytes, _ := json.Marshal(icmpRequestPacket)
 
-		ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, protocol, icmpRequestPacketBytes)
+		ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, "ICMP", icmpRequestPacketBytes)
 
 		frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
@@ -93,10 +97,16 @@ func ping(srcID string, dstIP string, secs int) {
 
 		pong := make(chan bool, 1)
 
+		sockets := socketMaps[srcID]
+		socketID := "icmp_" + string(identifier)
+		sockets[socketID] = make(chan Frame)
+		socketMaps[srcID] = sockets // Write updated map back to the collection
+
+		debug(4, "ping", srcID, "Expecting ping reply on "+srcID)
 		select {
-		case pongFrame := <-internal[srcID]:
+		case pongFrame := <-sockets[socketID]:
 			pongIpv4Packet := readIPv4Packet(pongFrame.Data)
-			pongIcmpPacket := readICMPPacket(pongIpv4Packet.Data)
+			pongIcmpPacket := readICMPEchoPacket(pongIpv4Packet.Data)
 
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
@@ -135,7 +145,7 @@ func ping(srcID string, dstIP string, secs int) {
 
 func pong(srcID string, frame Frame) {
 	receivedIpv4Packet := readIPv4Packet(frame.Data)
-	receivedIcmpPacket := readICMPPacket(receivedIpv4Packet.Data)
+	receivedIcmpPacket := readICMPEchoPacket(receivedIpv4Packet.Data)
 
 	linkID := ""
 	srcIP := ""
@@ -166,17 +176,17 @@ func pong(srcID string, frame Frame) {
 		linkID = snet.Hosts[index].UplinkID
 	}
 
-	protocol := "ICMP"
-	payload := receivedIcmpPacket.Data
-
-	icmpReplyPacket := ICMPPacket{
+	icmpReplyPacket := ICMPEchoPacket{
 		ControlType: 0,
-		Data:        payload,
+		ControlCode: 0,
+		Checksum:    "checksum",
+		Identifier:  receivedIcmpPacket.Identifier,
+		SeqNumber:   receivedIcmpPacket.SeqNumber,
+		Data:        receivedIcmpPacket.Data,
 	}
 	icmpReplyPacketBytes, _ := json.Marshal(icmpReplyPacket)
 
-	ipv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, icmpReplyPacketBytes)
-	ipv4PacketBytes, _ := json.Marshal(ipv4Packet)
+	ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, "ICMP", icmpReplyPacketBytes)
 
 	frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
@@ -222,9 +232,13 @@ func arp_request(srcID string, targetIP string) string {
 	channels[linkID] <- arpRequestFrameBytes
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
 
-	arpReplyFrameBytes := <-internal[srcID]
-	arpReplyMessage := readArpMessage(arpReplyFrameBytes.Data)
+	sockets := socketMaps[srcID]
+	socketID := "arp_" + string(targetIP)
+	sockets[socketID] = make(chan Frame)
+	socketMaps[srcID] = sockets // Write updated map back to the collection
 
+	arpReplyFrameBytes := <-sockets[socketID]
+	arpReplyMessage := readArpMessage(arpReplyFrameBytes.Data)
 	return arpReplyMessage.SenderMAC
 }
 
@@ -299,7 +313,12 @@ func dhcp_discover(host Host) {
 	//need to give it to uplink
 	channels[linkID] <- frameData
 	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
-	offerFrame := <-internal[srcID]
+
+	sockets := socketMaps[srcID]
+	socketID := "udp_" + string(68)
+	sockets[socketID] = make(chan Frame)
+	socketMaps[srcID] = sockets // Write updated map back to the collection
+	offerFrame := <-sockets[socketID]
 
 	offerIpv4Packet := readIPv4Packet(offerFrame.Data)
 	offerIpv4PacketHeader := readIPv4PacketHeader(offerIpv4Packet.Header)
@@ -325,7 +344,12 @@ func dhcp_discover(host Host) {
 			debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - "+word2)
 			//wait for acknowledgement
 
-			ackFrame := <-internal[srcID]
+			sockets := socketMaps[srcID]
+			socketID := "udp_" + string(68)
+			sockets[socketID] = make(chan Frame)
+			socketMaps[srcID] = sockets // Write updated map back to the collection
+			ackFrame := <-sockets[socketID]
+
 			ackIpv4Packet := readIPv4Packet(ackFrame.Data)
 			ackUDPSegment := readUDPSegment(ackIpv4Packet.Data)
 
@@ -385,7 +409,10 @@ func dhcp_offer(inc_f Frame) {
 	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give)
 
 	// Acknowledge
-	requestFrame := <-internal[snet.Router.ID]
+	socketID := "udp_" + string(67)
+	sockets := socketMaps[snet.Router.ID]
+	requestFrame := <-sockets[socketID]
+
 	requestIpv4Packet := readIPv4Packet(requestFrame.Data)
 	requestIpv4PacketHeader := readIPv4PacketHeader(requestIpv4Packet.Header)
 	requestUDPSegment := readUDPSegment(requestIpv4Packet.Data)

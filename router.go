@@ -1,6 +1,6 @@
 /*
 File:		router.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Router-specific functions
 */
 
@@ -111,9 +111,9 @@ func addRouter(routerHostname string, routerModel string) {
 
 	snet.Router = r
 
-	generateRouterChannels()
-
 	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
+
+	generateRouterChannels()
 }
 
 func delRouter() {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -23,6 +24,20 @@ func idgen(n int) string {
 	}
 
 	return string(id)
+}
+
+func idgen_int(n int) int {
+	rand.Seed(time.Now().UnixNano())
+
+	firstDigit := rand.Intn(9) + 1
+	numberStr := strconv.Itoa(firstDigit)
+	for i := 1; i < n; i++ {
+		digit := rand.Intn(10)
+		numberStr += strconv.Itoa(digit)
+	}
+	result, _ := strconv.Atoi(numberStr)
+
+	return result
 }
 
 func macgen() string {

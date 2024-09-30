@@ -1,6 +1,6 @@
 /*
 File:		switch.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Switch-specific functions
 */
 
@@ -197,7 +197,6 @@ func assignSwitchport(sw Switch, id string) Switch {
 	}
 
 	channels[sw.PortIDs[portIndex]] = make(chan json.RawMessage)
-	internal[sw.PortIDs[portIndex]] = make(chan Frame)
 	debug(4, "assignSwitchport", sw.PortIDs[portIndex], "listening for id")
 	go listenSwitchportChannel(sw.PortIDs[portIndex])
 
@@ -212,7 +211,7 @@ func switchforward(frame Frame, id string) {
 	outboundPort := lookupMACTable(dstMAC, id)
 
 	if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table.
-		debug(3, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
+		debug(4, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
 		linkID = getIDfromMAC(dstMAC)
 	} else {
 		if isSwitchportID(snet.Router.VSwitch, id) {

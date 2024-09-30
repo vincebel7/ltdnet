@@ -8,10 +8,9 @@ package main
 
 import "encoding/json"
 
-var channels = make(map[string]chan json.RawMessage)     // Physical links
-var internal = map[string]chan Frame{}                   // For internal device communication
-var socketMaps = make(map[string]map[string]chan string) // For internal device communication (new)
-var actionsync = map[string]chan int{}                   // Blocks CLI prompt until action completes
+var channels = make(map[string]chan json.RawMessage)    // Physical links
+var socketMaps = make(map[string]map[string]chan Frame) // For internal device communication
+var actionsync = map[string]chan int{}                  // Blocks CLI prompt until action completes
 
 func Listener() {
 	generateBroadcastChannel()
@@ -34,8 +33,7 @@ func generateBroadcastChannel() {
 
 func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan json.RawMessage)
-	internal[snet.Hosts[i].ID] = make(chan Frame)
-	socketMaps[snet.Hosts[i].ID] = make(map[string]chan string)
+	socketMaps[snet.Hosts[i].ID] = make(map[string]chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
 
 	go listenHostChannel(snet.Hosts[i].ID)
@@ -44,8 +42,7 @@ func generateHostChannels(i int) {
 func generateSwitchChannels(i int) {
 	for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
 		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
-		internal[snet.Switches[i].PortIDs[j]] = make(chan Frame)
-		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan string)
+		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
 		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
 
 		go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
@@ -55,15 +52,13 @@ func generateSwitchChannels(i int) {
 func generateRouterChannels() {
 	if snet.Router.Hostname != "" {
 		channels[snet.Router.ID] = make(chan json.RawMessage)
-		internal[snet.Router.ID] = make(chan Frame)
-		socketMaps[snet.Router.ID] = make(map[string]chan string)
+		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
 
 		go listenRouterChannel()
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
-			internal[snet.Router.VSwitch.PortIDs[i]] = make(chan Frame)
-			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan string)
+			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan Frame)
 			actionsync[snet.Router.ID] = make(chan int)
 
 			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
@@ -111,7 +106,6 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 	switch frame.EtherType {
 	case "0x0806": // ARP
 		arpMessage := readArpMessage(frame.Data)
-
 		switch arpMessage.Opcode {
 		case 2:
 			debug(3, "actionHandler", id, "ARPREPLY received")
@@ -122,9 +116,10 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
 				amTarget = true
 			}
-
 			if amTarget {
-				internal[id] <- frame
+				sockets := socketMaps[id]
+				socketID := "arp_" + string(arpMessage.SenderIP)
+				sockets[socketID] <- frame
 			}
 
 		case 1:
@@ -148,7 +143,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 		switch readIPv4PacketHeader(packet.Header).Protocol {
 		case 1: // ICMP
-			icmpPacket := readICMPPacket(packet.Data)
+			icmpPacket := readICMPEchoPacket(packet.Data)
 
 			switch icmpPacket.ControlType {
 			case 8:
@@ -157,13 +152,17 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 			case 0:
 				debug(3, "actionHandler", id, "Ping reply received")
-				internal[id] <- frame
+				sockets := socketMaps[id]
+				socketID := "icmp_" + string(icmpPacket.Identifier)
+				sockets[socketID] <- frame
 			}
 
 		case 17: // UDP
 			udpSegment := readUDPSegment(packet.Data)
 
 			switch udpSegment.DstPort {
+			case 53: // DNS
+				return
 			case 67: // DHCP: Server-bound
 				if snet.Router.ID != id { // Temporary validation
 					debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
@@ -177,7 +176,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 				if len(string(udpSegment.Data)) > 10 {
 					if string(udpSegment.Data)[0:11] == "DHCPREQUEST" {
 						debug(3, "actionHandler", id, "DHCPREQUEST received")
-						internal[id] <- frame
+						sockets := socketMaps[id]
+						socketID := "udp_" + string(udpSegment.DstPort)
+						sockets[socketID] <- frame
 					}
 				}
 
@@ -185,14 +186,18 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 				if len(string(udpSegment.Data)) > 8 {
 					if string(udpSegment.Data)[0:9] == "DHCPOFFER" {
 						debug(3, "actionHandler", id, "DHCPOFFER received")
-						internal[id] <- frame
+						sockets := socketMaps[id]
+						socketID := "udp_" + string(udpSegment.DstPort)
+						sockets[socketID] <- frame
 					}
 				}
 
 				if len(string(udpSegment.Data)) > 17 {
 					if string(udpSegment.Data)[0:19] == "DHCPACKNOWLEDGEMENT" {
 						debug(3, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
-						internal[id] <- frame
+						socketID := "udp_" + string(udpSegment.DstPort)
+						sockets := socketMaps[id]
+						sockets[socketID] <- frame
 					}
 
 				}

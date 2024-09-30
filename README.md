@@ -92,7 +92,6 @@ See README.md :)
 ## Known bugs
 - Program deadlocks on failed ping
 - Save files may break with newer versions (Future fix: Version files, no breaking changes in minor versions)
-- Router hangs when pinging itself (Future fix: Multiple internal channels, similar to ports)
 
 ## Version History
 What has been accomplished at each major.minor version

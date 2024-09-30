@@ -1,6 +1,6 @@
 /*
 File:		datagram.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Datagram structs, and associated functions
 */
 
@@ -31,8 +31,12 @@ type PacketHeader struct {
 	DstIP    string `json:"dst_ip"`
 }
 
-type ICMPPacket struct {
+type ICMPEchoPacket struct {
 	ControlType int             `json:"control_type"` // 8 for Request, 0 for Reply
+	ControlCode int             `json:"control_code"` // Often 0
+	Checksum    string          `json:"checksum"`
+	Identifier  int             `json:"identifier"`
+	SeqNumber   int             `json:"seq"`
 	Data        json.RawMessage `json:"data"`
 }
 
@@ -117,7 +121,7 @@ func readUDPSegment(rawUDPSegment json.RawMessage) UDPSegment {
 	var segment UDPSegment
 	err := json.Unmarshal(rawUDPSegment, &segment)
 	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
+		fmt.Println("[UDP] Error unmarshalling JSON:", err)
 		return UDPSegment{}
 	}
 
@@ -129,7 +133,7 @@ func readIPv4Packet(rawPacket json.RawMessage) IPv4Packet {
 	var packet IPv4Packet
 	err := json.Unmarshal(rawPacket, &packet)
 	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
+		fmt.Println("[IPv4 Packet] Error unmarshalling JSON:", err)
 		return IPv4Packet{}
 	}
 
@@ -140,19 +144,19 @@ func readIPv4PacketHeader(rawPacketHeader json.RawMessage) PacketHeader {
 	var packetHeader PacketHeader
 	err := json.Unmarshal(rawPacketHeader, &packetHeader)
 	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
+		fmt.Println("[IPv4 Header] Error unmarshalling JSON:", err)
 		return PacketHeader{}
 	}
 
 	return packetHeader
 }
 
-func readICMPPacket(rawPacket json.RawMessage) ICMPPacket {
-	var packet ICMPPacket
+func readICMPEchoPacket(rawPacket json.RawMessage) ICMPEchoPacket {
+	var packet ICMPEchoPacket
 	err := json.Unmarshal(rawPacket, &packet)
 	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
-		return ICMPPacket{}
+		fmt.Println("[ICMP Packet] Error unmarshalling JSON:", err)
+		return ICMPEchoPacket{}
 	}
 
 	return packet
@@ -163,7 +167,7 @@ func readFrame(rawFrame json.RawMessage) Frame {
 	var frame Frame
 	err := json.Unmarshal(rawFrame, &frame)
 	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
+		fmt.Println("[Frame] Error unmarshalling JSON:", err)
 		return Frame{}
 	}
 
@@ -171,11 +175,11 @@ func readFrame(rawFrame json.RawMessage) Frame {
 }
 
 // Turns ArpMessage into an accessible object
-func readArpMessage(rawPacket json.RawMessage) ArpMessage {
+func readArpMessage(rawMessage json.RawMessage) ArpMessage {
 	var arpMessage ArpMessage
-	err := json.Unmarshal(rawPacket, &arpMessage)
+	err := json.Unmarshal(rawMessage, &arpMessage)
 	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
+		fmt.Println("[ARP] Error unmarshalling JSON:", err)
 		return ArpMessage{}
 	}
 
