@@ -18,7 +18,7 @@ import (
 )
 
 func intro() {
-	fmt.Println("ltdnet v0.2.9")
+	fmt.Println("ltdnet v0.2.10")
 	fmt.Println("by vincebel")
 	fmt.Println("\nPlease note that switch functionality is limited and in development")
 }
@@ -319,7 +319,7 @@ func actionsMenu() {
 			confirmation := scanner.Text()
 			confirmation = strings.ToUpper(confirmation)
 			if confirmation == "Y" {
-				delRouter(actionword3) //Placeholder. Only one router per network currently
+				delRouter() // Only one router per network currently
 				save()
 			}
 
@@ -477,7 +477,7 @@ func main() {
 		<-listenSync
 	}
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
-	fmt.Println("\nPlease type an action:")
+	fmt.Println("\nltdnetOS:")
 
 	for {
 		actionsMenu()

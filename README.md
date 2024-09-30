@@ -90,12 +90,13 @@ Clears the /saves directory
 See README.md :)
 
 ## Known bugs
-- Program deadlocks on failed ping
 - Save files may break with newer versions (Future fix: Version files, no breaking changes in minor versions)
-- Router hangs when pinging itself (Future fix: Multiple internal channels, similar to ports)
 
 ## Version History
 What has been accomplished at each major.minor version
+
+### v0.2.10 - September 30, 2024
+Structs for messages and datagrams, sockets for internal application-layer communication
 
 ### v0.2.9 - September 27, 2024
 DHCP improvements, router control, router pinging

@@ -1,6 +1,6 @@
 /*
 File:		connhost.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Handles connection and interface for hosts
 */
 
@@ -63,22 +63,34 @@ func HostConn(device string, id string) {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
-						if len(action) > 2 { //if seconds is specified
-							seconds, _ := strconv.Atoi(action[2])
-							go ping(host.ID, action[1], seconds)
+						if len(action) > 2 { //if count is specified
+							count, _ := strconv.Atoi(action[2])
+							go ping(host.ID, action[1], count)
 						} else {
 							go ping(host.ID, action[1], 4)
 						}
 						<-actionsync[id]
 					} else {
-						fmt.Println("Usage: ping <dest_ip> [seconds]")
+						fmt.Println("Usage: ping <dest_ip> [count]")
+					}
+				}
+			case "arp":
+				if host.UplinkID == "" {
+					fmt.Println("Device is not connected. Please set an uplink")
+				} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
+					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
+				} else {
+					if len(action) > 1 {
+						go arpSynchronized(id, action[1])
+						<-actionsync[id]
+					} else {
+						fmt.Println("Usage: arp <target_ip>")
 					}
 				}
 			case "dhcp":
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
-
 					go dhcp_discover(host)
 					<-actionsync[id]
 					save()

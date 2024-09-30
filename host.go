@@ -8,8 +8,8 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"net"
+	"strings"
 )
 
 type Host struct {
@@ -81,4 +81,12 @@ func delHost(hostname string) {
 		}
 	}
 	fmt.Printf("\nHost %s was not deleted.\n", hostname)
+}
+
+func ipclear(id string) {
+	index := getHostIndexFromID(id)
+	snet.Hosts[index].IPAddr = nil
+	snet.Hosts[index].SubnetMask = ""
+	snet.Hosts[index].DefaultGateway = nil
+	fmt.Println("Network configuration cleared")
 }

@@ -1,3 +1,9 @@
+/*
+File:		network.go
+Author: 	https://github.com/vincebel7
+Purpose: 	Network object
+*/
+
 package main
 
 import (

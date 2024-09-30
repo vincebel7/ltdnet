@@ -1,6 +1,6 @@
 /*
 File:		connrouter.go
-Author: 	https://bitbucket.org/vincebel
+Author: 	https://github.com/vincebel7
 Purpose:	Handles connection and interface for router
 */
 
@@ -49,6 +49,17 @@ func RouterConn(device string, id string) {
 						<-actionsync[id]
 					} else {
 						fmt.Println("Usage: ping <dest_ip> [seconds]")
+					}
+				}
+			case "arp":
+				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
+					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
+				} else {
+					if len(action) > 1 {
+						go arpSynchronized(id, action[1])
+						<-actionsync[id]
+					} else {
+						fmt.Println("Usage: arp <target_ip>")
 					}
 				}
 			case "dhcpserver":
