@@ -51,6 +51,17 @@ func RouterConn(device string, id string) {
 						fmt.Println("Usage: ping <dest_ip> [seconds]")
 					}
 				}
+			case "arp":
+				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
+					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
+				} else {
+					if len(action) > 1 {
+						go arpSynchronized(id, action[1])
+						<-actionsync[id]
+					} else {
+						fmt.Println("Usage: arp <target_ip>")
+					}
+				}
 			case "dhcpserver":
 				displayDHCPServer()
 				save()

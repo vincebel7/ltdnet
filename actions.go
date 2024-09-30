@@ -506,3 +506,9 @@ func ipset(hostname string) {
 	}
 
 }
+
+// Run an ARP request, but synchronize with client
+func arpSynchronized(id string, targetIP string) {
+	arp_request(id, targetIP)
+	actionsync[id] <- 1
+}

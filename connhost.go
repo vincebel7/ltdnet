@@ -74,6 +74,19 @@ func HostConn(device string, id string) {
 						fmt.Println("Usage: ping <dest_ip> [seconds]")
 					}
 				}
+			case "arp":
+				if host.UplinkID == "" {
+					fmt.Println("Device is not connected. Please set an uplink")
+				} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
+					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
+				} else {
+					if len(action) > 1 {
+						go arpSynchronized(id, action[1])
+						<-actionsync[id]
+					} else {
+						fmt.Println("Usage: arp <target_ip>")
+					}
+				}
 			case "dhcp":
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
