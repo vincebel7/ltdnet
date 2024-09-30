@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func ping(srcID string, dstIP string, secs int) {
+func ping(srcID string, dstIP string, count int) {
 	debug(4, "ping", srcID, "About to ping")
 
 	identifier := idgen_int(5)
@@ -41,7 +41,7 @@ func ping(srcID string, dstIP string, secs int) {
 	recvCount := 0
 	lossCount := 0
 
-	for i := 0; i < secs; i++ {
+	for i := 0; i < count; i++ {
 		// Get MAC addresses
 		if snet.Router.ID == srcID {
 			srcIP = snet.Router.Gateway.String()
@@ -49,6 +49,13 @@ func ping(srcID string, dstIP string, secs int) {
 
 			//TODO: Implement MAC learning to avoid ARPing every time
 			dstMAC = arp_request(srcID, dstIP)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("Request timed out.\n")
+				lossCount++
+				timeoutCounter++
+				sendCount++
+				continue
+			}
 
 			//get link to send ping to
 			dstID := getIDfromMAC(dstMAC)
@@ -61,6 +68,13 @@ func ping(srcID string, dstIP string, secs int) {
 		} else { // Assumed to be host source.
 			//TODO: Implement MAC learning to avoid ARPing every time
 			dstMAC = arp_request(srcID, dstIP)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("Request timed out.\n")
+				lossCount++
+				timeoutCounter++
+				sendCount++
+				continue
+			}
 		}
 
 		if srcMAC == "" {
@@ -95,8 +109,6 @@ func ping(srcID string, dstIP string, secs int) {
 
 		sendCount++
 
-		pong := make(chan bool, 1)
-
 		sockets := socketMaps[srcID]
 		socketID := "icmp_" + string(identifier)
 		sockets[socketID] = make(chan Frame)
@@ -110,29 +122,22 @@ func ping(srcID string, dstIP string, secs int) {
 
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
-				pong <- true
+				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
+				timeoutCounter = 0
 			} else {
 				debug(1, "ping", srcID, "Error: Out-of-order channel")
 			}
 		case <-time.After(time.Second * 4):
 			lossCount++
-			pong <- false
-		}
-
-		if <-pong {
-			fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
-			timeoutCounter = 0
-		} else {
 			fmt.Printf("Request timed out.\n")
 			timeoutCounter++
-			i--
 		}
 
 		if timeoutCounter == 4 { //Skip rest of pings if timeout
-			i = secs
+			i = count
 		}
 
-		if i < secs-1 { //Only wait a second if
+		if i < count-1 { //Only wait a second if
 			time.Sleep(time.Second)
 		}
 	}
@@ -237,9 +242,15 @@ func arp_request(srcID string, targetIP string) string {
 	sockets[socketID] = make(chan Frame)
 	socketMaps[srcID] = sockets // Write updated map back to the collection
 
-	arpReplyFrameBytes := <-sockets[socketID]
-	arpReplyMessage := readArpMessage(arpReplyFrameBytes.Data)
-	return arpReplyMessage.SenderMAC
+	select {
+	case arpReplyFrameBytes := <-sockets[socketID]:
+		arpReplyMessage := readArpMessage(arpReplyFrameBytes.Data)
+		return arpReplyMessage.SenderMAC
+
+	case <-time.After(time.Second * 4):
+		debug(1, "arp_request", srcID, "ARP request timed out.")
+		return "TIMEOUT"
+	}
 }
 
 func arp_reply(id string, arpRequestFrame Frame) {

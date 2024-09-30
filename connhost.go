@@ -63,15 +63,15 @@ func HostConn(device string, id string) {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
-						if len(action) > 2 { //if seconds is specified
-							seconds, _ := strconv.Atoi(action[2])
-							go ping(host.ID, action[1], seconds)
+						if len(action) > 2 { //if count is specified
+							count, _ := strconv.Atoi(action[2])
+							go ping(host.ID, action[1], count)
 						} else {
 							go ping(host.ID, action[1], 4)
 						}
 						<-actionsync[id]
 					} else {
-						fmt.Println("Usage: ping <dest_ip> [seconds]")
+						fmt.Println("Usage: ping <dest_ip> [count]")
 					}
 				}
 			case "arp":
