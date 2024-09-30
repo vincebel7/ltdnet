@@ -353,14 +353,9 @@ func dhcp_discover(host Host) {
 			requestFrame := constructFrame(srcMAC, dstMAC, "IPv4", requestIPv4Packet)
 			channels[linkID] <- requestFrame
 			debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - "+word2)
+
 			//wait for acknowledgement
-
-			sockets := socketMaps[srcID]
-			socketID := "udp_" + string(68)
-			sockets[socketID] = make(chan Frame)
-			socketMaps[srcID] = sockets // Write updated map back to the collection
 			ackFrame := <-sockets[socketID]
-
 			ackIpv4Packet := readIPv4Packet(ackFrame.Data)
 			ackUDPSegment := readUDPSegment(ackIpv4Packet.Data)
 
@@ -422,6 +417,8 @@ func dhcp_offer(inc_f Frame) {
 	// Acknowledge
 	socketID := "udp_" + string(67)
 	sockets := socketMaps[snet.Router.ID]
+	sockets[socketID] = make(chan Frame)
+	socketMaps[snet.Router.ID] = sockets // Write updated map back to the collection
 	requestFrame := <-sockets[socketID]
 
 	requestIpv4Packet := readIPv4Packet(requestFrame.Data)
@@ -431,7 +428,7 @@ func dhcp_offer(inc_f Frame) {
 	message = ""
 	if requestUDPSegment.Data != "" {
 		word := strings.Fields(requestUDPSegment.Data)
-		if len(word) > 1 {
+		if (len(word) > 1) && (word[0] == "DHCPREQUEST") {
 			if word[1] == addr_to_give {
 				message = "DHCPACKNOWLEDGEMENT " + addr_to_give
 			} else {
@@ -447,7 +444,9 @@ func dhcp_offer(inc_f Frame) {
 	ackSegment := constructUDPSegment(67, 68, message)
 	ackIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, ackSegment)
 	ackFrame := constructFrame(srcMAC, dstMAC, "IPv4", ackIPv4Packet)
+
 	channels[linkID] <- ackFrame
+	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACKNOWLEDGEMENT sent - "+addr_to_give)
 
 	// Setting leasee's MAC in pool (new)
 	pool := snet.Router.GetDHCPPoolAddresses()
