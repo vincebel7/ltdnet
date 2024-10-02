@@ -6,7 +6,10 @@ Purpose:	Listener for network and all devices
 
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 var channels = make(map[string]chan json.RawMessage)    // Physical links
 var socketMaps = make(map[string]map[string]chan Frame) // For internal device communication
@@ -153,7 +156,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			case 0:
 				debug(3, "actionHandler", id, "Ping reply received")
 				sockets := socketMaps[id]
-				socketID := "icmp_" + string(icmpPacket.Identifier)
+				socketID := "icmp_" + strconv.Itoa(icmpPacket.Identifier)
 				sockets[socketID] <- frame
 			}
 
@@ -177,7 +180,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 					if string(udpSegment.Data)[0:11] == "DHCPREQUEST" {
 						debug(3, "actionHandler", id, "DHCPREQUEST received")
 						sockets := socketMaps[id]
-						socketID := "udp_" + string(udpSegment.DstPort)
+						socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 						sockets[socketID] <- frame
 					}
 				}
@@ -187,7 +190,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 					if string(udpSegment.Data)[0:9] == "DHCPOFFER" {
 						debug(3, "actionHandler", id, "DHCPOFFER received")
 						sockets := socketMaps[id]
-						socketID := "udp_" + string(udpSegment.DstPort)
+						socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 						sockets[socketID] <- frame
 					}
 				}
@@ -195,7 +198,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 				if len(string(udpSegment.Data)) > 17 {
 					if string(udpSegment.Data)[0:19] == "DHCPACKNOWLEDGEMENT" {
 						debug(3, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
-						socketID := "udp_" + string(udpSegment.DstPort)
+						socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 						sockets := socketMaps[id]
 						sockets[socketID] <- frame
 					}

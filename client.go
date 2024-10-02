@@ -18,7 +18,7 @@ import (
 )
 
 func intro() {
-	fmt.Println("ltdnet v0.2.10")
+	fmt.Println("ltdnet v0.2.11")
 	fmt.Println("by vincebel")
 	fmt.Println("\nPlease note that switch functionality is limited and in development")
 }
@@ -96,7 +96,7 @@ func newNetwork() {
 	f.Write([]byte("\n"))
 
 	fmt.Println("\nNetwork created!")
-	loadNetwork(netname)
+	loadNetwork(netname, "user")
 }
 
 func selectNetwork() {
@@ -149,12 +149,17 @@ func selectNetwork() {
 	netname := option_map[int_select]
 	netname = netname[:len(netname)-len(".json")]
 
-	loadNetwork(netname)
+	loadNetwork(netname, "user")
 }
 
-func loadNetwork(netname string) {
+func loadNetwork(netname string, networkType string) {
 	//open file
-	filename := "saves/user_saves/" + netname + ".json"
+	filename := ""
+	if networkType == "user" {
+		filename = "saves/user_saves/" + netname + ".json"
+	} else if networkType == "test" {
+		filename = "saves/test_saves/" + netname + ".json"
+	}
 	f, err := os.Open(filename)
 	if err != nil {
 		fmt.Printf("File not found: %s", filename)
@@ -389,7 +394,7 @@ func actionsMenu() {
 		save()
 
 	case "reload":
-		loadNetwork(snet.Name)
+		loadNetwork(snet.Name, "user")
 
 	case "show", "sh":
 		switch action_selection {
@@ -465,7 +470,6 @@ func save() {
 	f.Write(marshString)
 	os.Truncate(filename, int64(len(marshString)))
 	fmt.Println("Network saved")
-	//loadnetwork(snet.Name)
 }
 
 func main() {

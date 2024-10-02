@@ -12,6 +12,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	"strconv"
 )
 
 func ping(srcID string, dstIP string, count int) {
@@ -110,7 +111,7 @@ func ping(srcID string, dstIP string, count int) {
 		sendCount++
 
 		sockets := socketMaps[srcID]
-		socketID := "icmp_" + string(identifier)
+		socketID := "icmp_" + strconv.Itoa(identifier)
 		sockets[socketID] = make(chan Frame)
 		socketMaps[srcID] = sockets // Write updated map back to the collection
 
@@ -326,7 +327,7 @@ func dhcp_discover(host Host) {
 	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
 	sockets := socketMaps[srcID]
-	socketID := "udp_" + string(68)
+	socketID := "udp_" + strconv.Itoa(68)
 	sockets[socketID] = make(chan Frame)
 	socketMaps[srcID] = sockets // Write updated map back to the collection
 	offerFrame := <-sockets[socketID]
@@ -415,7 +416,7 @@ func dhcp_offer(inc_f Frame) {
 	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give)
 
 	// Acknowledge
-	socketID := "udp_" + string(67)
+	socketID := "udp_" + strconv.Itoa(67)
 	sockets := socketMaps[snet.Router.ID]
 	sockets[socketID] = make(chan Frame)
 	socketMaps[snet.Router.ID] = sockets // Write updated map back to the collection
