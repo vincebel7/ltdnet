@@ -10,9 +10,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 )
 
 func ping(srcID string, dstIP string, count int) {
@@ -25,45 +25,45 @@ func ping(srcID string, dstIP string, count int) {
 	dstMAC := ""
 	srchost := ""
 
-	// Get srchost
 	if snet.Router.ID == srcID {
 		srchost = snet.Router.Hostname
+		srcIP = snet.Router.Gateway.String()
+		srcMAC = snet.Router.MACAddr
+
+		// Get linkID (which link to send ping over)
+		dstID := getIDfromMAC(dstMAC)
+		if getHostIndexFromID(dstID) != -1 {
+			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+		} else if snet.Router.ID == dstID {
+			linkID = snet.Router.ID
+		}
 	} else {
 		for h := range snet.Hosts {
 			if snet.Hosts[h].ID == srcID {
 				srchost = snet.Hosts[h].Hostname
+				srcIP = snet.Hosts[h].IPAddr.String()
+				srcMAC = snet.Hosts[h].MACAddr
+				linkID = snet.Hosts[h].UplinkID
 			}
 		}
 	}
 
-	fmt.Printf("\nPinging %s from %s\n", dstIP, srchost)
-	timeoutCounter := 0
 	sendCount := 0
 	recvCount := 0
 	lossCount := 0
 
+	fmt.Printf("\nPinging %s from %s\n", dstIP, srchost)
+
 	for i := 0; i < count; i++ {
 		// Get MAC addresses
 		if snet.Router.ID == srcID {
-			srcIP = snet.Router.Gateway.String()
-			srcMAC = snet.Router.MACAddr
-
 			//TODO: Implement MAC learning to avoid ARPing every time
 			dstMAC = arp_request(srcID, dstIP)
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("Request timed out.\n")
 				lossCount++
-				timeoutCounter++
 				sendCount++
 				continue
-			}
-
-			//get link to send ping to
-			dstID := getIDfromMAC(dstMAC)
-			if getHostIndexFromID(dstID) != -1 {
-				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
-			} else if snet.Router.ID == dstID {
-				linkID = snet.Router.ID
 			}
 
 		} else { // Assumed to be host source.
@@ -72,21 +72,11 @@ func ping(srcID string, dstIP string, count int) {
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("Request timed out.\n")
 				lossCount++
-				timeoutCounter++
 				sendCount++
 				continue
 			}
 		}
 
-		if srcMAC == "" {
-			for h := range snet.Hosts {
-				if snet.Hosts[h].ID == srcID {
-					linkID = snet.Hosts[h].UplinkID
-					srcIP = snet.Hosts[h].IPAddr.String()
-					srcMAC = snet.Hosts[h].MACAddr
-				}
-			}
-		}
 		debug(4, "ping", srcID, "Constructing ping")
 		payload, _ := json.Marshal("101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")
 
@@ -99,12 +89,10 @@ func ping(srcID string, dstIP string, count int) {
 			Data:        json.RawMessage(payload),
 		}
 		icmpRequestPacketBytes, _ := json.Marshal(icmpRequestPacket)
-
 		ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, "ICMP", icmpRequestPacketBytes)
-
 		frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
-		debug(4, "ping", srcID, "Sending the ping now")
+		debug(4, "ping", srcID, "Awaiting ping send")
 		channels[linkID] <- frameBytes
 		debug(2, "ping", srcID, "Ping sent")
 
@@ -115,7 +103,7 @@ func ping(srcID string, dstIP string, count int) {
 		sockets[socketID] = make(chan Frame)
 		socketMaps[srcID] = sockets // Write updated map back to the collection
 
-		debug(4, "ping", srcID, "Expecting ping reply on "+srcID)
+		debug(4, "ping", srcID, "Awaiting ping reply on "+srcID)
 		select {
 		case pongFrame := <-sockets[socketID]:
 			pongIpv4Packet := readIPv4Packet(pongFrame.Data)
@@ -124,29 +112,24 @@ func ping(srcID string, dstIP string, count int) {
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
 				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
-				timeoutCounter = 0
 			} else {
 				debug(1, "ping", srcID, "Error: Out-of-order channel")
 			}
 		case <-time.After(time.Second * 4):
 			lossCount++
 			fmt.Printf("Request timed out.\n")
-			timeoutCounter++
 		}
 
-		if timeoutCounter == 4 { //Skip rest of pings if timeout
-			i = count
-		}
-
-		if i < count-1 { //Only wait a second if
+		if i < count-1 { //Only wait a second if not the last ping.
 			time.Sleep(time.Second)
 		}
 	}
-	actionsync[srcID] <- 1
 
 	// Ping stats
 	fmt.Printf("\nPing statistics for %s:\n", dstIP)
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
+
+	actionsync[srcID] <- 1
 }
 
 func pong(srcID string, frame Frame) {
@@ -157,7 +140,8 @@ func pong(srcID string, frame Frame) {
 	srcIP := ""
 	srcMAC := ""
 	dstIP := readIPv4PacketHeader(receivedIpv4Packet.Header).SrcIP
-	dstMAC := frame.SrcMAC // Get MAC myself via ARP/MAC table, or use request's source MAC?
+	dstMAC := frame.SrcMAC // TODO: get MAC myself via ARP/MAC table
+
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway.String()
@@ -191,9 +175,7 @@ func pong(srcID string, frame Frame) {
 		Data:        receivedIcmpPacket.Data,
 	}
 	icmpReplyPacketBytes, _ := json.Marshal(icmpReplyPacket)
-
 	ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, "ICMP", icmpReplyPacketBytes)
-
 	frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
 	debug(4, "pong", srcID, "Awaiting pong send")
@@ -230,7 +212,6 @@ func arp_request(srcID string, targetIP string) string {
 		TargetMAC: dstMAC,
 		TargetIP:  targetIP,
 	}
-
 	arpRequestMessageBytes, _ := json.Marshal(arpRequestMessage)
 	arpRequestFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpRequestMessageBytes)
 
@@ -298,7 +279,6 @@ func arp_reply(id string, arpRequestFrame Frame) {
 		TargetMAC: dstMAC,
 		TargetIP:  dstIP,
 	}
-
 	arpReplyMessageBytes, _ := json.Marshal(arpReplyMessage)
 	arpReplyFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpReplyMessageBytes)
 
