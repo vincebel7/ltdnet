@@ -372,14 +372,8 @@ func dhcp_offer(inc_f Frame) {
 	//find open address
 	addr_to_give := snet.Router.NextFreePoolAddress().String()
 	gateway := snet.Router.Gateway.String()
-	subnetmask := ""
-	if snet.Netsize == "8" {
-		subnetmask = "255.0.0.0"
-	} else if snet.Netsize == "16" {
-		subnetmask = "255.255.0.0"
-	} else if snet.Netsize == "24" {
-		subnetmask = "255.255.255.0"
-	}
+	netSize, _ := strconv.Atoi(snet.Netsize)
+	subnetmask := prefixLengthToSubnetMask(netSize)
 
 	message := ""
 	if addr_to_give == "" {
@@ -439,63 +433,39 @@ func dhcp_offer(inc_f Frame) {
 	}
 }
 
-func ipset(hostname string) {
-	fmt.Printf(" IP configuration for %s\n", hostname)
+func ipset(hostname string, ipaddr string) {
+	prefixLength, _ := strconv.Atoi(snet.Netsize)
+	subnetMask := prefixLengthToSubnetMask(prefixLength)
+	defaultGateway := snet.Router.Gateway.String()
 
-	correct := false
-	var ipaddr, subnetmask, defaultgateway string
-	for !correct {
-		fmt.Print("IP Address: ")
-		scanner.Scan()
-		ipaddr = scanner.Text()
+	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
+	fmt.Print("\nIs this correct? [Y/n/exit]")
+	scanner.Scan()
+	affirmation := scanner.Text()
 
-		fmt.Print("\nSubnet mask: ")
-		scanner.Scan()
-		subnetmask = scanner.Text()
-
-		fmt.Print("\nDefault gateway: ")
-		scanner.Scan()
-		defaultgateway = scanner.Text()
-
-		fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetmask, defaultgateway)
-		fmt.Print("\nIs this correct? [Y/n/exit]")
-		scanner.Scan()
-		affirmation := scanner.Text()
-
-		if strings.ToUpper(affirmation) == "Y" {
-			// error checking
-			error := false
-			if net.ParseIP(ipaddr).To4() == nil {
-				error = true
-				fmt.Printf("Error: '%s' is not a valid IP address\n", ipaddr)
-			}
-			if net.ParseIP(subnetmask).To4() == nil {
-				fmt.Printf("Error: '%s' is not a valid subnet mask\n", subnetmask)
-			}
-			if net.ParseIP(defaultgateway).To4() == nil {
-				fmt.Printf("Error: '%s' is not a valid default gateway\n", defaultgateway)
-			}
-
-			if !error {
-				correct = true
-			}
-		} else if strings.ToUpper(affirmation) == "EXIT" {
-			fmt.Println("Network changes reverted")
+	if strings.ToUpper(affirmation) == "Y" {
+		// error checking
+		if net.ParseIP(ipaddr).To4() == nil {
+			fmt.Printf("Error: '%s' is not a valid IP address\n", ipaddr)
 
 			return
 		}
+
+	} else if strings.ToUpper(affirmation) == "EXIT" {
+		fmt.Println("Network changes reverted")
+
+		return
 	}
 
 	//update info
 	for h := range snet.Hosts {
 		if snet.Hosts[h].Hostname == hostname {
 			snet.Hosts[h].IPAddr = net.ParseIP(ipaddr)
-			snet.Hosts[h].SubnetMask = subnetmask
-			snet.Hosts[h].DefaultGateway = net.ParseIP(defaultgateway)
+			snet.Hosts[h].SubnetMask = subnetMask
+			snet.Hosts[h].DefaultGateway = net.ParseIP(defaultGateway)
 			fmt.Println("Network configuration updated")
 		}
 	}
-
 }
 
 // Run an ARP request, but synchronize with client

@@ -179,6 +179,19 @@ func hostname_exists(hostname string) bool {
 	return false
 }
 
+func prefixLengthToSubnetMask(prefixLength int) string {
+	subnetMask := "0.0.0.0"
+	if prefixLength == 8 {
+		subnetMask = "255.0.0.0"
+	} else if prefixLength == 16 {
+		subnetMask = "255.255.0.0"
+	} else if prefixLength == 24 {
+		subnetMask = "255.255.255.0"
+	}
+
+	return subnetMask
+}
+
 func removeHostFromSlice(s []Host, i int) []Host {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]

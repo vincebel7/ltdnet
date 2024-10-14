@@ -99,8 +99,12 @@ func HostConn(device string, id string) {
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
-					ipset(host.Hostname)
-					save()
+					if len(action) > 1 {
+						ipset(host.Hostname, action[1])
+						save()
+					} else {
+						fmt.Println("Usage: ipset <ip_address>")
+					}
 				}
 			case "ipclear":
 				ipclear(host.ID)
