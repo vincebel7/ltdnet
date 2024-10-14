@@ -9,9 +9,26 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 )
 
-/** Datagram Structs **/
+/** Datagram Structs - L5 **/
+type DHCPMessage struct {
+	Op      byte            // Message type: 1 = Request, 2 = Reply
+	HType   byte            // Hardware address type (e.g., 1 for Ethernet)
+	HLen    byte            // Length of hardware address
+	Hops    byte            // Hops
+	XID     uint32          // Transaction ID
+	Flags   uint16          // Flags (e.g., broadcast)
+	CIAddr  net.IP          // Client IP address
+	YIAddr  net.IP          // 'Your' IP address (server's offer)
+	SIAddr  net.IP          // Server IP address
+	GIAddr  net.IP          // Gateway IP address
+	CHAddr  [16]byte        // Client MAC address
+	Options map[byte][]byte // DHCP options
+}
+
+/** Datagram Structs - L4 **/
 type UDPSegment struct {
 	SrcPort  int    `json:"src_port"`
 	DstPort  int    `json:"dst_port"`
@@ -20,6 +37,7 @@ type UDPSegment struct {
 	Data     string `json:"data"`
 }
 
+/** Datagram Structs - L3 **/
 type IPv4Packet struct {
 	Header json.RawMessage `json:"header"`
 	Data   json.RawMessage `json:"data"`
@@ -40,6 +58,7 @@ type ICMPEchoPacket struct {
 	Data        json.RawMessage `json:"data"`
 }
 
+/** Datagram Structs - L2 **/
 type Frame struct {
 	SrcMAC    string          `json:"src_mac"`
 	DstMAC    string          `json:"dst_mac"`
@@ -57,6 +76,28 @@ type ArpMessage struct {
 	SenderIP  string `json:"SPA"`
 	TargetMAC string `json:"THA"`
 	TargetIP  string `json:"TPA"`
+}
+
+func ConstructDHCPMessage(
+	op byte, htype byte, hlen byte, xid uint32,
+	ciaddr, yiaddr, siaddr, giaddr net.IP,
+	chaddr [16]byte, options map[byte][]byte,
+) json.RawMessage {
+	dhcpMessage := DHCPMessage{
+		Op:      op,
+		HType:   htype,
+		HLen:    hlen,
+		XID:     xid,
+		CIAddr:  ciaddr,
+		YIAddr:  yiaddr,
+		SIAddr:  siaddr,
+		GIAddr:  giaddr,
+		CHAddr:  chaddr,
+		Options: options,
+	}
+
+	messageBytes, _ := json.Marshal(dhcpMessage)
+	return messageBytes
 }
 
 func constructUDPSegment(srcPort int, dstPort int, data string) json.RawMessage {
@@ -116,6 +157,18 @@ func constructFrame(srcMAC string, dstMAC string, protocolName string, data json
 	return frameBytes
 }
 
+// Turns DHCPMessage into an accessible object
+func ReadDHCPMessage(rawDHCPMessage json.RawMessage) DHCPMessage {
+	var dhcpMessage DHCPMessage
+	err := json.Unmarshal(rawDHCPMessage, &dhcpMessage)
+	if err != nil {
+		fmt.Println("[DHCP] Error unmarshalling JSON:", err)
+		return DHCPMessage{}
+	}
+
+	return dhcpMessage
+}
+
 // Turns segment into an accessible object
 func readUDPSegment(rawUDPSegment json.RawMessage) UDPSegment {
 	var segment UDPSegment
@@ -140,6 +193,7 @@ func readIPv4Packet(rawPacket json.RawMessage) IPv4Packet {
 	return packet
 }
 
+// Turns IPv4 packet into an accessible object
 func readIPv4PacketHeader(rawPacketHeader json.RawMessage) PacketHeader {
 	var packetHeader PacketHeader
 	err := json.Unmarshal(rawPacketHeader, &packetHeader)
@@ -151,6 +205,7 @@ func readIPv4PacketHeader(rawPacketHeader json.RawMessage) PacketHeader {
 	return packetHeader
 }
 
+// Turns ICMP echo packet into an accessible object
 func readICMPEchoPacket(rawPacket json.RawMessage) ICMPEchoPacket {
 	var packet ICMPEchoPacket
 	err := json.Unmarshal(rawPacket, &packet)
