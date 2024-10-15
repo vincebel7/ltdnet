@@ -24,17 +24,17 @@ type DHCPMessage struct {
 	YIAddr  net.IP          // 'Your' IP address (server's offer)
 	SIAddr  net.IP          // Server IP address
 	GIAddr  net.IP          // Gateway IP address
-	CHAddr  [16]byte        // Client MAC address
+	CHAddr  string          // Client MAC address
 	Options map[byte][]byte // DHCP options
 }
 
 /** Datagram Structs - L4 **/
 type UDPSegment struct {
-	SrcPort  int    `json:"src_port"`
-	DstPort  int    `json:"dst_port"`
-	Length   string `json:"length"`
-	Checksum string `json:"checksum"`
-	Data     string `json:"data"`
+	SrcPort  int             `json:"src_port"`
+	DstPort  int             `json:"dst_port"`
+	Length   string          `json:"length"`
+	Checksum string          `json:"checksum"`
+	Data     json.RawMessage `json:"data"`
 }
 
 /** Datagram Structs - L3 **/
@@ -81,7 +81,7 @@ type ArpMessage struct {
 func ConstructDHCPMessage(
 	op byte, htype byte, hlen byte, xid uint32,
 	ciaddr, yiaddr, siaddr, giaddr net.IP,
-	chaddr [16]byte, options map[byte][]byte,
+	chaddr string, options map[byte][]byte,
 ) json.RawMessage {
 	dhcpMessage := DHCPMessage{
 		Op:      op,
@@ -100,7 +100,7 @@ func ConstructDHCPMessage(
 	return messageBytes
 }
 
-func constructUDPSegment(srcPort int, dstPort int, data string) json.RawMessage {
+func constructUDPSegment(srcPort int, dstPort int, data json.RawMessage) json.RawMessage {
 	segment := UDPSegment{
 		SrcPort: srcPort,
 		DstPort: dstPort,

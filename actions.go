@@ -297,11 +297,34 @@ func dhcp_discover(host Host) {
 	dstMAC := "FF:FF:FF:FF:FF:FF"
 	linkID := host.UplinkID
 
+	// Construct DHCPDISCOVER
+	options := map[byte][]byte{
+		53: {1},                   // Option 53: DHCPDISCOVER
+		12: []byte(host.Hostname), // Option 12: Hostname
+	}
+	dhcpDiscoverMessage := DHCPMessage{
+		Op:      1,                      // Message type: 1 = Request, 2 = Reply
+		HType:   1,                      // Hardware address type (e.g., 1 for Ethernet)
+		HLen:    6,                      // Length of hardware address
+		Hops:    0,                      // Hops
+		XID:     uint32(idgen_int(5)),   // Transaction ID
+		Flags:   0,                      // Flags (e.g., broadcast)
+		CIAddr:  net.ParseIP("0.0.0.0"), // Client IP address
+		YIAddr:  net.ParseIP("0.0.0.0"), // 'Your' IP address (server's offer)
+		SIAddr:  net.ParseIP("0.0.0.0"), // Server IP address
+		GIAddr:  net.ParseIP("0.0.0.0"), // Gateway IP address
+		CHAddr:  srcMAC,                 // Client MAC address
+		Options: options,                // DHCP options
+	}
+
+	// Encapsulate DHCPDISCOVER
 	protocol := "UDP"
-	segmentData := constructUDPSegment(68, 67, "DHCPDISCOVER")
+	dhcpDiscoverMessageBytes, _ := json.Marshal(dhcpDiscoverMessage)
+	segmentData := constructUDPSegment(68, 67, dhcpDiscoverMessageBytes)
 	packetData := constructIPv4Packet(srcIP, dstIP, protocol, segmentData)
 	frameData := constructFrame(srcMAC, dstMAC, "IPv4", packetData)
 
+	// Send DHCPDISCOVER, await DHCPOFFER
 	//need to give it to uplink
 	channels[linkID] <- frameData
 	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
@@ -310,102 +333,148 @@ func dhcp_discover(host Host) {
 	socketID := "udp_" + strconv.Itoa(68)
 	sockets[socketID] = make(chan Frame)
 	socketMaps[srcID] = sockets // Write updated map back to the collection
-	offerFrame := <-sockets[socketID]
+	dhcpOfferFrame := <-sockets[socketID]
 
-	offerIpv4Packet := readIPv4Packet(offerFrame.Data)
-	offerIpv4PacketHeader := readIPv4PacketHeader(offerIpv4Packet.Header)
-	offerUDPSegment := readUDPSegment(offerIpv4Packet.Data)
+	// De-encapsulate DHCPOFFER
+	dhcpOfferIPv4Packet := readIPv4Packet(dhcpOfferFrame.Data)
+	dhcpOfferIPv4PacketHeader := readIPv4PacketHeader(dhcpOfferIPv4Packet.Header)
+	dhcpOfferUDPSegment := readUDPSegment(dhcpOfferIPv4Packet.Data)
+	dhcpOfferMessage := ReadDHCPMessage(dhcpOfferUDPSegment.Data)
 
-	if offerUDPSegment.Data == "DHCPOFFER NOAVAILABLE" {
+	if int(dhcpOfferMessage.Options[53][0]) == 6 { // 6 is DHCPNAK
 		debug(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
 	} else {
-		word := strings.Fields(offerUDPSegment.Data)
-		if len(word) > 0 {
-			word2 := word[1]
-			gateway := word[2]
-			snetmask := word[3]
+		dstIP = dhcpOfferIPv4PacketHeader.SrcIP
 
-			message := "DHCPREQUEST " + word2
-			dstIP = offerIpv4PacketHeader.SrcIP
+		// Construct DHCPREQUEST
+		options = map[byte][]byte{
+			53: {3},                   // Option 53: DHCPREQUEST
+			12: []byte(host.Hostname), // Option 12: Hostname
+		}
+		dhcpRequestMessage := DHCPMessage{
+			Op:      1,                      // Message type: 1 = Request, 2 = Reply
+			HType:   1,                      // Hardware address type (e.g., 1 for Ethernet)
+			HLen:    6,                      // Length of hardware address
+			Hops:    0,                      // Hops
+			XID:     dhcpOfferMessage.XID,   // Transaction ID
+			Flags:   0,                      // Flags (e.g., broadcast)
+			CIAddr:  net.ParseIP("0.0.0.0"), // Client IP address
+			YIAddr:  net.ParseIP("0.0.0.0"), // 'Your' IP address (server's offer)
+			SIAddr:  net.ParseIP("0.0.0.0"), // Server IP address
+			GIAddr:  net.ParseIP("0.0.0.0"), // Gateway IP address
+			CHAddr:  srcMAC,                 // Client MAC address
+			Options: options,                // DHCP options
+		}
 
-			protocol := "UDP"
-			requestUDPSegment := constructUDPSegment(68, 67, message)
-			requestIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, requestUDPSegment)
-			requestFrame := constructFrame(srcMAC, dstMAC, "IPv4", requestIPv4Packet)
-			channels[linkID] <- requestFrame
-			debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent - "+word2)
+		// Encapsulate DHCPREQUEST
+		protocol := "UDP"
+		dhcpRequestMessageBytes, _ := json.Marshal(dhcpRequestMessage)
+		dhcpRequestUDPSegment := constructUDPSegment(68, 67, dhcpRequestMessageBytes)
+		dhcpRequestIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dhcpRequestUDPSegment)
+		dhcpRequestFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpRequestIPv4Packet)
 
-			//wait for acknowledgement
-			ackFrame := <-sockets[socketID]
-			ackIpv4Packet := readIPv4Packet(ackFrame.Data)
-			ackUDPSegment := readUDPSegment(ackIpv4Packet.Data)
+		// Send DHCPREQUEST, await DHCPACKNOWLEDGEMENT
+		channels[linkID] <- dhcpRequestFrame
+		debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent")
+		dhcpAckFrame := <-sockets[socketID]
 
-			if ackUDPSegment.Data != "" {
-				debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+ackUDPSegment.Data)
+		// De-encapsulate DHCPACKNOWLEDGEMENT
+		dhcpAckIpv4Packet := readIPv4Packet(dhcpAckFrame.Data)
+		dhcpAckUDPSegment := readUDPSegment(dhcpAckIpv4Packet.Data)
+		dhcpAckMessage := ReadDHCPMessage(dhcpAckUDPSegment.Data)
 
-				word = strings.Fields(ackUDPSegment.Data)
-				if len(word) > 1 {
-					fmt.Println("")
-					confirmed_addr := word[1]
-					dynamic_assign(srcID, net.ParseIP(confirmed_addr), net.ParseIP(gateway), snetmask)
-				} else {
-					debug(1, "dhcp_discover", srcID, "Error 5: Empty DHCP acknowledgement\n")
-				}
-			}
+		if int(dhcpOfferMessage.Options[53][0]) == 5 {
+			debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+dhcpAckMessage.YIAddr.String())
 
-		} else {
-			debug(1, "dhcp_discover", srcID, "Error 2: Empty DHCP offer")
+			assignedAddress := dhcpAckMessage.YIAddr
+			defaultGateway := dhcpAckMessage.Options[3]
+			subnetMask := dhcpAckMessage.Options[1]
+
+			dynamic_assign(srcID, assignedAddress, defaultGateway, string(subnetMask))
+
+		} else { // 5 is DHCPACK
+			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address")
 		}
 	}
 	actionsync[srcID] <- 1
 }
 
-func dhcp_offer(inc_f Frame) {
+func dhcp_offer(dhcpDiscoverFrame Frame) {
+	// De-encapsulate DHCPDISCOVER
+	dhcpDiscoverIPv4Packet := readIPv4Packet(dhcpDiscoverFrame.Data)
+	//dhcpDiscoverIpv4PacketHeader := readIPv4PacketHeader(dhcpDiscoverIPv4Packet.Header)
+	dhcpDiscoverUDPSegment := readUDPSegment(dhcpDiscoverIPv4Packet.Data)
+	dhcpDiscoverMessage := ReadDHCPMessage(dhcpDiscoverUDPSegment.Data)
+
 	srcIP := snet.Router.Gateway.String()
 	dstIP := "255.255.255.255"
 	srcMAC := snet.Router.MACAddr
-	dstMAC := inc_f.SrcMAC
+	dstMAC := dhcpDiscoverFrame.SrcMAC
 	dstid := getIDfromMAC(dstMAC)
 	linkID := dstid
-	//linkID := snet.Hosts[getHostIndexFromID(dstid)].UplinkID
 
-	//find open address
-	addr_to_give := snet.Router.NextFreePoolAddress().String()
+	// Find open address
+	addr_to_give := snet.Router.NextFreePoolAddress()
 	gateway := snet.Router.Gateway.String()
 	netSize, _ := strconv.Atoi(snet.Netsize)
 	subnetmask := prefixLengthToSubnetMask(netSize)
 
-	message := ""
-	if addr_to_give == "" {
-		message = "DHCPOFFER NOAVAILABLE"
-	} else {
-		message = "DHCPOFFER " + addr_to_give + " " + gateway + " " + subnetmask
+	messageType := 6
+	if addr_to_give != nil {
+		messageType = 3
 	}
 
-	protocol := "UDP"
-	segmentBytes := constructUDPSegment(67, 68, message)
-	packetBytes := constructIPv4Packet(srcIP, dstIP, protocol, segmentBytes)
-	frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", packetBytes)
-	channels[linkID] <- frameBytes
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give)
+	// Construct DHCPOFFER
+	options := map[byte][]byte{
+		53: {byte(messageType)}, // Option 53: DHCPOFFER
+		1:  []byte(subnetmask),  // Subnet mask
+		3:  []byte(gateway),     // Gateway
+		51: {0, 0, 10, 0},       // Lease time
+		54: []byte(gateway),     // DHCP server
+	}
+	dhcpOfferMessage := DHCPMessage{
+		Op:      2,                       // Message type: 1 = Request, 2 = Reply
+		HType:   1,                       // Hardware address type (e.g., 1 for Ethernet)
+		HLen:    6,                       // Length of hardware address
+		Hops:    0,                       // Hops
+		XID:     dhcpDiscoverMessage.XID, // Transaction ID
+		Flags:   0,                       // Flags (e.g., broadcast)
+		CIAddr:  net.ParseIP("0.0.0.0"),  // Client IP address
+		YIAddr:  addr_to_give,            // 'Your' IP address (server's offer)
+		SIAddr:  net.ParseIP("0.0.0.0"),  // Server IP address
+		GIAddr:  net.ParseIP("0.0.0.0"),  // Gateway IP address
+		CHAddr:  srcMAC,                  // Client MAC address
+		Options: options,                 // DHCP options
+	}
 
-	// Acknowledge
+	// Encapsulate DHCPOFFER
+	protocol := "UDP"
+	dhcpOfferMessageBytes, _ := json.Marshal(dhcpOfferMessage)
+	dhcpOfferSegment := constructUDPSegment(67, 68, dhcpOfferMessageBytes)
+	dhcpOfferPacket := constructIPv4Packet(srcIP, dstIP, protocol, dhcpOfferSegment)
+	dhcpOfferFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpOfferPacket)
+
+	// Send DHCPOFFER, await DHCPREQUEST
+	channels[linkID] <- dhcpOfferFrame
+	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
+
 	socketID := "udp_" + strconv.Itoa(67)
 	sockets := socketMaps[snet.Router.ID]
 	sockets[socketID] = make(chan Frame)
 	socketMaps[snet.Router.ID] = sockets // Write updated map back to the collection
 	requestFrame := <-sockets[socketID]
 
-	requestIpv4Packet := readIPv4Packet(requestFrame.Data)
-	requestIpv4PacketHeader := readIPv4PacketHeader(requestIpv4Packet.Header)
-	requestUDPSegment := readUDPSegment(requestIpv4Packet.Data)
+	// De-encapsulate DHCPREQUEST
+	dhcpRequestIPv4Packet := readIPv4Packet(requestFrame.Data)
+	dhcpRequestIPv4PacketHeader := readIPv4PacketHeader(dhcpRequestIPv4Packet.Header)
+	dhcpRequestUDPSegment := readUDPSegment(dhcpRequestIPv4Packet.Data)
+	dhcpRequestMessage := ReadDHCPMessage(dhcpRequestUDPSegment.Data)
 
-	message = ""
-	if requestUDPSegment.Data != "" {
-		word := strings.Fields(requestUDPSegment.Data)
-		if (len(word) > 1) && (word[0] == "DHCPREQUEST") {
-			if word[1] == addr_to_give {
-				message = "DHCPACKNOWLEDGEMENT " + addr_to_give
+	messageType = 6
+	if dhcpRequestUDPSegment.Data != nil {
+		if int(dhcpRequestMessage.Options[53][0]) == 3 { // 3 = DHCPREQUEST
+			if dhcpRequestMessage.YIAddr.Equal(addr_to_give) {
+				messageType = 5
 			} else {
 				debug(1, "dhcp_offer", snet.Router.ID, "Error 4: DHCP address requested is not same as offer")
 			}
@@ -414,21 +483,47 @@ func dhcp_offer(inc_f Frame) {
 		}
 	}
 
-	dstIP = requestIpv4PacketHeader.SrcIP
+	dstIP = dhcpRequestIPv4PacketHeader.SrcIP
 
-	ackSegment := constructUDPSegment(67, 68, message)
-	ackIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, ackSegment)
-	ackFrame := constructFrame(srcMAC, dstMAC, "IPv4", ackIPv4Packet)
+	// Construct DHCPACKNOWLEDGEMENT
+	options = map[byte][]byte{
+		53: {byte(messageType)}, // Option 53: DHCPACKNOWLEDGEMENT
+		1:  []byte(subnetmask),  // Subnet mask
+		3:  []byte(gateway),     // Gateway
+		51: {0, 0, 10, 0},       // Lease time
+		54: []byte(gateway),     // DHCP server
+	}
+	dhcpAckMessage := DHCPMessage{
+		Op:      2,                       // Message type: 1 = Request, 2 = Reply
+		HType:   1,                       // Hardware address type (e.g., 1 for Ethernet)
+		HLen:    6,                       // Length of hardware address
+		Hops:    0,                       // Hops
+		XID:     dhcpDiscoverMessage.XID, // Transaction ID
+		Flags:   0,                       // Flags (e.g., broadcast)
+		CIAddr:  net.ParseIP("0.0.0.0"),  // Client IP address
+		YIAddr:  addr_to_give,            // 'Your' IP address (server's offer)
+		SIAddr:  net.ParseIP("0.0.0.0"),  // Server IP address
+		GIAddr:  net.ParseIP("0.0.0.0"),  // Gateway IP address
+		CHAddr:  srcMAC,                  // Client MAC address
+		Options: options,                 // DHCP options
+	}
 
-	channels[linkID] <- ackFrame
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACKNOWLEDGEMENT sent - "+addr_to_give)
+	// Encapsulate DHCPACKNOWLEDGEMENT
+	dhcpAckMessageBytes, _ := json.Marshal(dhcpAckMessage)
+	dhcpAckSegment := constructUDPSegment(67, 68, dhcpAckMessageBytes)
+	dhcpAckIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dhcpAckSegment)
+	dhcpAckFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpAckIPv4Packet)
+
+	// Send DHCPACKNOWLEDGEMENT
+	channels[linkID] <- dhcpAckFrame
+	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACKNOWLEDGEMENT sent - "+addr_to_give.String())
 
 	// Setting leasee's MAC in pool (new)
 	pool := snet.Router.GetDHCPPoolAddresses()
 	for k := range pool {
-		if pool[k].String() == addr_to_give {
-			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give+" from pool")
-			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
+		if pool[k].Equal(addr_to_give) {
+			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give.String()+" from pool")
+			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give.String()] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
 }

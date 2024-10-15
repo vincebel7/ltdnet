@@ -166,43 +166,56 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			switch udpSegment.DstPort {
 			case 53: // DNS
 				return
+
 			case 67: // DHCP: Server-bound
-				if snet.Router.ID != id { // Temporary validation
-					debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
-				}
+				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
-				if string(udpSegment.Data) == "DHCPDISCOVER" {
-					debug(3, "actionHandler", id, "DHCPDISCOVER received")
-					dhcp_offer(frame)
-				}
+				// 53 is DHCP message type
+				if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
+					switch int(option53[0]) {
+					case 1: // DHCPDISCOVER
+						debug(3, "actionHandler", id, "DHCPDISCOVER received")
+						dhcp_offer(frame)
 
-				if len(string(udpSegment.Data)) > 10 {
-					if string(udpSegment.Data)[0:11] == "DHCPREQUEST" {
+					case 3: // DHCPREQUEST
 						debug(3, "actionHandler", id, "DHCPREQUEST received")
 						sockets := socketMaps[id]
 						socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 						sockets[socketID] <- frame
+
+					case 2, 4, 5:
+						debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
+
+					default:
+						debug(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
 					}
+				} else {
+					debug(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
 				}
 
 			case 68: // DHCP: Client-bound
-				if len(string(udpSegment.Data)) > 8 {
-					if string(udpSegment.Data)[0:9] == "DHCPOFFER" {
+				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
+
+				// 53 is DHCP message type
+				if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
+					switch int(option53[0]) {
+					case 2: // DHCPOFFER
 						debug(3, "actionHandler", id, "DHCPOFFER received")
 						sockets := socketMaps[id]
 						socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 						sockets[socketID] <- frame
-					}
-				}
 
-				if len(string(udpSegment.Data)) > 17 {
-					if string(udpSegment.Data)[0:19] == "DHCPACKNOWLEDGEMENT" {
+					case 5: // DHCPACKNOWLEDGEMENT
 						debug(3, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
 						socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 						sockets := socketMaps[id]
 						sockets[socketID] <- frame
-					}
 
+					default:
+						debug(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
+					}
+				} else {
+					debug(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
 				}
 			}
 		}
