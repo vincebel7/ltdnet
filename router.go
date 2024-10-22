@@ -160,3 +160,19 @@ func (router Router) GetDHCPPoolAddresses() []net.IP {
 
 	return poolAddrs
 }
+
+func (router Router) IsAvailableAddress(testAddr net.IP) bool {
+	poolAddrs := router.GetDHCPPoolAddresses()
+	for i := range poolAddrs {
+		currentAddr := poolAddrs[i]
+		if currentAddr.Equal(testAddr) {
+			if router.DHCPPool.DHCPPoolLeases[currentAddr.String()] == "" {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+
+	return false
+}

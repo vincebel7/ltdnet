@@ -373,18 +373,18 @@ func dhcp_discover(host Host) {
 		dhcpRequestIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dhcpRequestUDPSegment)
 		dhcpRequestFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpRequestIPv4Packet)
 
-		// Send DHCPREQUEST, await DHCPACKNOWLEDGEMENT
+		// Send DHCPREQUEST, await DHCPACK
 		channels[linkID] <- dhcpRequestFrame
 		debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent")
 		dhcpAckFrame := <-sockets[socketID]
 
-		// De-encapsulate DHCPACKNOWLEDGEMENT
+		// De-encapsulate DHCPACK
 		dhcpAckIpv4Packet := readIPv4Packet(dhcpAckFrame.Data)
 		dhcpAckUDPSegment := readUDPSegment(dhcpAckIpv4Packet.Data)
 		dhcpAckMessage := ReadDHCPMessage(dhcpAckUDPSegment.Data)
 
 		if int(dhcpAckMessage.Options[53][0]) == 5 {
-			debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+dhcpAckMessage.YIAddr.String())
+			debug(2, "dhcp_discover", srcID, "DHCPACK received - "+dhcpAckMessage.YIAddr.String())
 
 			assignedAddress := dhcpAckMessage.YIAddr
 			defaultGateway := net.IP(dhcpAckMessage.Options[3]).To4()
@@ -457,78 +457,82 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	// Send DHCPOFFER, await DHCPREQUEST
 	channels[linkID] <- dhcpOfferFrame
 	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
+}
 
-	socketID := "udp_" + strconv.Itoa(67)
-	sockets := socketMaps[snet.Router.ID]
-	sockets[socketID] = make(chan Frame)
-	socketMaps[snet.Router.ID] = sockets // Write updated map back to the collection
-	requestFrame := <-sockets[socketID]
-
+func dhcp_ack(dhcpRequestFrame Frame) {
 	// De-encapsulate DHCPREQUEST
-	dhcpRequestIPv4Packet := readIPv4Packet(requestFrame.Data)
+	dhcpRequestIPv4Packet := readIPv4Packet(dhcpRequestFrame.Data)
 	dhcpRequestIPv4PacketHeader := readIPv4PacketHeader(dhcpRequestIPv4Packet.Header)
 	dhcpRequestUDPSegment := readUDPSegment(dhcpRequestIPv4Packet.Data)
 	dhcpRequestMessage := ReadDHCPMessage(dhcpRequestUDPSegment.Data)
 
-	messageType = 6
+	srcIP := snet.Router.Gateway.String()
+	dstIP := dhcpRequestIPv4PacketHeader.SrcIP
+	srcMAC := snet.Router.MACAddr
+	dstMAC := dhcpRequestFrame.SrcMAC
+	dstid := getIDfromMAC(dstMAC)
+	linkID := dstid
+
+	messageType := 6
 	if dhcpRequestUDPSegment.Data != nil {
 		if int(dhcpRequestMessage.Options[53][0]) == 3 { // 3 = DHCPREQUEST
-			if dhcpRequestMessage.YIAddr.Equal(addr_to_give) {
+			//TODO check if address is available - doesn't matter if it's not the same as offered.
+			//if dhcpRequestMessage.YIAddr.Equal(addr_to_give) {
+			//	messageType = 5
+			if snet.Router.IsAvailableAddress(dhcpRequestMessage.YIAddr) {
 				messageType = 5
 			} else {
-				debug(1, "dhcp_offer", snet.Router.ID, "Error 4: DHCP address requested is not same as offer")
+				debug(1, "dhcp_offer", snet.Router.ID, "Error 4: DHCP address requested is not available")
 			}
 		} else {
 			debug(1, "dhcp_offer", snet.Router.ID, "Error 3: Empty DHCP request")
 		}
 	}
 
-	dstIP = dhcpRequestIPv4PacketHeader.SrcIP
+	gateway := snet.Router.Gateway.String()
+	netSize, _ := strconv.Atoi(snet.Netsize)
+	subnetmask := prefixLengthToSubnetMask(netSize)
 
-	messageType = 6
-	if addr_to_give != nil {
-		messageType = 5
-	}
-
-	// Construct DHCPACKNOWLEDGEMENT
-	options = map[byte][]byte{
-		53: {byte(messageType)}, // Option 53: DHCPACKNOWLEDGEMENT
+	// Construct DHCPACK
+	options := map[byte][]byte{
+		53: {byte(messageType)}, // Option 53: DHCPACK
 		1:  []byte(subnetmask),  // Subnet mask
 		3:  []byte(gateway),     // Gateway
 		51: {0, 0, 10, 0},       // Lease time
 		54: []byte(gateway),     // DHCP server
 	}
 	dhcpAckMessage := DHCPMessage{
-		Op:      2,                        // Message type: 1 = Request, 2 = Reply
-		HType:   1,                        // Hardware address type (e.g., 1 for Ethernet)
-		HLen:    6,                        // Length of hardware address
-		Hops:    0,                        // Hops
-		XID:     dhcpDiscoverMessage.XID,  // Transaction ID
-		Flags:   0,                        // Flags (e.g., broadcast)
-		CIAddr:  net.ParseIP("0.0.0.0"),   // Client IP address
-		YIAddr:  addr_to_give,             // 'Your' IP address (server's offer)
-		SIAddr:  net.ParseIP("0.0.0.0"),   // Server IP address
-		GIAddr:  net.ParseIP("0.0.0.0"),   // Gateway IP address
-		CHAddr:  dhcpDiscoverFrame.SrcMAC, // Client MAC address
-		Options: options,                  // DHCP options
+		Op:      2,                         // Message type: 1 = Request, 2 = Reply
+		HType:   1,                         // Hardware address type (e.g., 1 for Ethernet)
+		HLen:    6,                         // Length of hardware address
+		Hops:    0,                         // Hops
+		XID:     dhcpRequestMessage.XID,    // Transaction ID
+		Flags:   0,                         // Flags (e.g., broadcast)
+		CIAddr:  net.ParseIP("0.0.0.0"),    // Client IP address
+		YIAddr:  dhcpRequestMessage.YIAddr, // 'Your' IP address (server's offer)
+		SIAddr:  net.ParseIP("0.0.0.0"),    // Server IP address
+		GIAddr:  net.ParseIP("0.0.0.0"),    // Gateway IP address
+		CHAddr:  dhcpRequestFrame.SrcMAC,   // Client MAC address
+		Options: options,                   // DHCP options
 	}
 
-	// Encapsulate DHCPACKNOWLEDGEMENT
+	// Encapsulate DHCPACK
+	protocol := "UDP"
 	dhcpAckMessageBytes, _ := json.Marshal(dhcpAckMessage)
 	dhcpAckSegment := constructUDPSegment(67, 68, dhcpAckMessageBytes)
 	dhcpAckIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dhcpAckSegment)
 	dhcpAckFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpAckIPv4Packet)
 
-	// Send DHCPACKNOWLEDGEMENT
+	// Send DHCPACK
 	channels[linkID] <- dhcpAckFrame
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACKNOWLEDGEMENT sent - "+addr_to_give.String())
+	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
 
 	// Setting leasee's MAC in pool (new)
 	pool := snet.Router.GetDHCPPoolAddresses()
 	for k := range pool {
-		if pool[k].Equal(addr_to_give) {
-			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+addr_to_give.String()+" from pool")
-			snet.Router.DHCPPool.DHCPPoolLeases[addr_to_give.String()] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
+		if pool[k].Equal(dhcpAckMessage.YIAddr) {
+			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+dhcpAckMessage.YIAddr.String()+" from pool")
+			snet.Router.DHCPPool.DHCPPoolLeases[dhcpAckMessage.YIAddr.String()] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
 		}
 	}
 }

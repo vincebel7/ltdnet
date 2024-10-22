@@ -180,9 +180,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 						case 3: // DHCPREQUEST
 							debug(3, "actionHandler", id, "DHCPREQUEST received")
-							sockets := socketMaps[id]
-							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
-							sockets[socketID] <- frame
+							dhcp_ack(frame)
 
 						case 2, 4, 5:
 							debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
@@ -207,8 +205,8 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets[socketID] <- frame
 
-						case 5: // DHCPACKNOWLEDGEMENT
-							debug(3, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
+						case 5: // DHCPACK
+							debug(3, "actionHandler", id, "DHCPACK received")
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets := socketMaps[id]
 							sockets[socketID] <- frame
