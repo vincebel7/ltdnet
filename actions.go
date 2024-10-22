@@ -352,18 +352,18 @@ func dhcp_discover(host Host) {
 			12: []byte(host.Hostname), // Option 12: Hostname
 		}
 		dhcpRequestMessage := DHCPMessage{
-			Op:      1,                      // Message type: 1 = Request, 2 = Reply
-			HType:   1,                      // Hardware address type (e.g., 1 for Ethernet)
-			HLen:    6,                      // Length of hardware address
-			Hops:    0,                      // Hops
-			XID:     dhcpOfferMessage.XID,   // Transaction ID
-			Flags:   0,                      // Flags (e.g., broadcast)
-			CIAddr:  net.ParseIP("0.0.0.0"), // Client IP address
-			YIAddr:  net.ParseIP("0.0.0.0"), // 'Your' IP address (server's offer)
-			SIAddr:  net.ParseIP("0.0.0.0"), // Server IP address
-			GIAddr:  net.ParseIP("0.0.0.0"), // Gateway IP address
-			CHAddr:  srcMAC,                 // Client MAC address
-			Options: options,                // DHCP options
+			Op:      1,                       // Message type: 1 = Request, 2 = Reply
+			HType:   1,                       // Hardware address type (e.g., 1 for Ethernet)
+			HLen:    6,                       // Length of hardware address
+			Hops:    0,                       // Hops
+			XID:     dhcpOfferMessage.XID,    // Transaction ID
+			Flags:   0,                       // Flags (e.g., broadcast)
+			CIAddr:  net.ParseIP("0.0.0.0"),  // Client IP address
+			YIAddr:  dhcpOfferMessage.YIAddr, // 'Your' IP address (server's offer)
+			SIAddr:  net.ParseIP("0.0.0.0"),  // Server IP address
+			GIAddr:  net.ParseIP("0.0.0.0"),  // Gateway IP address
+			CHAddr:  srcMAC,                  // Client MAC address
+			Options: options,                 // DHCP options
 		}
 
 		// Encapsulate DHCPREQUEST
@@ -383,14 +383,14 @@ func dhcp_discover(host Host) {
 		dhcpAckUDPSegment := readUDPSegment(dhcpAckIpv4Packet.Data)
 		dhcpAckMessage := ReadDHCPMessage(dhcpAckUDPSegment.Data)
 
-		if int(dhcpOfferMessage.Options[53][0]) == 5 {
+		if int(dhcpAckMessage.Options[53][0]) == 5 {
 			debug(2, "dhcp_discover", srcID, "DHCPACKNOWLEDGEMENT received - "+dhcpAckMessage.YIAddr.String())
 
 			assignedAddress := dhcpAckMessage.YIAddr
-			defaultGateway := dhcpAckMessage.Options[3]
-			subnetMask := dhcpAckMessage.Options[1]
+			defaultGateway := net.IP(dhcpAckMessage.Options[3]).To4()
+			subnetMask := net.IP(dhcpAckMessage.Options[1]).To4()
 
-			dynamic_assign(srcID, assignedAddress, defaultGateway, string(subnetMask))
+			dynamic_assign(srcID, assignedAddress, defaultGateway, subnetMask.String())
 
 		} else { // 5 is DHCPACK
 			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address")
@@ -421,30 +421,30 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 
 	messageType := 6
 	if addr_to_give != nil {
-		messageType = 3
+		messageType = 2
 	}
 
 	// Construct DHCPOFFER
 	options := map[byte][]byte{
-		53: {byte(messageType)}, // Option 53: DHCPOFFER
-		1:  []byte(subnetmask),  // Subnet mask
-		3:  []byte(gateway),     // Gateway
-		51: {0, 0, 10, 0},       // Lease time
-		54: []byte(gateway),     // DHCP server
+		53: {byte(messageType)},           // Option 53: DHCPOFFER
+		1:  net.ParseIP(subnetmask).To4(), // Subnet mask
+		3:  net.ParseIP(gateway).To4(),    // Gateway
+		51: {0, 0, 10, 0},                 // Lease time
+		54: net.ParseIP(gateway).To4(),    // DHCP server
 	}
 	dhcpOfferMessage := DHCPMessage{
-		Op:      2,                       // Message type: 1 = Request, 2 = Reply
-		HType:   1,                       // Hardware address type (e.g., 1 for Ethernet)
-		HLen:    6,                       // Length of hardware address
-		Hops:    0,                       // Hops
-		XID:     dhcpDiscoverMessage.XID, // Transaction ID
-		Flags:   0,                       // Flags (e.g., broadcast)
-		CIAddr:  net.ParseIP("0.0.0.0"),  // Client IP address
-		YIAddr:  addr_to_give,            // 'Your' IP address (server's offer)
-		SIAddr:  net.ParseIP("0.0.0.0"),  // Server IP address
-		GIAddr:  net.ParseIP("0.0.0.0"),  // Gateway IP address
-		CHAddr:  srcMAC,                  // Client MAC address
-		Options: options,                 // DHCP options
+		Op:      2,                        // Message type: 1 = Request, 2 = Reply
+		HType:   1,                        // Hardware address type (e.g., 1 for Ethernet)
+		HLen:    6,                        // Length of hardware address
+		Hops:    0,                        // Hops
+		XID:     dhcpDiscoverMessage.XID,  // Transaction ID
+		Flags:   0,                        // Flags (e.g., broadcast)
+		CIAddr:  net.ParseIP("0.0.0.0"),   // Client IP address
+		YIAddr:  addr_to_give,             // 'Your' IP address (server's offer)
+		SIAddr:  net.ParseIP("0.0.0.0"),   // Server IP address
+		GIAddr:  net.ParseIP("0.0.0.0"),   // Gateway IP address
+		CHAddr:  dhcpDiscoverFrame.SrcMAC, // Client MAC address
+		Options: options,                  // DHCP options
 	}
 
 	// Encapsulate DHCPOFFER
@@ -485,6 +485,11 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 
 	dstIP = dhcpRequestIPv4PacketHeader.SrcIP
 
+	messageType = 6
+	if addr_to_give != nil {
+		messageType = 5
+	}
+
 	// Construct DHCPACKNOWLEDGEMENT
 	options = map[byte][]byte{
 		53: {byte(messageType)}, // Option 53: DHCPACKNOWLEDGEMENT
@@ -494,18 +499,18 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 		54: []byte(gateway),     // DHCP server
 	}
 	dhcpAckMessage := DHCPMessage{
-		Op:      2,                       // Message type: 1 = Request, 2 = Reply
-		HType:   1,                       // Hardware address type (e.g., 1 for Ethernet)
-		HLen:    6,                       // Length of hardware address
-		Hops:    0,                       // Hops
-		XID:     dhcpDiscoverMessage.XID, // Transaction ID
-		Flags:   0,                       // Flags (e.g., broadcast)
-		CIAddr:  net.ParseIP("0.0.0.0"),  // Client IP address
-		YIAddr:  addr_to_give,            // 'Your' IP address (server's offer)
-		SIAddr:  net.ParseIP("0.0.0.0"),  // Server IP address
-		GIAddr:  net.ParseIP("0.0.0.0"),  // Gateway IP address
-		CHAddr:  srcMAC,                  // Client MAC address
-		Options: options,                 // DHCP options
+		Op:      2,                        // Message type: 1 = Request, 2 = Reply
+		HType:   1,                        // Hardware address type (e.g., 1 for Ethernet)
+		HLen:    6,                        // Length of hardware address
+		Hops:    0,                        // Hops
+		XID:     dhcpDiscoverMessage.XID,  // Transaction ID
+		Flags:   0,                        // Flags (e.g., broadcast)
+		CIAddr:  net.ParseIP("0.0.0.0"),   // Client IP address
+		YIAddr:  addr_to_give,             // 'Your' IP address (server's offer)
+		SIAddr:  net.ParseIP("0.0.0.0"),   // Server IP address
+		GIAddr:  net.ParseIP("0.0.0.0"),   // Gateway IP address
+		CHAddr:  dhcpDiscoverFrame.SrcMAC, // Client MAC address
+		Options: options,                  // DHCP options
 	}
 
 	// Encapsulate DHCPACKNOWLEDGEMENT
