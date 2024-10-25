@@ -55,6 +55,7 @@ func addHost(hostHostname string) {
 	snet.Hosts = append(snet.Hosts, h)
 
 	generateHostChannels(getHostIndexFromID(h.ID))
+	go listenHostChannel(h.ID)
 	<-listenSync
 }
 

@@ -114,6 +114,10 @@ func addRouter(routerHostname string, routerModel string) {
 	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
 
 	generateRouterChannels()
+	go listenRouterChannel()
+	for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
+		go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
+	}
 }
 
 func delRouter() {

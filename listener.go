@@ -16,6 +16,7 @@ var socketMaps = make(map[string]map[string]chan Frame) // For internal device c
 var actionsync = map[string]chan int{}                  // Blocks CLI prompt until action completes
 
 func Listener() {
+	// Generate channels
 	generateBroadcastChannel()
 	generateRouterChannels()
 
@@ -26,20 +27,42 @@ func Listener() {
 	for i := range snet.Hosts {
 		generateHostChannels(i)
 	}
+
+	// Listen on channels
+	go listenBroadcastChannel()
+
+	if snet.Router.Hostname != "" {
+		go listenRouterChannel()
+
+		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
+			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
+		}
+	}
+
+	for i := range snet.Switches {
+		for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
+			channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
+			socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
+			actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
+
+			go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
+		}
+	}
+
+	for i := range snet.Hosts {
+		go listenHostChannel(snet.Hosts[i].ID)
+	}
+
 }
 
 func generateBroadcastChannel() {
 	channels["FFFFFFFF"] = make(chan json.RawMessage)
-
-	go listenBroadcastChannel()
 }
 
 func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan json.RawMessage)
 	socketMaps[snet.Hosts[i].ID] = make(map[string]chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
-
-	go listenHostChannel(snet.Hosts[i].ID)
 }
 
 func generateSwitchChannels(i int) {
@@ -47,8 +70,6 @@ func generateSwitchChannels(i int) {
 		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
 		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
 		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
-
-		go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
 	}
 }
 
@@ -57,14 +78,10 @@ func generateRouterChannels() {
 		channels[snet.Router.ID] = make(chan json.RawMessage)
 		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
 
-		go listenRouterChannel()
-
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
 			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan Frame)
 			actionsync[snet.Router.ID] = make(chan int)
-
-			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
 		}
 	}
 }

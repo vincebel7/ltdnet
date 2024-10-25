@@ -66,6 +66,13 @@ func addSwitch(switchHostname string) {
 	snet.Switches = append(snet.Switches, s)
 
 	generateSwitchChannels(getSwitchIndexFromID(s.ID))
+	for j := 0; j < getActivePorts(s); j++ {
+		channels[s.PortIDs[j]] = make(chan json.RawMessage)
+		socketMaps[s.PortIDs[j]] = make(map[string]chan Frame)
+		actionsync[s.PortIDs[j]] = make(chan int)
+
+		go listenSwitchportChannel(s.PortIDs[j])
+	}
 }
 
 func addVirtualSwitch(maxports int) Switch {
