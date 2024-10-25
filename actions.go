@@ -486,11 +486,11 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 
 	// Construct DHCPACK
 	options := map[byte][]byte{
-		53: {byte(messageType)}, // Option 53: DHCPACK
-		1:  []byte(subnetmask),  // Subnet mask
-		3:  []byte(gateway),     // Gateway
-		51: {0, 0, 10, 0},       // Lease time
-		54: []byte(gateway),     // DHCP server
+		53: {byte(messageType)},           // Option 53: DHCPACK
+		1:  net.ParseIP(subnetmask).To4(), // Subnet mask
+		3:  net.ParseIP(gateway).To4(),    // Gateway
+		51: {0, 0, 10, 0},                 // Lease time
+		54: net.ParseIP(gateway).To4(),    // DHCP server
 	}
 	dhcpAckMessage := DHCPMessage{
 		Op:      2,                         // Message type: 1 = Request, 2 = Reply
