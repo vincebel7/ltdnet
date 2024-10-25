@@ -6,13 +6,17 @@ Purpose:	Listener for network and all devices
 
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 var channels = make(map[string]chan json.RawMessage)    // Physical links
 var socketMaps = make(map[string]map[string]chan Frame) // For internal device communication
 var actionsync = map[string]chan int{}                  // Blocks CLI prompt until action completes
 
 func Listener() {
+	// Generate channels
 	generateBroadcastChannel()
 	generateRouterChannels()
 
@@ -23,20 +27,42 @@ func Listener() {
 	for i := range snet.Hosts {
 		generateHostChannels(i)
 	}
+
+	// Listen on channels
+	go listenBroadcastChannel()
+
+	if snet.Router.Hostname != "" {
+		go listenRouterChannel()
+
+		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
+			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
+		}
+	}
+
+	for i := range snet.Switches {
+		for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
+			channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
+			socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
+			actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
+
+			go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
+		}
+	}
+
+	for i := range snet.Hosts {
+		go listenHostChannel(snet.Hosts[i].ID)
+	}
+
 }
 
 func generateBroadcastChannel() {
 	channels["FFFFFFFF"] = make(chan json.RawMessage)
-
-	go listenBroadcastChannel()
 }
 
 func generateHostChannels(i int) {
 	channels[snet.Hosts[i].ID] = make(chan json.RawMessage)
 	socketMaps[snet.Hosts[i].ID] = make(map[string]chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
-
-	go listenHostChannel(snet.Hosts[i].ID)
 }
 
 func generateSwitchChannels(i int) {
@@ -44,8 +70,6 @@ func generateSwitchChannels(i int) {
 		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
 		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
 		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
-
-		go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
 	}
 }
 
@@ -54,14 +78,10 @@ func generateRouterChannels() {
 		channels[snet.Router.ID] = make(chan json.RawMessage)
 		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
 
-		go listenRouterChannel()
-
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
 			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan Frame)
 			actionsync[snet.Router.ID] = make(chan int)
-
-			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
 		}
 	}
 }
@@ -153,7 +173,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			case 0:
 				debug(3, "actionHandler", id, "Ping reply received")
 				sockets := socketMaps[id]
-				socketID := "icmp_" + string(icmpPacket.Identifier)
+				socketID := "icmp_" + strconv.Itoa(icmpPacket.Identifier)
 				sockets[socketID] <- frame
 			}
 
@@ -163,43 +183,57 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			switch udpSegment.DstPort {
 			case 53: // DNS
 				return
+
 			case 67: // DHCP: Server-bound
-				if snet.Router.ID != id { // Temporary validation
-					debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
-				}
+				if snet.Router.ID == id { // I am target
+					dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
-				if string(udpSegment.Data) == "DHCPDISCOVER" {
-					debug(3, "actionHandler", id, "DHCPDISCOVER received")
-					dhcp_offer(frame)
-				}
+					// 53 is DHCP message type
+					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
+						switch int(option53[0]) {
+						case 1: // DHCPDISCOVER
+							debug(3, "actionHandler", id, "DHCPDISCOVER received")
+							dhcp_offer(frame)
 
-				if len(string(udpSegment.Data)) > 10 {
-					if string(udpSegment.Data)[0:11] == "DHCPREQUEST" {
-						debug(3, "actionHandler", id, "DHCPREQUEST received")
-						sockets := socketMaps[id]
-						socketID := "udp_" + string(udpSegment.DstPort)
-						sockets[socketID] <- frame
+						case 3: // DHCPREQUEST
+							debug(3, "actionHandler", id, "DHCPREQUEST received")
+							dhcp_ack(frame)
+
+						case 2, 4, 5:
+							debug(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
+
+						default:
+							debug(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
+						}
+					} else {
+						debug(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
 					}
 				}
-
 			case 68: // DHCP: Client-bound
-				if len(string(udpSegment.Data)) > 8 {
-					if string(udpSegment.Data)[0:9] == "DHCPOFFER" {
-						debug(3, "actionHandler", id, "DHCPOFFER received")
-						sockets := socketMaps[id]
-						socketID := "udp_" + string(udpSegment.DstPort)
-						sockets[socketID] <- frame
-					}
-				}
+				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
-				if len(string(udpSegment.Data)) > 17 {
-					if string(udpSegment.Data)[0:19] == "DHCPACKNOWLEDGEMENT" {
-						debug(3, "actionHandler", id, "DHCPACKNOWLEDGEMENT received")
-						socketID := "udp_" + string(udpSegment.DstPort)
-						sockets := socketMaps[id]
-						sockets[socketID] <- frame
-					}
+				if dhcpMessage.CHAddr == snet.Hosts[getHostIndexFromID(id)].MACAddr { // I am target
+					// 53 is DHCP message type
+					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
+						switch int(option53[0]) {
+						case 2: // DHCPOFFER
+							debug(3, "actionHandler", id, "DHCPOFFER received")
+							sockets := socketMaps[id]
+							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
+							sockets[socketID] <- frame
 
+						case 5: // DHCPACK
+							debug(3, "actionHandler", id, "DHCPACK received")
+							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
+							sockets := socketMaps[id]
+							sockets[socketID] <- frame
+
+						default:
+							debug(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
+						}
+					} else {
+						debug(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
+					}
 				}
 			}
 		}

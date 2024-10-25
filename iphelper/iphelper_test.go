@@ -20,3 +20,18 @@ func TestIncreaseIPByConstant(t *testing.T) {
 	}
 
 }
+
+func TestIPInSameSubnet(t *testing.T) {
+	ip1 := "192.168.0.5"
+	ip2 := "192.168.1.2"
+	ip1Mask := "255.255.255.0"
+
+	if IPInSameSubnet(ip1, ip2, ip1Mask) {
+		t.Errorf("IPInSameSubnet returned unexpected result, claims 192.168.1.2 is in 192.168.0.5/24")
+	}
+
+	ip1Mask = "255.255.0.0"
+	if !IPInSameSubnet(ip1, ip2, ip1Mask) {
+		t.Errorf("IPInSameSubnet returned unexpected result, claims 192.168.1.2 is not in 192.168.0.5/16")
+	}
+}

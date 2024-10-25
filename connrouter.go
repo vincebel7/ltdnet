@@ -66,8 +66,12 @@ func RouterConn(device string, id string) {
 				displayDHCPServer()
 				save()
 			case "ipset":
-				ipset(snet.Router.Hostname)
-				save()
+				if len(action) > 1 {
+					ipset(snet.Router.Hostname, action[1])
+					save()
+				} else {
+					fmt.Println("Usage: ipset <ip_address>")
+				}
 			case "ipclear":
 				ipclear(snet.Router.Gateway.String())
 				save()

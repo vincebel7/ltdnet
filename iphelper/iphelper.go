@@ -78,3 +78,21 @@ func WrapRawSumToIP(sum *big.Int) net.IP {
 		sum.Add(sum, big.NewInt(1))
 	}
 }
+
+func IPInSameSubnet(ip1, ip2, ip1Mask string) bool {
+	// Parse IP addresses
+	firstIP := net.ParseIP(ip1)
+	secondIP := net.ParseIP(ip2)
+
+	// Parse the subnet mask
+	mask := net.IPMask(net.ParseIP(ip1Mask).To4())
+
+	// Create the IPNet object for the first IP and its subnet mask
+	firstNetwork := &net.IPNet{
+		IP:   firstIP.Mask(mask), // Apply the mask to the IP
+		Mask: mask,
+	}
+
+	// Check if the second IP is within the first IP's network
+	return firstNetwork.Contains(secondIP)
+}

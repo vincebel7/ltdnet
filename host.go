@@ -55,7 +55,86 @@ func addHost(hostHostname string) {
 	snet.Hosts = append(snet.Hosts, h)
 
 	generateHostChannels(getHostIndexFromID(h.ID))
+	go listenHostChannel(h.ID)
 	<-listenSync
+}
+
+func linkHost(localDevice string, remoteDevice string) {
+	localDevice = strings.ToUpper(localDevice)
+	remoteDevice = strings.ToUpper(remoteDevice)
+
+	//Make sure there's enough ports - if uplink device is a router
+	if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
+		if getActivePorts(snet.Router.VSwitch) >= snet.Router.VSwitch.Maxports {
+			fmt.Printf("No available ports - %s only has %d ports\n", snet.Router.Model, snet.Router.VSwitch.Maxports)
+			return
+		}
+	}
+
+	//Make sure there's enough ports - if uplink device is a switch
+	for s := range snet.Switches {
+		if remoteDevice == strings.ToUpper(snet.Switches[s].Hostname) {
+			if getActivePorts(snet.Switches[s]) >= snet.Switches[s].Maxports {
+				fmt.Printf("No available ports - %s only has %d ports\n", snet.Switches[s].Model, snet.Switches[s].Maxports)
+				return
+			}
+		}
+	}
+
+	//find host with that hostname
+	for i := range snet.Hosts {
+		if strings.ToUpper(snet.Hosts[i].Hostname) == localDevice {
+			uplinkID := ""
+			//Remote device on new link is the Router
+			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
+				//find next free port
+				for k := range snet.Router.VSwitch.Ports {
+					if (snet.Router.VSwitch.Ports[k] == "") && (uplinkID == "") {
+						uplinkID = snet.Router.VSwitch.PortIDs[k]
+					}
+				}
+				//uplinkID = snet.Router.VSwitch.ID
+
+				assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
+			} else {
+				//Remote device on the new link is not the Router. Search switches
+				for j := range snet.Switches {
+					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
+
+						//find next free port
+						for k := range snet.Switches[j].Ports {
+							if (snet.Switches[j].Ports[k] == "") && (uplinkID == "") {
+								uplinkID = snet.Switches[j].PortIDs[k]
+								k = len(snet.Switches[j].Ports)
+								fmt.Println("DEBUG TEST")
+							}
+						}
+					}
+				}
+			}
+
+			snet.Hosts[i].UplinkID = uplinkID
+			return
+		}
+	}
+}
+
+func unlinkHost(hostname string) {
+	hostname = strings.ToUpper(hostname)
+
+	for i := range snet.Hosts {
+		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
+			//first, unplug from switch (switch-end unlink). TODO try/catch this whole block.
+			freeSwitchport(snet.Hosts[i].UplinkID)
+
+			//next, remove the host's uplink (host-end unlink)
+			uplinkID := ""
+			snet.Hosts[i].UplinkID = uplinkID
+			//snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
+
+			return
+		}
+	}
 }
 
 func delHost(hostname string) {
