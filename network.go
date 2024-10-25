@@ -1,7 +1,7 @@
 /*
 File:		network.go
 Author: 	https://github.com/vincebel7
-Purpose: 	Network object
+Purpose: 	Network-level functions
 */
 
 package main
@@ -47,7 +47,9 @@ func newNetworkPrompt() {
 	class_valid := false
 	networkPrefix := "24"
 	for !class_valid {
-		fmt.Print("\nNetwork size (/24, /16, or /8): /")
+		fmt.Print("\nNetwork size (/24, /16, or /8)")
+		fmt.Print("\nChoose /24 if you are unsure.")
+		fmt.Print("\nNetwork size: /")
 		scanner.Scan()
 		networkPrefix = scanner.Text()
 		networkPrefix = strings.ToUpper(networkPrefix)

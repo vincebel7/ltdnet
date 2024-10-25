@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vincebel7/ltdnet/iphelper"
 )
 
 func ping(srcID string, dstIP string, count int) {
@@ -23,24 +25,22 @@ func ping(srcID string, dstIP string, count int) {
 	srcIP := ""
 	srcMAC := ""
 	dstMAC := ""
-	srchost := ""
+	srcHostname := ""
+	srcHost := Host{}
+
+	sendCount := 0
+	recvCount := 0
+	lossCount := 0
 
 	if snet.Router.ID == srcID {
-		srchost = snet.Router.Hostname
+		srcHostname = snet.Router.Hostname
 		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
-
-		// Get linkID (which link to send ping over)
-		dstID := getIDfromMAC(dstMAC)
-		if getHostIndexFromID(dstID) != -1 {
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
-		} else if snet.Router.ID == dstID {
-			linkID = snet.Router.ID
-		}
 	} else {
 		for h := range snet.Hosts {
 			if snet.Hosts[h].ID == srcID {
-				srchost = snet.Hosts[h].Hostname
+				srcHost = snet.Hosts[h]
+				srcHostname = snet.Hosts[h].Hostname
 				srcIP = snet.Hosts[h].IPAddr.String()
 				srcMAC = snet.Hosts[h].MACAddr
 				linkID = snet.Hosts[h].UplinkID
@@ -48,33 +48,29 @@ func ping(srcID string, dstIP string, count int) {
 		}
 	}
 
-	sendCount := 0
-	recvCount := 0
-	lossCount := 0
-
-	fmt.Printf("\nPinging %s from %s\n", dstIP, srchost)
+	fmt.Printf("\nPinging %s from %s\n", dstIP, srcHostname)
 
 	for i := 0; i < count; i++ {
-		// Get MAC addresses
+		// Get destination MAC address
 		if snet.Router.ID == srcID {
-			//TODO: Implement MAC learning to avoid ARPing every time
-			dstMAC = arp_request(srcID, dstIP)
-			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-				fmt.Printf("Request timed out.\n")
-				lossCount++
-				sendCount++
-				continue
-			}
+			dstMAC = routerDetermineDstMAC(snet.Router, dstIP)
 
-		} else { // Assumed to be host source.
-			//TODO: Implement MAC learning to avoid ARPing every time
-			dstMAC = arp_request(srcID, dstIP)
-			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-				fmt.Printf("Request timed out.\n")
-				lossCount++
-				sendCount++
-				continue
+			// Get linkID (which link to send ping over)
+			dstID := getIDfromMAC(dstMAC)
+			if getHostIndexFromID(dstID) != -1 {
+				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+
+			} else if snet.Router.ID == dstID {
+				linkID = snet.Router.ID
 			}
+		} else {
+			dstMAC = hostDetermineDstMAC(srcHost, dstIP)
+		}
+
+		if dstMAC == "TIMEOUT" {
+			lossCount++
+			sendCount++
+			continue
 		}
 
 		debug(4, "ping", srcID, "Constructing ping")
@@ -140,15 +136,12 @@ func pong(srcID string, frame Frame) {
 	srcIP := ""
 	srcMAC := ""
 	dstIP := readIPv4PacketHeader(receivedIpv4Packet.Header).SrcIP
-	dstMAC := frame.SrcMAC // TODO: get MAC myself via ARP/MAC table
+	dstMAC := frame.SrcMAC // Value only used if it cannot be determined below
 
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway.String()
-
-		//TODO: Implement MAC learning to avoid ARPing every time
-		dstMAC = arp_request(srcID, dstIP)
-		debug(4, "pong", srcID, "ARP completed. Dstmac acquired. dstMAC: "+dstMAC)
+		dstMAC := routerDetermineDstMAC(snet.Router, dstIP)
 
 		//Get link to send ping to
 		dstID := getIDfromMAC(dstMAC)
@@ -162,6 +155,7 @@ func pong(srcID string, frame Frame) {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
 		srcIP = snet.Hosts[index].IPAddr.String()
+		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP)
 
 		linkID = snet.Hosts[index].UplinkID
 	}
@@ -243,7 +237,7 @@ func arp_reply(id string, arpRequestFrame Frame) {
 	srcID := ""
 	srcMAC := ""
 	srcIP := ""
-	dstMAC := arpRequestMessage.SenderMAC
+	dstMAC := arpRequestMessage.SenderMAC // This usage of SenderMAC is according to ARP protocol.
 	dstIP := arpRequestMessage.SenderIP
 
 	// Network listener decided to reply to this request - no checking needed.
@@ -409,7 +403,7 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	srcIP := snet.Router.Gateway.String()
 	dstIP := "255.255.255.255"
 	srcMAC := snet.Router.MACAddr
-	dstMAC := dhcpDiscoverFrame.SrcMAC
+	dstMAC := dhcpDiscoverFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
 	dstid := getIDfromMAC(dstMAC)
 	linkID := dstid
 
@@ -469,7 +463,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	srcIP := snet.Router.Gateway.String()
 	dstIP := dhcpRequestIPv4PacketHeader.SrcIP
 	srcMAC := snet.Router.MACAddr
-	dstMAC := dhcpRequestFrame.SrcMAC
+	dstMAC := dhcpRequestFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
 	dstid := getIDfromMAC(dstMAC)
 	linkID := dstid
 
@@ -573,4 +567,60 @@ func ipset(hostname string, ipaddr string) {
 func arpSynchronized(id string, targetIP string) {
 	arp_request(id, targetIP)
 	actionsync[id] <- 1
+}
+
+// A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading MAC table
+func hostDetermineDstMAC(srcHost Host, dstIP string) string {
+	dstMAC := ""
+
+	// Same subnet - MAC table, or ARP.
+	if iphelper.IPInSameSubnet(srcHost.IPAddr.String(), dstIP, srcHost.SubnetMask) {
+		debug(4, "hostDetermineDstMAC", srcHost.ID, "Sending to same subnet, about to MAC table lookup or ARP")
+
+		//TODO: Check MAC table
+
+		// ARP
+		dstMAC = arp_request(srcHost.ID, dstIP)
+		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+			fmt.Printf("ARP request timed out.\n")
+		}
+
+	} else { // Different subnet - GW.
+		debug(4, "hostDetermineDstMAC", srcHost.ID, "Sending to different subnet, sending to GW")
+
+		//TODO: Check MAC table
+
+		// ARP
+		dstMAC = arp_request(srcHost.ID, string(srcHost.DefaultGateway))
+		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+			fmt.Printf("ARP request timed out.\n")
+		}
+	}
+
+	return dstMAC
+}
+
+// A router determines the destination MAC to send to... Either by ARP, or reading MAC table
+func routerDetermineDstMAC(router Router, dstIP string) string {
+	dstMAC := ""
+
+	// Same subnet - MAC table, or ARP.
+	netsizeInt, _ := strconv.Atoi(snet.Netsize)
+	subnetMask := prefixLengthToSubnetMask(netsizeInt)
+	if iphelper.IPInSameSubnet(router.Gateway.String(), dstIP, subnetMask) {
+		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
+
+		//TODO: Check MAC table
+
+		// ARP
+		dstMAC = arp_request(router.ID, dstIP)
+		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+			fmt.Printf("ARP request timed out.\n")
+		}
+
+	} else {
+		fmt.Printf("Error: Routing not implemented yet.")
+	}
+
+	return dstMAC
 }

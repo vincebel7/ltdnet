@@ -1,7 +1,7 @@
 /*
 File:		client.go
 Author: 	https://github.com/vincebel7
-Purpose:	General network configuration, main menu+general program functions
+Purpose:	User menus and main program loop
 */
 
 package main
@@ -228,7 +228,7 @@ func actionsMenu() {
 			"debug <0-4>\t\tSets debug level. Default is 1\n",
 			"manual\t\t\tLaunches the user manual. Great for beginners!\n",
 			"exit\t\t\tExits the program",
-			//"filedump\t\tPrints loaded Network object (developer use)\n", HIDDEN
+			//"netdump\t\tPrints loaded Network object (developer use)\n", HIDDEN
 		)
 
 	default:
