@@ -95,6 +95,9 @@ See README.md :)
 ## Version History
 What has been accomplished at each major.minor version
 
+### v0.2.11 - October 25, 2024
+Subnetting, DHCP + ping funcionality rework, generalize destination MAC finding
+
 ### v0.2.10 - September 30, 2024
 Structs for messages and datagrams, sockets for internal application-layer communication
 
