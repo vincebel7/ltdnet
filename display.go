@@ -279,7 +279,7 @@ func show(hostname string) {
 }
 
 func displayARPTable(deviceID string) {
-	ARPTable := make(map[string]string)
+	var ARPTable map[string]string
 
 	if snet.Router.ID == deviceID {
 		ARPTable = snet.Router.ARPTable
@@ -292,6 +292,24 @@ func displayARPTable(deviceID string) {
 
 	for i := range ARPTable {
 		fmt.Printf("%s\t\t%s\n", i, ARPTable[i])
+	}
+	fmt.Printf("\n")
+}
+
+func displayMACTable(deviceID string) {
+	var MACTable map[string]int
+
+	if snet.Router.VSwitch.ID == deviceID {
+		MACTable = snet.Router.VSwitch.MACTable
+	} else {
+		MACTable = snet.Switches[getSwitchIndexFromID(deviceID)].MACTable
+	}
+
+	fmt.Printf("MAC Table:\n")
+	fmt.Printf("MAC Address\t\tInterface #\n")
+
+	for i := range MACTable {
+		fmt.Printf("%s\t%d\n", i, MACTable[i])
 	}
 	fmt.Printf("\n")
 }

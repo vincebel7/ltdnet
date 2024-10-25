@@ -74,7 +74,7 @@ func RouterConn(device string, id string) {
 			case "ipclear":
 				ipclear(snet.Router.Gateway.String())
 				save()
-			case "arp":
+			case "arptable":
 				displayARPTable(snet.Router.ID)
 			case "exit", "quit", "q":
 				return
@@ -84,7 +84,7 @@ func RouterConn(device string, id string) {
 					"dhcpserver\t\t\tDisplays DHCP server and DHCP pool settings\n",
 					"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
 					"ipclear\t\t\tClears an IP configuration\n",
-					"arp\t\t\t\tShows the router's ARP table (IP address : MAC address)\n",
+					"arptable\t\t\tShows the router's ARP table (IP address : MAC address)\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 			default:

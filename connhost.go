@@ -109,7 +109,7 @@ func HostConn(device string, id string) {
 			case "ipclear":
 				ipclear(host.ID)
 				save()
-			case "arp":
+			case "arptable":
 				displayARPTable(host.ID)
 			case "exit", "quit", "q":
 				return
@@ -119,7 +119,7 @@ func HostConn(device string, id string) {
 					"dhcp\t\t\t\tGets IP configuration via DHCP\n",
 					"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
 					"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)\n",
-					"arp\t\t\t\tShows the host's ARP table (IP address : MAC address)\n",
+					"arptable\t\t\tShows the host's ARP table (IP address : MAC address)\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 			default:

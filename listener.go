@@ -240,25 +240,25 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 	}
 }
 
-func listenSwitchportChannel(id string) {
+func listenSwitchportChannel(switchportID string) {
 	for {
-		rawFrame := <-channels[id]
-		debug(4, "listenSwitchportChannel", id, "(Switch) Received unicast frame")
+		rawFrame := <-channels[switchportID]
+		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received unicast frame")
 
-		port := getSwitchportIDFromLink(id)
-		checkMACTable(readFrame(rawFrame).SrcMAC, id, port)
+		port := getSwitchportIDFromLink(switchportID)
+		checkMACTable(readFrame(rawFrame).SrcMAC, switchportID, port)
 
-		go switchportActionHandler(rawFrame, id)
+		go switchportActionHandler(rawFrame, switchportID)
 	}
 }
 
-func switchportActionHandler(rawFrame json.RawMessage, id string) {
-	debug(4, "switchportActionHandler", id, "My packet")
-	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" {
+func switchportActionHandler(rawFrame json.RawMessage, switchportID string) {
+	debug(4, "switchportActionHandler", switchportID, "My packet")
+	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" { // Broadcast
 		channels["FFFFFFFF"] <- rawFrame
-	} else if false { //TODO how to receive mgmt frames
+	} else if false { // Traffic for switch. TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
-	} else {
-		switchforward(readFrame(rawFrame), id)
+	} else { // Normal frame forward
+		switchforward(readFrame(rawFrame), switchportID)
 	}
 }

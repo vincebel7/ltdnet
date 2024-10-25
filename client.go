@@ -13,7 +13,7 @@ import (
 )
 
 func intro() {
-	fmt.Println("ltdnet v0.2.11")
+	fmt.Println("ltdnet v0.3.0")
 	fmt.Println("by vincebel")
 	fmt.Println("\nPlease note that switch functionality is limited and in development")
 }
@@ -157,6 +157,10 @@ func actionsMenu() {
 			switch actionword2 {
 			case "host":
 				controlHost(actionword3)
+				save()
+
+			case "switch":
+				controlSwitch(actionword3)
 				save()
 
 			case "router":
