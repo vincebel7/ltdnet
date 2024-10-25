@@ -277,3 +277,21 @@ func show(hostname string) {
 		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
 	}
 }
+
+func displayARPTable(deviceID string) {
+	ARPTable := make(map[string]string)
+
+	if snet.Router.ID == deviceID {
+		ARPTable = snet.Router.ARPTable
+	} else {
+		ARPTable = snet.Hosts[getHostIndexFromID(deviceID)].ARPTable
+	}
+
+	fmt.Printf("ARP Table:\n")
+	fmt.Printf("IP Address\t\tMAC Address\n")
+
+	for i := range ARPTable {
+		fmt.Printf("%s\t\t%s\n", i, ARPTable[i])
+	}
+	fmt.Printf("\n")
+}

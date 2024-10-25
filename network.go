@@ -178,6 +178,9 @@ func loadNetwork(netname string, saveType string) {
 		fmt.Printf("err: %v", err)
 	}
 
+	// Clear MAC tables (ARP, MAC address table) on new launch
+	net.ClearMACTables()
+
 	//save global
 	snet = net
 	fmt.Printf("Loaded %s\n", snet.Name)
@@ -197,4 +200,22 @@ func save() {
 	f.Write(marshString)
 	os.Truncate(filename, int64(len(marshString)))
 	fmt.Println("Network saved")
+}
+
+func (n *Network) ClearMACTables() {
+	// Host ARP tables
+	for _, host := range n.Hosts {
+		host.ARPTable = make(map[string]string)
+	}
+
+	// Router ARP table
+	n.Router.ARPTable = make(map[string]string)
+
+	// Switch MAC address tables
+	for _, sw := range n.Switches {
+		sw.MACTable = make(map[string]int)
+	}
+
+	// VSwitch MAC address table
+	n.Router.VSwitch.MACTable = make(map[string]int)
 }

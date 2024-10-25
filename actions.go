@@ -571,29 +571,41 @@ func arpSynchronized(id string, targetIP string) {
 
 // A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading MAC table
 func hostDetermineDstMAC(srcHost Host, dstIP string) string {
+	srcID := srcHost.ID
 	dstMAC := ""
 
 	// Same subnet - MAC table, or ARP.
 	if iphelper.IPInSameSubnet(srcHost.IPAddr.String(), dstIP, srcHost.SubnetMask) {
-		debug(4, "hostDetermineDstMAC", srcHost.ID, "Sending to same subnet, about to MAC table lookup or ARP")
+		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to MAC table lookup or ARP")
 
-		//TODO: Check MAC table
-
-		// ARP
-		dstMAC = arp_request(srcHost.ID, dstIP)
-		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-			fmt.Printf("ARP request timed out.\n")
+		// Check ARP table
+		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] != "" {
+			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP]
+		} else {
+			// ARP request
+			dstMAC = arp_request(srcID, dstIP)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("ARP request timed out.\n")
+			} else {
+				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = dstMAC // Add to ARP table
+			}
 		}
 
 	} else { // Different subnet - GW.
-		debug(4, "hostDetermineDstMAC", srcHost.ID, "Sending to different subnet, sending to GW")
+		debug(4, "hostDetermineDstMAC", srcID, "Sending to different subnet, sending to GW")
+		gateway := srcHost.DefaultGateway.String()
 
-		//TODO: Check MAC table
-
-		// ARP
-		dstMAC = arp_request(srcHost.ID, string(srcHost.DefaultGateway))
-		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-			fmt.Printf("ARP request timed out.\n")
+		// Check ARP table
+		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] != "" {
+			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway]
+		} else {
+			// ARP request
+			dstMAC = arp_request(srcID, gateway)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("ARP request timed out.\n")
+			} else {
+				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = dstMAC // Add to ARP table
+			}
 		}
 	}
 
@@ -610,12 +622,17 @@ func routerDetermineDstMAC(router Router, dstIP string) string {
 	if iphelper.IPInSameSubnet(router.Gateway.String(), dstIP, subnetMask) {
 		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
 
-		//TODO: Check MAC table
-
-		// ARP
-		dstMAC = arp_request(router.ID, dstIP)
-		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-			fmt.Printf("ARP request timed out.\n")
+		// Check ARP table
+		if snet.Router.ARPTable[dstIP] != "" {
+			dstMAC = snet.Router.ARPTable[dstIP]
+		} else {
+			// ARP request
+			dstMAC = arp_request(router.ID, dstIP)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("ARP request timed out.\n")
+			} else {
+				snet.Router.ARPTable[dstIP] = dstMAC // Add to ARP table
+			}
 		}
 
 	} else {

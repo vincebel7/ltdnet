@@ -16,13 +16,14 @@ import (
 )
 
 type Router struct {
-	ID       string   `json:"id"`
-	Model    string   `json:"model"`
-	MACAddr  string   `json:"macaddr"` // LAN-facing interface
-	Hostname string   `json:"hostname"`
-	Gateway  net.IP   `json:"gateway"`
-	VSwitch  Switch   `json:"vswitchid"` // Virtual built-in switch to router
-	DHCPPool DHCPPool `json:"dhcp_pool"` // Instance of DHCPPool
+	ID       string            `json:"id"`
+	Model    string            `json:"model"`
+	MACAddr  string            `json:"macaddr"` // LAN-facing interface
+	Hostname string            `json:"hostname"`
+	Gateway  net.IP            `json:"gateway"`
+	VSwitch  Switch            `json:"vswitchid"` // Virtual built-in switch to router
+	DHCPPool DHCPPool          `json:"dhcp_pool"` // Instance of DHCPPool
+	ARPTable map[string]string `json:"arptable"`
 }
 
 type DHCPPool struct {
@@ -49,6 +50,7 @@ func NewBobcat(hostname string) Router {
 	bobcat.Model = "Bobcat 100"
 	bobcat.MACAddr = macgen()
 	bobcat.Hostname = hostname
+	bobcat.ARPTable = make(map[string]string)
 
 	vSwitch := addVirtualSwitch(BOBCAT_PORTS)
 	bobcat.VSwitch = vSwitch
@@ -62,6 +64,7 @@ func NewOsiris(hostname string) Router {
 	osiris.Model = "Osiris 2-I"
 	osiris.MACAddr = macgen()
 	osiris.Hostname = hostname
+	osiris.ARPTable = make(map[string]string)
 
 	vSwitch := addVirtualSwitch(OSIRIS_PORTS)
 	osiris.VSwitch = vSwitch
