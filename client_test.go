@@ -18,7 +18,6 @@ func TestNetworkSetup(t *testing.T) {
 	// Setup
 	testnetName := "testnet-" + idgen(8)
 	newNetwork(testnetName, "testUser", "24", "test")
-	loadNetwork(testnetName, "test")
 	go Listener()
 
 	setDebug("4")

@@ -529,7 +529,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	for k := range pool {
 		if pool[k].Equal(dhcpAckMessage.YIAddr) {
 			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+dhcpAckMessage.YIAddr.String()+" from pool")
-			snet.Router.DHCPPool.DHCPPoolLeases[dhcpAckMessage.YIAddr.String()] = getMACfromID(dstid) //NI TODO have client pass their MAC in DHCPREQUEST instead of relying on this NI
+			snet.Router.DHCPPool.DHCPPoolLeases[dhcpAckMessage.YIAddr.String()] = dhcpAckMessage.CHAddr
 		}
 	}
 }
