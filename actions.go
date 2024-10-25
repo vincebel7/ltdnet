@@ -476,9 +476,6 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	messageType := 6
 	if dhcpRequestUDPSegment.Data != nil {
 		if int(dhcpRequestMessage.Options[53][0]) == 3 { // 3 = DHCPREQUEST
-			//TODO check if address is available - doesn't matter if it's not the same as offered.
-			//if dhcpRequestMessage.YIAddr.Equal(addr_to_give) {
-			//	messageType = 5
 			if snet.Router.IsAvailableAddress(dhcpRequestMessage.YIAddr) {
 				messageType = 5
 			} else {

@@ -37,7 +37,7 @@ func startMenu() {
 		switch strings.ToUpper(option) {
 		case "1", "C", "NEW", "CREATE":
 			selection = true
-			newNetwork()
+			newNetworkPrompt()
 		case "2", "S", "SELECT":
 			selection = true
 			selectNetwork()
@@ -47,7 +47,7 @@ func startMenu() {
 	}
 }
 
-func newNetwork() {
+func newNetworkPrompt() {
 	fmt.Println("Creating a new network")
 	fmt.Print("Your new network's name: ")
 	scanner.Scan()
@@ -55,29 +55,33 @@ func newNetwork() {
 
 	fmt.Print("\nYour name: ")
 	scanner.Scan()
-	user_name := scanner.Text()
+	username := scanner.Text()
 
 	class_valid := false
-	network_snmask := "24"
+	networkPrefix := "24"
 	for !class_valid {
 		fmt.Print("\nNetwork size (/24, /16, or /8): /")
 		scanner.Scan()
-		network_snmask = scanner.Text()
-		network_snmask = strings.ToUpper(network_snmask)
+		networkPrefix = scanner.Text()
+		networkPrefix = strings.ToUpper(networkPrefix)
 
-		if network_snmask == "24" ||
-			network_snmask == "16" ||
-			network_snmask == "8" {
+		if networkPrefix == "24" ||
+			networkPrefix == "16" ||
+			networkPrefix == "8" {
 			class_valid = true
 		}
 	}
 
+	newNetwork(netname, username, networkPrefix, "user")
+}
+
+func newNetwork(netname string, username string, networkPrefix string, saveType string) {
 	netid := idgen(8)
 	net := Network{
 		ID:         netid,
 		Name:       netname,
-		Author:     user_name,
-		Netsize:    network_snmask,
+		Author:     username,
+		Netsize:    networkPrefix,
 		DebugLevel: 1,
 	}
 
@@ -87,7 +91,13 @@ func newNetwork() {
 	}
 
 	// Write to file
-	filename := "saves/user_saves/" + netname + ".json"
+	filename := ""
+	if saveType == "user" {
+		filename = "saves/user_saves/" + netname + ".json"
+	} else if saveType == "test" {
+		filename = "saves/test_saves/" + netname + ".json"
+	}
+
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)
@@ -152,12 +162,12 @@ func selectNetwork() {
 	loadNetwork(netname, "user")
 }
 
-func loadNetwork(netname string, networkType string) {
+func loadNetwork(netname string, saveType string) {
 	//open file
 	filename := ""
-	if networkType == "user" {
+	if saveType == "user" {
 		filename = "saves/user_saves/" + netname + ".json"
-	} else if networkType == "test" {
+	} else if saveType == "test" {
 		filename = "saves/test_saves/" + netname + ".json"
 	}
 	f, err := os.Open(filename)
