@@ -32,6 +32,8 @@ func TestNetworkSetup(t *testing.T) {
 	// Test 2: Add hosts
 	addHost("h1")
 	addHost("h2")
+	addHost("h3")
+	addHost("h4")
 
 	if snet.Hosts[0].Model != "ProBox 1" {
 		t.Errorf("Host not (properly) created")
@@ -40,6 +42,7 @@ func TestNetworkSetup(t *testing.T) {
 	// Test 3: Link hosts
 	linkHost("h1", "r1")
 	linkHost("h2", "r1")
+	linkHost("h3", "r1")
 
 	if (snet.Hosts[0].UplinkID == "") || (snet.Router.VSwitch.Ports[1] == "") {
 		t.Errorf("Host not (properly) linked")

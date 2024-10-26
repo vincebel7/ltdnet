@@ -28,7 +28,7 @@ func startMenu() bool {
 	fmt.Println("\nPlease select an option:")
 	fmt.Println(" 1) Create new network")
 	fmt.Println(" 2) Select saved network")
-	fmt.Println(" 3) Show achievements")
+	fmt.Println(" 3) Show Achievements")
 	fmt.Println(" 4) Preferences")
 	for !selection {
 		fmt.Print("\nAction: ")
@@ -232,8 +232,9 @@ func actionsMenu() {
 	case "achievements":
 		printAchievementsHelp := func() {
 			fmt.Println("",
-				"achievements show\tShow your achievements\n",
-				"achievements info\tShow all achievements",
+				"achievements show\tShow your Achievements\n",
+				"achievements info <#>\tGet information about an Achievement\n",
+				"achievements explain\tLearn about ltdnet's Achievements system",
 			)
 		}
 		switch action_selection {

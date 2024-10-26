@@ -102,7 +102,7 @@ func resetProgramSettings() {
 }
 
 func resetProgramPrompt() {
-	fmt.Printf("\nAre you sure you want do delete all settings, achievements, and saved networks? [y/n]: ")
+	fmt.Printf("\nAre you sure you want do delete all settings, Achievements, and saved networks? [y/n]: ")
 	scanner.Scan()
 	confirmation := scanner.Text()
 	confirmation = strings.ToUpper(confirmation)

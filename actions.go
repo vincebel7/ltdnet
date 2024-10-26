@@ -563,8 +563,12 @@ func ipset(hostname string, ipaddr string) {
 
 // Run an ARP request, but synchronize with client
 func arpSynchronized(id string, targetIP string) {
-	arp_request(id, targetIP)
-	hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+	dstMAC := hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+
+	if dstMAC != "" {
+		achievementTester(ARP_HOT)
+	}
+
 	actionsync[id] <- 1
 }
 

@@ -3,7 +3,7 @@ File:		achievements.go
 Author: 	https://github.com/vincebel7
 Purpose:	Achievements
 
-Note: There are two types of achievements: State-based, and action-based.
+Note: There are two types of Achievements: State-based, and action-based.
 State-based: Achievements based on network state which can be checked regularly (network has a router)
 Action-based: Achievements given when a particular action occurs (successful ping)
 */
@@ -21,9 +21,10 @@ type Achievement struct {
 
 var AchievementCatalog = make(map[int]Achievement)
 
-// achievement IDs
+// Achievement IDs
 var ROUTINE_BUSINESS = 1
 var UNITED_PINGDOM = 2
+var ARP_HOT = 3
 
 func buildAchievementCatalog() {
 	achievement := Achievement{
@@ -39,11 +40,18 @@ func buildAchievementCatalog() {
 		Description: "Successfully ping from one device to another.",
 	}
 	AchievementCatalog[UNITED_PINGDOM] = achievement
+
+	achievement = Achievement{
+		ID:          ARP_HOT,
+		Name:        "ARP It Like It's Hot",
+		Description: "Manually send an ARP request, and receive a reply.",
+	}
+	AchievementCatalog[ARP_HOT] = achievement
 }
 
 func displayAchievements() {
-	fmt.Printf("ACHIEVEMENTS:\n")
-	fmt.Printf("#\tName\t\t\t\tDescription\t\t\t\t\tUnlocked\n")
+	fmt.Printf("Achievements:\n")
+	fmt.Printf("#\tName\t\t\t\tDescription\t\t\t\t\t\tUnlocked\n")
 
 	keys := make([]int, 1, len(AchievementCatalog))
 	for k := range AchievementCatalog {
@@ -61,7 +69,7 @@ func displayAchievements() {
 			unlockedChar = "Y"
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\n", AchievementCatalog[i].ID, PadRight(AchievementCatalog[i].Name, 25), PadRight(AchievementCatalog[i].Description, 45), unlockedChar)
+		fmt.Printf("%d\t%s\t%s\t%s\n", AchievementCatalog[i].ID, PadRight(AchievementCatalog[i].Name, 25), PadRight(AchievementCatalog[i].Description, 50), unlockedChar)
 	}
 }
 
@@ -71,16 +79,17 @@ func achievementAward(achievement Achievement) {
 	saveUserSettings()
 }
 
-// Does a check of state-based achievements
+// Does a check of state-based Achievements
 func achievementCheck() {
 	if !user_settings.AchievementsOn {
 		return
 	}
 
+	// Test state-based Achievements
 	achievementTester(ROUTINE_BUSINESS)
 }
 
-// Kicks off tests for incomplete achievements
+// Kicks off tests for incomplete Achievements
 func achievementTester(achievementID int) {
 	if !user_settings.AchievementsOn {
 		return
@@ -92,11 +101,13 @@ func achievementTester(achievementID int) {
 			achievement1Test()
 		case 2:
 			achievement2Test()
+		case 3:
+			achievement3Test()
 		}
 	}
 }
 
-// achievement 1: Create a router
+// Achievement 1: Create a router
 func achievement1Test() {
 	achievementComplete := false
 
@@ -110,9 +121,16 @@ func achievement1Test() {
 	}
 }
 
-// achievement 2: Successful ping
+// Achievement 2: Successful ping
 func achievement2Test() {
 	// If this function is called, the achievement is already complete (action-based)
 	achievement := AchievementCatalog[UNITED_PINGDOM]
+	achievementAward(achievement)
+}
+
+// Achievement 2: Successful manual ARP request
+func achievement3Test() {
+	// If this function is called, the achievement is already complete (action-based)
+	achievement := AchievementCatalog[ARP_HOT]
 	achievementAward(achievement)
 }
