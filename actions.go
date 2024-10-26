@@ -534,7 +534,7 @@ func ipset(hostname string, ipaddr string) {
 	defaultGateway := snet.Router.Gateway.String()
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
-	fmt.Print("\nIs this correct? [Y/n/exit]")
+	fmt.Print("\nIs this correct? [Y/n]: ")
 	scanner.Scan()
 	affirmation := scanner.Text()
 
@@ -542,13 +542,11 @@ func ipset(hostname string, ipaddr string) {
 		// error checking
 		if net.ParseIP(ipaddr).To4() == nil {
 			fmt.Printf("Error: '%s' is not a valid IP address\n", ipaddr)
-
 			return
 		}
 
-	} else if strings.ToUpper(affirmation) == "EXIT" {
+	} else {
 		fmt.Println("Network changes reverted")
-
 		return
 	}
 

@@ -65,6 +65,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 		ID:         netid,
 		Name:       netname,
 		Netsize:    networkPrefix,
+		ProgramVer: currentVersion,
 		DebugLevel: 1,
 	}
 
@@ -172,12 +173,37 @@ func loadNetwork(netname string, saveType string) {
 		fmt.Printf("err: %v", err)
 	}
 
+	// Version check
+	migrate := false
+	if net.ProgramVer != currentVersion {
+		fmt.Print("The selected save file was created in an older version. Attempt migrating? [y/N]: ")
+
+		scanner.Scan()
+		migrateSelection := strings.ToUpper(scanner.Text())
+
+		switch migrateSelection {
+		case "Y", "YES":
+			// "Migrate". Will make this more intelligent eventually
+			net.ProgramVer = currentVersion
+			migrate = true
+		default:
+			startMenu()
+			return
+		}
+	}
+
 	// Clear MAC tables (ARP, MAC address table) on new launch
 	net.ClearMACTables()
 
 	//save global
 	snet = net
-	fmt.Printf("Loaded %s\n", snet.Name)
+
+	// Save successful version migration
+	if migrate {
+		save()
+	}
+
+	fmt.Printf("Loaded \"%s\"\n", snet.Name)
 }
 
 func save() {

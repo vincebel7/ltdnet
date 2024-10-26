@@ -12,8 +12,10 @@ import (
 	"strings"
 )
 
+var currentVersion = "v0.3.0"
+
 func intro() {
-	fmt.Println("ltdnet v0.3.0")
+	fmt.Println("ltdnet " + currentVersion)
 
 	if user_settings.Author == "" {
 		changeSettingsName()
@@ -152,7 +154,7 @@ func actionsMenu() {
 	case "del", "delete":
 		switch actionword2 {
 		case "router":
-			fmt.Printf("\nAre you sure you want do delete router %s? [y/n]: ", actionword3)
+			fmt.Printf("\nAre you sure you want do delete router %s? [y/N]: ", actionword3)
 			scanner.Scan()
 			confirmation := scanner.Text()
 			confirmation = strings.ToUpper(confirmation)
@@ -163,7 +165,7 @@ func actionsMenu() {
 
 		case "switch":
 			if actionword3 != "" {
-				fmt.Printf("\nAre you sure you want do delete switch %s? [y/n]: ", actionword3)
+				fmt.Printf("\nAre you sure you want do delete switch %s? [y/N]: ", actionword3)
 				scanner.Scan()
 				confirmation := scanner.Text()
 				confirmation = strings.ToUpper(confirmation)
@@ -175,7 +177,7 @@ func actionsMenu() {
 
 		case "host":
 			if actionword3 != "" {
-				fmt.Printf("\nAre you sure you want do delete host %s? [y/n]: ", actionword3)
+				fmt.Printf("\nAre you sure you want do delete host %s? [y/N]: ", actionword3)
 				scanner.Scan()
 				confirmation := scanner.Text()
 				confirmation = strings.ToUpper(confirmation)
