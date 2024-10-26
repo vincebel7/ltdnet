@@ -63,7 +63,7 @@ Clears the /saves directory
 ## Version History
 What has been accomplished at each version
 
-### v0.3.0 - ? 2024
+### v0.3.0 - October 26, 2024
 User Achievements, ARP table, switch MAC address tables, user preferences
 
 ### v0.2.11 - October 25, 2024
