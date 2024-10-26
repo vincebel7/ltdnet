@@ -73,7 +73,6 @@ func ping(srcID string, dstIP string, count int) {
 			continue
 		}
 
-		debug(4, "ping", srcID, "Constructing ping")
 		payload, _ := json.Marshal("101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")
 
 		icmpRequestPacket := ICMPEchoPacket{
@@ -108,6 +107,7 @@ func ping(srcID string, dstIP string, count int) {
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
 				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
+				achievementTester(UNITED_PINGDOM)
 			} else {
 				debug(1, "ping", srcID, "Error: Out-of-order channel")
 			}

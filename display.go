@@ -221,6 +221,11 @@ func show(hostname string) {
 		id = 0
 	}
 
+	if snet.Router.VSwitch.Hostname == hostname {
+		device_type = "vswitch"
+		id = 0
+	}
+
 	for i := range snet.Hosts {
 		if snet.Hosts[i].Hostname == hostname {
 			device_type = "host"
@@ -267,6 +272,11 @@ func show(hostname string) {
 		fmt.Printf("\tID:\t\t%s\n", snet.Switches[id].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[id].Model)
 		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Switches[id].MgmtIP)
+	} else if device_type == "vswitch" {
+		fmt.Printf("\nSwitch %s\n", snet.Router.VSwitch.Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Router.VSwitch.ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Router.VSwitch.Model)
+		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Router.VSwitch.MgmtIP)
 	} else if device_type == "router" {
 		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)

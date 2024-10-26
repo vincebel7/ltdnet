@@ -95,6 +95,9 @@ See README.md :)
 ## Version History
 What has been accomplished at each major.minor version
 
+### v0.3.0 - ? 2024
+User achievements, ARP table, switch MAC address tables, user preferences
+
 ### v0.2.11 - October 25, 2024
 Subnetting, DHCP + ping funcionality rework, generalize destination MAC finding
 

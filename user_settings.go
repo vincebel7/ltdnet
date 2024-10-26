@@ -15,11 +15,11 @@ import (
 )
 
 type Settings struct {
-	ID           string `json:"id"`
-	Author       string `json:"author"`
-	Challenges   []Host `json:"challenges"`
-	ChallengesOn bool   `json:"challenges_on"`
-	ProgramVer   string `json:"program_ver"`
+	ID             string              `json:"id"`
+	Author         string              `json:"author"`
+	Achievements   map[int]Achievement `json:"achievements"`
+	AchievementsOn bool                `json:"achievements_on"`
+	ProgramVer     string              `json:"program_ver"`
 }
 
 var user_settings Settings
@@ -34,8 +34,10 @@ func loadUserSettings() {
 		os.Create(filename)
 
 		settings := Settings{
-			ID:     idgen(8),
-			Author: "",
+			ID:             idgen(8),
+			Author:         "",
+			Achievements:   make(map[int]Achievement),
+			AchievementsOn: true,
 		}
 		user_settings = settings
 		saveUserSettings()
@@ -60,6 +62,8 @@ func loadUserSettings() {
 	}
 
 	user_settings = settings_obj
+
+	buildAchievementCatalog()
 }
 
 func saveUserSettings() {
@@ -85,16 +89,20 @@ func changeSettingsName() {
 	saveUserSettings()
 }
 
-func toggleChallenges() {}
+func toggleAchievements() {}
 
-func resetChallenges() {}
+func resetAchievements() {
+	user_settings.Achievements = make(map[int]Achievement)
+	saveUserSettings()
+	fmt.Println("Achievements have been reset")
+}
 
 func resetProgramSettings() {
 	os.Remove("saves/user_settings.json")
 }
 
 func resetProgramPrompt() {
-	fmt.Printf("\nAre you sure you want do delete all settings, challenges, and saved networks? [y/n]: ")
+	fmt.Printf("\nAre you sure you want do delete all settings, achievements, and saved networks? [y/n]: ")
 	scanner.Scan()
 	confirmation := scanner.Text()
 	confirmation = strings.ToUpper(confirmation)

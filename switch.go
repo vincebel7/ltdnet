@@ -142,7 +142,7 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 	for k, v := range table {
 		if k == macaddr {
 			if v == port {
-				debug(4, "checkMACTable", id, "Address found in MAC table")
+				debug(4, "checkMACTable", id, "Source address found in MAC table")
 				result = v
 			} else {
 				delMACEntry(macaddr, id, port)
@@ -151,7 +151,7 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 	}
 
 	if result == 0 {
-		msg := "Address " + macaddr + " not found in MAC table. Adding"
+		msg := "Source address " + macaddr + " not found in MAC table. Adding"
 		debug(3, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
 	}
@@ -221,15 +221,15 @@ func switchforward(frame Frame, switchportID string) {
 	outboundPort := lookupMACTable(dstMAC, switchportID)
 
 	if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table.
-		debug(4, "switchforward", switchportID, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
-		//linkID = getIDfromMAC(dstMAC)
 		floodFrame = true
 	} else {
 		if isSwitchportID(snet.Router.VSwitch, switchportID) {
+			debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address found in MAC table.")
 			linkID = snet.Router.VSwitch.Ports[outboundPort]
 		} else {
+			debug(3, "switchforward", switchportID, "Should never print this yet - outer")
 			for i := range snet.Switches {
-				debug(3, "switchforward", switchportID, "Should never print this yet")
+				debug(3, "switchforward", switchportID, "Should never print this yet - inner")
 				if isSwitchportID(snet.Switches[i], switchportID) {
 					linkID = snet.Switches[i].Ports[outboundPort]
 				}
@@ -247,7 +247,7 @@ func switchforward(frame Frame, switchportID string) {
 	outFrame, _ := json.Marshal(f)
 
 	if floodFrame {
-		debug(4, "switchforward", snet.Router.VSwitch.ID, "Flooding frame on all ports")
+		debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address not found in MAC table. Flooding frame on all ports")
 		for port := range snet.Router.VSwitch.Ports {
 			linkID = snet.Router.VSwitch.Ports[port]
 			if snet.Router.VSwitch.PortIDs[port] != switchportID { // Don't send out source interface

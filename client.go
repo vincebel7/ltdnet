@@ -26,7 +26,8 @@ func startMenu() bool {
 	fmt.Println("\nPlease select an option:")
 	fmt.Println(" 1) Create new network")
 	fmt.Println(" 2) Select saved network")
-	fmt.Println(" 3) Preferences")
+	fmt.Println(" 3) Show achievements")
+	fmt.Println(" 4) Preferences")
 	for !selection {
 		fmt.Print("\nAction: ")
 
@@ -42,7 +43,10 @@ func startMenu() bool {
 			selection = true
 			advanceMenus = true
 			selectNetwork()
-		case "3", "P", "PREFERENCES", "PREF":
+		case "3", "A", "ACHIEVEMENTS":
+			selection = true
+			displayAchievements()
+		case "4", "P", "PREFERENCES", "PREF":
 			selection = true
 			preferencesMenu()
 		default:
@@ -58,8 +62,8 @@ func preferencesMenu() {
 	fmt.Println("\nUSER PREFERENCES")
 	fmt.Println("\nPlease select an option:")
 	fmt.Println(" 1) Change name")
-	fmt.Println(" 2) Disable/Enable Challenges")
-	fmt.Println(" 3) Reset Challenges")
+	fmt.Println(" 2) Disable/Enable Achievements")
+	fmt.Println(" 3) Reset Achievements")
 	fmt.Println(" 4) Reset user preferences")
 	fmt.Println(" 5) Reset all program data")
 
@@ -74,10 +78,10 @@ func preferencesMenu() {
 			selection = true
 			changeSettingsName()
 		case "2":
-			toggleChallenges()
+			toggleAchievements()
 		case "3":
 			selection = true
-			resetChallenges()
+			resetAchievements()
 		case "4":
 			selection = true
 			resetProgramSettings()
@@ -223,6 +227,9 @@ func actionsMenu() {
 			fmt.Println(" Usage: control <host|switch|router> <hostname>")
 		}
 
+	case "achievements":
+		displayAchievements()
+
 	case "save":
 		save()
 
@@ -237,11 +244,20 @@ func actionsMenu() {
 		case "show diagram":
 			drawDiagram(snet.Router.ID)
 
+		case "show achievements":
+			displayAchievements()
+
 		default:
 			if len(action_selection) > 12 { // show device
 				show(action_selection[12:])
 			} else {
-				fmt.Println(" Usage: show network overview\n\tshow device <hostname>\n\tshow diagram")
+				fmt.Println(
+					"COMMANDS:\n",
+					"show network overview\n",
+					"show device <hostname>\n",
+					"show diagram\n",
+					"show achievements",
+				)
 			}
 		}
 
@@ -269,15 +285,17 @@ func actionsMenu() {
 		os.Exit(0)
 
 	case "help", "?":
-		fmt.Println("",
+		fmt.Println(
+			"NETWORK COMMANDS:\n",
 			"show <args>\t\tDisplays information\n",
 			"add <args>\t\tAdds device to network\n",
 			"del <args>\t\tRemoves device from network\n",
 			"link <args>\t\tLinks two devices\n",
 			"unlink <args>\t\tUnlinks two devices\n",
 			"control <args>\t\tLogs in as device\n",
+			"\nSYSTEM COMMANDS:\n",
 			"save\t\t\tManually saves network changes\n",
-			"reload\t\t\tReloads the network file (May fix runtime bugs)\n",
+			"reload\t\t\tReloads the network file. May fix runtime bugs\n",
 			"debug <0-4>\t\tSets debug level. Default is 1\n",
 			"manual\t\t\tLaunches the user manual. Great for beginners!\n",
 			"exit\t\t\tExits the program",
@@ -287,6 +305,8 @@ func actionsMenu() {
 	default:
 		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 	}
+
+	achievementCheck()
 }
 
 func main() {

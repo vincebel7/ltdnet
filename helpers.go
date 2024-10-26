@@ -201,3 +201,10 @@ func removeStringFromSlice(s []string, i int) []string {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }
+
+func PadRight(str string, length int) string {
+	if len(str) >= length {
+		return str // Return the original string if it's already the desired length or longer
+	}
+	return str + fmt.Sprintf("%*s", length-len(str), "")
+}
