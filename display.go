@@ -221,6 +221,11 @@ func show(hostname string) {
 		id = 0
 	}
 
+	if snet.Router.VSwitch.Hostname == hostname {
+		device_type = "vswitch"
+		id = 0
+	}
+
 	for i := range snet.Hosts {
 		if snet.Hosts[i].Hostname == hostname {
 			device_type = "host"
@@ -267,6 +272,11 @@ func show(hostname string) {
 		fmt.Printf("\tID:\t\t%s\n", snet.Switches[id].ID)
 		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[id].Model)
 		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Switches[id].MgmtIP)
+	} else if device_type == "vswitch" {
+		fmt.Printf("\nSwitch %s\n", snet.Router.VSwitch.Hostname)
+		fmt.Printf("\tID:\t\t%s\n", snet.Router.VSwitch.ID)
+		fmt.Printf("\tModel:\t\t%s\n", snet.Router.VSwitch.Model)
+		fmt.Printf("\tMgmt IP:\t%s\n\n", snet.Router.VSwitch.MgmtIP)
 	} else if device_type == "router" {
 		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
 		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
@@ -276,4 +286,40 @@ func show(hostname string) {
 		fmt.Printf("\tDHCP pool:\t%d addresses\n", len(snet.Router.GetDHCPPoolAddresses()))
 		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
 	}
+}
+
+func displayARPTable(deviceID string) {
+	var ARPTable map[string]string
+
+	if snet.Router.ID == deviceID {
+		ARPTable = snet.Router.ARPTable
+	} else {
+		ARPTable = snet.Hosts[getHostIndexFromID(deviceID)].ARPTable
+	}
+
+	fmt.Printf("ARP Table:\n")
+	fmt.Printf("IP Address\t\tMAC Address\n")
+
+	for i := range ARPTable {
+		fmt.Printf("%s\t\t%s\n", i, ARPTable[i])
+	}
+	fmt.Printf("\n")
+}
+
+func displayMACTable(deviceID string) {
+	var MACTable map[string]int
+
+	if snet.Router.VSwitch.ID == deviceID {
+		MACTable = snet.Router.VSwitch.MACTable
+	} else {
+		MACTable = snet.Switches[getSwitchIndexFromID(deviceID)].MACTable
+	}
+
+	fmt.Printf("MAC Table:\n")
+	fmt.Printf("MAC Address\t\tInterface #\n")
+
+	for i := range MACTable {
+		fmt.Printf("%s\t%d\n", i, MACTable[i])
+	}
+	fmt.Printf("\n")
 }

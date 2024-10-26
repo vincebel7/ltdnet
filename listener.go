@@ -89,11 +89,12 @@ func generateRouterChannels() {
 func listenBroadcastChannel() { //Listens for broadcast frames on FF.. and broadcasts
 	for {
 		rawFrame := <-channels["FFFFFFFF"]
-		debug(4, "listenBroadcastChannel", "Listener", "detected broadcast")
 
+		debug(4, "listenBroadcastChannel", snet.Router.ID, "Received broadcast frame")
 		go actionHandler(rawFrame, snet.Router.ID)
 
 		for i := range snet.Hosts {
+			debug(4, "listenHlistenBroadcastChannelostChannel", snet.Hosts[i].ID, "Received broadcast frame")
 			go actionHandler(rawFrame, snet.Hosts[i].ID)
 		}
 	}
@@ -119,8 +120,6 @@ func listenRouterChannel() {
 
 // Should actions be broken into functions?
 func actionHandler(rawFrame json.RawMessage, id string) {
-	debug(4, "actionHandler", id, "About to handle a frame")
-
 	frame := readFrame(rawFrame)
 
 	switch frame.EtherType {
@@ -160,21 +159,44 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 	case "0x0800": // IPv4
 		packet := readIPv4Packet(frame.Data)
+		packetHeader := readIPv4PacketHeader(packet.Header)
 
-		switch readIPv4PacketHeader(packet.Header).Protocol {
+		switch packetHeader.Protocol {
 		case 1: // ICMP
 			icmpPacket := readICMPEchoPacket(packet.Data)
 
 			switch icmpPacket.ControlType {
 			case 8:
 				debug(3, "actionHandler", id, "Ping request received")
-				pong(id, frame)
+
+				// Check if target device at network-level
+				amTarget := false
+				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.Gateway.String()) {
+					amTarget = true
+				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
+					amTarget = true
+				}
+
+				if amTarget {
+					pong(id, frame)
+				}
 
 			case 0:
 				debug(3, "actionHandler", id, "Ping reply received")
-				sockets := socketMaps[id]
-				socketID := "icmp_" + strconv.Itoa(icmpPacket.Identifier)
-				sockets[socketID] <- frame
+
+				// Check if target device at network-level
+				amTarget := false
+				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.Gateway.String()) {
+					amTarget = true
+				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
+					amTarget = true
+				}
+
+				if amTarget {
+					sockets := socketMaps[id]
+					socketID := "icmp_" + strconv.Itoa(icmpPacket.Identifier)
+					sockets[socketID] <- frame
+				}
 			}
 
 		case 17: // UDP
@@ -240,25 +262,24 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 	}
 }
 
-func listenSwitchportChannel(id string) {
+func listenSwitchportChannel(switchportID string) {
 	for {
-		rawFrame := <-channels[id]
-		debug(4, "listenSwitchportChannel", id, "(Switch) Received unicast frame")
+		rawFrame := <-channels[switchportID]
+		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received unicast frame from port "+switchportID)
 
-		port := getSwitchportIDFromLink(id)
-		checkMACTable(readFrame(rawFrame).SrcMAC, id, port)
+		port := getSwitchportIDFromLink(switchportID)
+		checkMACTable(readFrame(rawFrame).SrcMAC, switchportID, port)
 
-		go switchportActionHandler(rawFrame, id)
+		go switchportActionHandler(rawFrame, switchportID)
 	}
 }
 
-func switchportActionHandler(rawFrame json.RawMessage, id string) {
-	debug(4, "switchportActionHandler", id, "My packet")
-	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" {
+func switchportActionHandler(rawFrame json.RawMessage, switchportID string) {
+	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" { // Broadcast
 		channels["FFFFFFFF"] <- rawFrame
-	} else if false { //TODO how to receive mgmt frames
+	} else if false { // Traffic for switch. TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
-	} else {
-		switchforward(readFrame(rawFrame), id)
+	} else { // Normal frame forward
+		switchforward(readFrame(rawFrame), switchportID)
 	}
 }

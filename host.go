@@ -13,14 +13,15 @@ import (
 )
 
 type Host struct {
-	ID             string `json:"id"`
-	Model          string `json:"model"`
-	MACAddr        string `json:"macaddr"`
-	Hostname       string `json:"hostname"`
-	IPAddr         net.IP `json:"ipaddr"`
-	SubnetMask     string `json:"mask"`
-	DefaultGateway net.IP `json:"gateway"`
-	UplinkID       string `json:"uplinkid"`
+	ID             string            `json:"id"`
+	Model          string            `json:"model"`
+	MACAddr        string            `json:"macaddr"`
+	Hostname       string            `json:"hostname"`
+	IPAddr         net.IP            `json:"ipaddr"`
+	SubnetMask     string            `json:"mask"`
+	DefaultGateway net.IP            `json:"gateway"`
+	UplinkID       string            `json:"uplinkid"`
+	ARPTable       map[string]string `json:"arptable"`
 }
 
 func NewProbox(hostname string) Host {
@@ -29,6 +30,7 @@ func NewProbox(hostname string) Host {
 	p.Model = "ProBox 1"
 	p.MACAddr = macgen()
 	p.Hostname = hostname
+	p.ARPTable = make(map[string]string)
 
 	return p
 }

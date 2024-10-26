@@ -53,7 +53,7 @@ func ping(srcID string, dstIP string, count int) {
 	for i := 0; i < count; i++ {
 		// Get destination MAC address
 		if snet.Router.ID == srcID {
-			dstMAC = routerDetermineDstMAC(snet.Router, dstIP)
+			dstMAC = routerDetermineDstMAC(snet.Router, dstIP, true)
 
 			// Get linkID (which link to send ping over)
 			dstID := getIDfromMAC(dstMAC)
@@ -64,7 +64,7 @@ func ping(srcID string, dstIP string, count int) {
 				linkID = snet.Router.ID
 			}
 		} else {
-			dstMAC = hostDetermineDstMAC(srcHost, dstIP)
+			dstMAC = hostDetermineDstMAC(srcHost, dstIP, true)
 		}
 
 		if dstMAC == "TIMEOUT" {
@@ -73,7 +73,6 @@ func ping(srcID string, dstIP string, count int) {
 			continue
 		}
 
-		debug(4, "ping", srcID, "Constructing ping")
 		payload, _ := json.Marshal("101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")
 
 		icmpRequestPacket := ICMPEchoPacket{
@@ -108,6 +107,7 @@ func ping(srcID string, dstIP string, count int) {
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
 				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
+				achievementTester(UNITED_PINGDOM)
 			} else {
 				debug(1, "ping", srcID, "Error: Out-of-order channel")
 			}
@@ -141,7 +141,7 @@ func pong(srcID string, frame Frame) {
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway.String()
-		dstMAC := routerDetermineDstMAC(snet.Router, dstIP)
+		dstMAC := routerDetermineDstMAC(snet.Router, dstIP, true)
 
 		//Get link to send ping to
 		dstID := getIDfromMAC(dstMAC)
@@ -155,7 +155,7 @@ func pong(srcID string, frame Frame) {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
 		srcIP = snet.Hosts[index].IPAddr.String()
-		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP)
+		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP, true)
 
 		linkID = snet.Hosts[index].UplinkID
 	}
@@ -534,7 +534,7 @@ func ipset(hostname string, ipaddr string) {
 	defaultGateway := snet.Router.Gateway.String()
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
-	fmt.Print("\nIs this correct? [Y/n/exit]")
+	fmt.Print("\nIs this correct? [Y/n]: ")
 	scanner.Scan()
 	affirmation := scanner.Text()
 
@@ -542,13 +542,11 @@ func ipset(hostname string, ipaddr string) {
 		// error checking
 		if net.ParseIP(ipaddr).To4() == nil {
 			fmt.Printf("Error: '%s' is not a valid IP address\n", ipaddr)
-
 			return
 		}
 
-	} else if strings.ToUpper(affirmation) == "EXIT" {
+	} else {
 		fmt.Println("Network changes reverted")
-
 		return
 	}
 
@@ -565,57 +563,79 @@ func ipset(hostname string, ipaddr string) {
 
 // Run an ARP request, but synchronize with client
 func arpSynchronized(id string, targetIP string) {
-	arp_request(id, targetIP)
+	dstMAC := hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+
+	if dstMAC != "" {
+		achievementTester(ARP_HOT)
+	}
+
 	actionsync[id] <- 1
 }
 
-// A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading MAC table
-func hostDetermineDstMAC(srcHost Host, dstIP string) string {
+// A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading ARP table
+func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
+	srcID := srcHost.ID
 	dstMAC := ""
 
-	// Same subnet - MAC table, or ARP.
+	// Same subnet - ARP table, or ARP request.
 	if iphelper.IPInSameSubnet(srcHost.IPAddr.String(), dstIP, srcHost.SubnetMask) {
-		debug(4, "hostDetermineDstMAC", srcHost.ID, "Sending to same subnet, about to MAC table lookup or ARP")
+		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
 
-		//TODO: Check MAC table
-
-		// ARP
-		dstMAC = arp_request(srcHost.ID, dstIP)
-		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-			fmt.Printf("ARP request timed out.\n")
+		// Check ARP table
+		if useTable && snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] != "" {
+			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP]
+		} else {
+			// ARP request
+			dstMAC = arp_request(srcID, dstIP)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("ARP request timed out.\n")
+			} else {
+				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = dstMAC // Add to ARP table
+			}
 		}
 
 	} else { // Different subnet - GW.
-		debug(4, "hostDetermineDstMAC", srcHost.ID, "Sending to different subnet, sending to GW")
+		debug(4, "hostDetermineDstMAC", srcID, "Sending to different subnet, sending to GW")
+		gateway := srcHost.DefaultGateway.String()
 
-		//TODO: Check MAC table
-
-		// ARP
-		dstMAC = arp_request(srcHost.ID, string(srcHost.DefaultGateway))
-		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-			fmt.Printf("ARP request timed out.\n")
+		// Check ARP table
+		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] != "" {
+			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway]
+		} else {
+			// ARP request
+			dstMAC = arp_request(srcID, gateway)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("ARP request timed out.\n")
+			} else {
+				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = dstMAC // Add to ARP table
+			}
 		}
 	}
 
 	return dstMAC
 }
 
-// A router determines the destination MAC to send to... Either by ARP, or reading MAC table
-func routerDetermineDstMAC(router Router, dstIP string) string {
+// A router determines the destination MAC to send to... Either by ARP, or reading ARP table
+func routerDetermineDstMAC(router Router, dstIP string, useTable bool) string {
 	dstMAC := ""
 
-	// Same subnet - MAC table, or ARP.
+	// Same subnet - ARP table, or ARP request.
 	netsizeInt, _ := strconv.Atoi(snet.Netsize)
 	subnetMask := prefixLengthToSubnetMask(netsizeInt)
 	if iphelper.IPInSameSubnet(router.Gateway.String(), dstIP, subnetMask) {
 		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
 
-		//TODO: Check MAC table
-
-		// ARP
-		dstMAC = arp_request(router.ID, dstIP)
-		if dstMAC == "TIMEOUT" { // ARP did not return a MAC
-			fmt.Printf("ARP request timed out.\n")
+		// Check ARP table
+		if useTable && snet.Router.ARPTable[dstIP] != "" {
+			dstMAC = snet.Router.ARPTable[dstIP]
+		} else {
+			// ARP request
+			dstMAC = arp_request(router.ID, dstIP)
+			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+				fmt.Printf("ARP request timed out.\n")
+			} else {
+				snet.Router.ARPTable[dstIP] = dstMAC // Add to ARP table
+			}
 		}
 
 	} else {

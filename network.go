@@ -21,7 +21,6 @@ import (
 type Network struct {
 	ID         string   `json:"id"`
 	Name       string   `json:"name"`
-	Author     string   `json:"author"`
 	Netsize    string   `json:"netsize"`
 	Router     Router   `json:"router"`
 	Switches   []Switch `json:"switches"`
@@ -36,13 +35,28 @@ var scanner = bufio.NewScanner(os.Stdin)
 
 func newNetworkPrompt() {
 	fmt.Println("Creating a new network")
-	fmt.Print("Your new network's name: ")
-	scanner.Scan()
-	netname := scanner.Text()
 
-	fmt.Print("\nYour name: ")
-	scanner.Scan()
-	username := scanner.Text()
+	var netname = ""
+	for {
+		fmt.Print("Your new network's name: ")
+		scanner.Scan()
+		netname = scanner.Text()
+
+		// Check if file already exists
+		filename := "saves/user_saves/" + netname + ".json"
+		if _, err := os.Stat(filename); err == nil {
+			// File exists
+			fmt.Println("\nError: A network with this name already exists!")
+
+		} else if !os.IsNotExist(err) {
+			// Some other error occurred
+			log.Fatal(err)
+		} else if netname == "" {
+			fmt.Println("\nError: Network name cannot be blank.")
+		} else {
+			break
+		}
+	}
 
 	class_valid := false
 	networkPrefix := "24"
@@ -61,16 +75,16 @@ func newNetworkPrompt() {
 		}
 	}
 
-	newNetwork(netname, username, networkPrefix, "user")
+	newNetwork(netname, networkPrefix, "user")
 }
 
-func newNetwork(netname string, username string, networkPrefix string, saveType string) {
+func newNetwork(netname string, networkPrefix string, saveType string) {
 	netid := idgen(8)
 	net := Network{
 		ID:         netid,
 		Name:       netname,
-		Author:     username,
 		Netsize:    networkPrefix,
+		ProgramVer: currentVersion,
 		DebugLevel: 1,
 	}
 
@@ -79,7 +93,7 @@ func newNetwork(netname string, username string, networkPrefix string, saveType 
 		log.Println(err)
 	}
 
-	// Write to file
+	// Determine the file path
 	filename := ""
 	if saveType == "user" {
 		filename = "saves/user_saves/" + netname + ".json"
@@ -178,9 +192,37 @@ func loadNetwork(netname string, saveType string) {
 		fmt.Printf("err: %v", err)
 	}
 
+	// Version check
+	migrate := false
+	if net.ProgramVer != currentVersion {
+		fmt.Print("The selected save file was created in an older version. Attempt migrating? [y/N]: ")
+
+		scanner.Scan()
+		migrateSelection := strings.ToUpper(scanner.Text())
+
+		switch migrateSelection {
+		case "Y", "YES":
+			// "Migrate". Will make this more intelligent eventually
+			net.ProgramVer = currentVersion
+			migrate = true
+		default:
+			startMenu()
+			return
+		}
+	}
+
+	// Clear MAC tables (ARP, MAC address table) on new launch
+	net.ClearMACTables()
+
 	//save global
 	snet = net
-	fmt.Printf("Loaded %s\n", snet.Name)
+
+	// Save successful version migration
+	if migrate {
+		save()
+	}
+
+	fmt.Printf("Loaded \"%s\"\n", snet.Name)
 }
 
 func save() {
@@ -197,4 +239,22 @@ func save() {
 	f.Write(marshString)
 	os.Truncate(filename, int64(len(marshString)))
 	fmt.Println("Network saved")
+}
+
+func (n *Network) ClearMACTables() {
+	// Host ARP tables
+	for _, host := range n.Hosts {
+		host.ARPTable = make(map[string]string)
+	}
+
+	// Router ARP table
+	n.Router.ARPTable = make(map[string]string)
+
+	// Switch MAC address tables
+	for _, sw := range n.Switches {
+		sw.MACTable = make(map[string]int)
+	}
+
+	// VSwitch MAC address table
+	n.Router.VSwitch.MACTable = make(map[string]int)
 }

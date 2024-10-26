@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	//"time"
 	"strconv"
 	"strings"
 )
@@ -35,6 +34,7 @@ func RouterConn(device string, id string) {
 
 			switch actionword1 {
 			case "":
+
 			case "ping":
 				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
 					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
@@ -48,10 +48,10 @@ func RouterConn(device string, id string) {
 						}
 						<-actionsync[id]
 					} else {
-						fmt.Println("Usage: ping <dest_ip> [seconds]")
+						fmt.Println("Usage: ping <dst_ip> [seconds]")
 					}
 				}
-			case "arp":
+			case "arprequest":
 				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
 					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
 				} else {
@@ -64,25 +64,88 @@ func RouterConn(device string, id string) {
 				}
 			case "dhcpserver":
 				displayDHCPServer()
-				save()
-			case "ipset":
-				if len(action) > 1 {
-					ipset(snet.Router.Hostname, action[1])
-					save()
-				} else {
-					fmt.Println("Usage: ipset <ip_address>")
+
+			case "ip":
+				printIPHelp := func() {
+					fmt.Println("",
+						"ip address\t\t\tShow IP configuration\n",
+						"ip route\t\t\tShow known routes\n",
+						"ip set\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
+						"ip clear\t\t\tClears an IP configuration (WARNING: This does not release DHCP leases)",
+					)
 				}
-			case "ipclear":
-				ipclear(snet.Router.Gateway.String())
-				save()
+
+				if len(action) > 1 {
+					switch action[1] {
+					case "a", "addr", "address":
+						netsizeInt, _ := strconv.Atoi(snet.Netsize)
+						subnetMask := prefixLengthToSubnetMask(netsizeInt)
+						fmt.Println("IPv4 address: " + snet.Router.Gateway.String())
+						fmt.Println("Subnet mask: " + subnetMask)
+
+					case "route":
+						fmt.Println("Routing not implemented yet.")
+
+					case "set":
+						if len(action) > 2 {
+							ipset(snet.Router.Hostname, action[2])
+							save()
+						} else {
+							fmt.Println("Usage: ipset <ip_address>")
+						}
+
+					case "clear":
+						ipclear(snet.Router.Gateway.String())
+						save()
+
+					case "help", "?":
+						printIPHelp()
+
+					default:
+						fmt.Println(" Invalid command. Type 'ip ?' for a list of commands.")
+					}
+				} else {
+					printIPHelp()
+				}
+
+			case "arp":
+				if len(action) > 1 {
+					switch action[1] {
+					case "request":
+						if len(action) > 2 {
+							go arpSynchronized(id, action[2])
+							<-actionsync[id]
+						} else {
+							fmt.Println("Usage: arp request <target_ip>")
+						}
+
+					case "clear":
+						snet.Router.ARPTable = make(map[string]string)
+						fmt.Println("ARP table cleared")
+
+					case "help", "?":
+						fmt.Println("",
+							"arp\t\t\tShows the device's ARP table (IP address : MAC address)\n",
+							"arp request <dst_ip>\tManually ARP request an address",
+							"arp clear\t\tClears the device's ARP table",
+						)
+
+					default:
+						fmt.Println(" Invalid command. Type '?' for a list of commands.")
+					}
+				} else {
+					displayARPTable(snet.Router.ID)
+				}
+
 			case "exit", "quit", "q":
 				return
+
 			case "help", "?":
 				fmt.Println("",
-					"ping <dest_ip> [seconds]\tPings an IP address\n",
+					"ping <dst_ip> [seconds]\tPings an IP address\n",
 					"dhcpserver\t\t\tDisplays DHCP server and DHCP pool settings\n",
-					"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
-					"ipclear\t\t\tClears an IP configuration\n",
+					"ip\t\t\t\tManage IP addressing\n",
+					"arp\t\t\t\tShow and manage the ARP table\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 			default:

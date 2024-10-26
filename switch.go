@@ -23,6 +23,7 @@ type Switch struct {
 	Ports    []string       `json:"ports"`   // maps port # to downlink ID
 	PortIDs  []string       `json:"portids"` // maps port # to Port ID
 	//PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
+	ARPTable map[string]string `json:"arptable"`
 }
 
 func NewSumerian2100(hostname string) Switch {
@@ -31,6 +32,7 @@ func NewSumerian2100(hostname string) Switch {
 	s.Model = "Sumerian 2100"
 	s.Hostname = hostname
 	s.Maxports = 4
+	s.ARPTable = make(map[string]string)
 
 	return s
 }
@@ -101,30 +103,30 @@ func delSwitch() {
 	//TODO For all linked devices, unlink. then delete
 }
 
-func lookupMACTable(macaddr string, id string) int { // For looking up addresses
-	resultPort := -1 // made this recent change that might have fixed? idk
-	table := make(map[string]int)
-	if isSwitchportID(snet.Router.VSwitch, id) {
-		table = snet.Router.VSwitch.MACTable
+func lookupMACTable(dstMAC string, switchportID string) int { // For looking up addresses
+	resultPort := -1
+	var MACTable map[string]int
+
+	if isSwitchportID(snet.Router.VSwitch, switchportID) {
+		MACTable = snet.Router.VSwitch.MACTable
 	} else {
 		for i := range snet.Switches {
-			if isSwitchportID(snet.Switches[i], id) {
-				table = snet.Switches[i].MACTable
+			if isSwitchportID(snet.Switches[i], switchportID) {
+				MACTable = snet.Switches[i].MACTable
 			}
 		}
 	}
 
-	//if switch
-	for k, v := range table {
-		if k == macaddr {
-			resultPort = v
+	for k := range MACTable {
+		if k == dstMAC {
+			resultPort = MACTable[k]
 		}
 	}
 
 	return resultPort
 }
 
-func checkMACTable(macaddr string, id string, port int) { // For checking table on incoming frames
+func checkMACTable(macaddr string, id string, port int) { // For updating MAC table on incoming frames
 	result := 0
 	table := make(map[string]int)
 	if isSwitchportID(snet.Router.VSwitch, id) {
@@ -140,7 +142,7 @@ func checkMACTable(macaddr string, id string, port int) { // For checking table 
 	for k, v := range table {
 		if k == macaddr {
 			if v == port {
-				debug(4, "checkMACTable", id, "Address found in MAC table")
+				debug(4, "checkMACTable", id, "Source address found in MAC table")
 				result = v
 			} else {
 				delMACEntry(macaddr, id, port)
@@ -148,8 +150,8 @@ func checkMACTable(macaddr string, id string, port int) { // For checking table 
 		}
 	}
 
-	if result == -1 {
-		msg := "Address " + macaddr + " not found in MAC table. Adding"
+	if result == 0 {
+		msg := "Source address " + macaddr + " not found in MAC table. Adding"
 		debug(3, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
 	}
@@ -210,23 +212,25 @@ func assignSwitchport(sw Switch, id string) Switch {
 	return sw
 }
 
-func switchforward(frame Frame, id string) {
+func switchforward(frame Frame, switchportID string) {
 	srcMAC := frame.SrcMAC
 	dstMAC := frame.DstMAC
 	linkID := ""
+	floodFrame := false
 
-	outboundPort := lookupMACTable(dstMAC, id)
+	outboundPort := lookupMACTable(dstMAC, switchportID)
 
 	if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table.
-		debug(4, "switchforward", id, "Warning: Not found in MAC table, using bypass") //TODO implement flooding
-		linkID = getIDfromMAC(dstMAC)
+		floodFrame = true
 	} else {
-		if isSwitchportID(snet.Router.VSwitch, id) {
+		if isSwitchportID(snet.Router.VSwitch, switchportID) {
+			debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address found in MAC table.")
 			linkID = snet.Router.VSwitch.Ports[outboundPort]
 		} else {
+			debug(3, "switchforward", switchportID, "Should never print this yet - outer")
 			for i := range snet.Switches {
-				debug(3, "switchforward", id, "Should never print this yet")
-				if isSwitchportID(snet.Switches[i], id) {
+				debug(3, "switchforward", switchportID, "Should never print this yet - inner")
+				if isSwitchportID(snet.Switches[i], switchportID) {
 					linkID = snet.Switches[i].Ports[outboundPort]
 				}
 			}
@@ -241,7 +245,18 @@ func switchforward(frame Frame, id string) {
 		Data:      p,
 	}
 	outFrame, _ := json.Marshal(f)
-	channels[linkID] <- outFrame
+
+	if floodFrame {
+		debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address not found in MAC table. Flooding frame on all ports")
+		for port := range snet.Router.VSwitch.Ports {
+			linkID = snet.Router.VSwitch.Ports[port]
+			if snet.Router.VSwitch.PortIDs[port] != switchportID { // Don't send out source interface
+				channels[linkID] <- outFrame
+			}
+		}
+	} else {
+		channels[linkID] <- outFrame
+	}
 }
 
 func freeSwitchport(link string) {
