@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	//"time"
 	"strconv"
 	"strings"
 )
@@ -56,6 +55,7 @@ func HostConn(device string, id string) {
 
 			switch actionword1 {
 			case "":
+
 			case "ping":
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
@@ -71,22 +71,10 @@ func HostConn(device string, id string) {
 						}
 						<-actionsync[id]
 					} else {
-						fmt.Println("Usage: ping <dest_ip> [count]")
+						fmt.Println("Usage: ping <dst_ip> [count]")
 					}
 				}
-			case "arprequest":
-				if host.UplinkID == "" {
-					fmt.Println("Device is not connected. Please set an uplink")
-				} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
-					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
-				} else {
-					if len(action) > 1 {
-						go arpSynchronized(id, action[1])
-						<-actionsync[id]
-					} else {
-						fmt.Println("Usage: arp <target_ip>")
-					}
-				}
+
 			case "dhcp":
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
@@ -95,35 +83,99 @@ func HostConn(device string, id string) {
 					<-actionsync[id]
 					save()
 				}
-			case "ipset":
-				if host.UplinkID == "" {
-					fmt.Println("Device is not connected. Please set an uplink")
-				} else {
-					if len(action) > 1 {
-						ipset(host.Hostname, action[1])
-						save()
-					} else {
-						fmt.Println("Usage: ipset <ip_address>")
-					}
+
+			case "ip":
+				printIPHelp := func() {
+					fmt.Println("",
+						"ip address\t\t\tShow IP configuration\n",
+						"ip route\t\t\tShow known routes\n",
+						"ip set\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
+						"ip clear\t\t\tClears an IP configuration (WARNING: This does not release DHCP leases)",
+					)
 				}
-			case "ipclear":
-				ipclear(host.ID)
-				save()
-			case "arptable":
-				displayARPTable(host.ID)
+
+				if len(action) > 1 {
+					switch action[1] {
+					case "a", "addr", "address":
+						fmt.Println("IPv4 address: " + host.IPAddr.String())
+						fmt.Println("Subnet mask: " + host.SubnetMask)
+
+					case "route":
+						fmt.Println("Default gateway: " + host.DefaultGateway.String())
+
+					case "set":
+						if host.UplinkID == "" {
+							fmt.Println("Device is not connected. Please set an uplink")
+						} else {
+							if len(action) > 2 {
+								ipset(host.Hostname, action[2])
+								save()
+							} else {
+								fmt.Println("Usage: ip set <ip_address>")
+							}
+						}
+					case "clear":
+						ipclear(host.ID)
+						save()
+
+					case "help", "?":
+						printIPHelp()
+
+					default:
+						fmt.Println(" Invalid command. Type 'ip ?' for a list of commands.")
+					}
+				} else {
+					printIPHelp()
+				}
+			case "arp":
+				if len(action) > 1 {
+					switch action[1] {
+					case "request":
+						if host.UplinkID == "" {
+							fmt.Println("Device is not connected. Please set an uplink")
+						} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
+							fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
+						} else {
+							if len(action) > 2 {
+								go arpSynchronized(id, action[2])
+								<-actionsync[id]
+							} else {
+								fmt.Println("Usage: arp request <target_ip>")
+							}
+						}
+
+					case "clear":
+						snet.Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]string)
+						fmt.Println("ARP table cleared")
+
+					case "help", "?":
+						fmt.Println("",
+							"arp\t\t\tShows the device's ARP table (IP address : MAC address)\n",
+							"arp request <dst_ip>\tManually ARP request an address",
+							"arp clear\t\tClears the device's ARP table",
+						)
+
+					default:
+						fmt.Println(" Invalid command. Type '?' for a list of commands.")
+					}
+				} else {
+					displayARPTable(host.ID)
+				}
+
 			case "exit", "quit", "q":
 				return
+
 			case "help", "?":
 				fmt.Println("",
-					"ping <dest_ip> [seconds]\tPings an IP address\n",
+					"ping <dst_ip> [seconds]\tPings an IP address\n",
 					"dhcp\t\t\t\tGets IP configuration via DHCP\n",
-					"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
-					"ipclear\t\t\tClears an IP configuration (WARNING: This does not release any DHCP leases)\n",
-					"arptable\t\t\tShows the host's ARP table (IP address : MAC address)\n",
+					"ip\t\t\t\tManage IP addressing\n",
+					"arp\t\t\t\tShow and manage the ARP table\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
+
 			default:
-				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
+				fmt.Println(" Invalid command. Type '?' for a list of commands.")
 			}
 		}
 	}

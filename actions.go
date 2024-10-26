@@ -53,7 +53,7 @@ func ping(srcID string, dstIP string, count int) {
 	for i := 0; i < count; i++ {
 		// Get destination MAC address
 		if snet.Router.ID == srcID {
-			dstMAC = routerDetermineDstMAC(snet.Router, dstIP)
+			dstMAC = routerDetermineDstMAC(snet.Router, dstIP, true)
 
 			// Get linkID (which link to send ping over)
 			dstID := getIDfromMAC(dstMAC)
@@ -64,7 +64,7 @@ func ping(srcID string, dstIP string, count int) {
 				linkID = snet.Router.ID
 			}
 		} else {
-			dstMAC = hostDetermineDstMAC(srcHost, dstIP)
+			dstMAC = hostDetermineDstMAC(srcHost, dstIP, true)
 		}
 
 		if dstMAC == "TIMEOUT" {
@@ -141,7 +141,7 @@ func pong(srcID string, frame Frame) {
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.MACAddr
 		srcIP = snet.Router.Gateway.String()
-		dstMAC := routerDetermineDstMAC(snet.Router, dstIP)
+		dstMAC := routerDetermineDstMAC(snet.Router, dstIP, true)
 
 		//Get link to send ping to
 		dstID := getIDfromMAC(dstMAC)
@@ -155,7 +155,7 @@ func pong(srcID string, frame Frame) {
 		index := getHostIndexFromID(srcID)
 		srcMAC = snet.Hosts[index].MACAddr
 		srcIP = snet.Hosts[index].IPAddr.String()
-		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP)
+		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP, true)
 
 		linkID = snet.Hosts[index].UplinkID
 	}
@@ -566,20 +566,21 @@ func ipset(hostname string, ipaddr string) {
 // Run an ARP request, but synchronize with client
 func arpSynchronized(id string, targetIP string) {
 	arp_request(id, targetIP)
+	hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
 	actionsync[id] <- 1
 }
 
-// A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading MAC table
-func hostDetermineDstMAC(srcHost Host, dstIP string) string {
+// A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading ARP table
+func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 	srcID := srcHost.ID
 	dstMAC := ""
 
-	// Same subnet - MAC table, or ARP.
+	// Same subnet - ARP table, or ARP request.
 	if iphelper.IPInSameSubnet(srcHost.IPAddr.String(), dstIP, srcHost.SubnetMask) {
-		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to MAC table lookup or ARP")
+		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
 
 		// Check ARP table
-		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] != "" {
+		if useTable && snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] != "" {
 			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP]
 		} else {
 			// ARP request
@@ -612,18 +613,18 @@ func hostDetermineDstMAC(srcHost Host, dstIP string) string {
 	return dstMAC
 }
 
-// A router determines the destination MAC to send to... Either by ARP, or reading MAC table
-func routerDetermineDstMAC(router Router, dstIP string) string {
+// A router determines the destination MAC to send to... Either by ARP, or reading ARP table
+func routerDetermineDstMAC(router Router, dstIP string, useTable bool) string {
 	dstMAC := ""
 
-	// Same subnet - MAC table, or ARP.
+	// Same subnet - ARP table, or ARP request.
 	netsizeInt, _ := strconv.Atoi(snet.Netsize)
 	subnetMask := prefixLengthToSubnetMask(netsizeInt)
 	if iphelper.IPInSameSubnet(router.Gateway.String(), dstIP, subnetMask) {
 		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
 
 		// Check ARP table
-		if snet.Router.ARPTable[dstIP] != "" {
+		if useTable && snet.Router.ARPTable[dstIP] != "" {
 			dstMAC = snet.Router.ARPTable[dstIP]
 		} else {
 			// ARP request

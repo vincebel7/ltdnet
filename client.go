@@ -228,7 +228,22 @@ func actionsMenu() {
 		}
 
 	case "achievements":
-		displayAchievements()
+		printAchievementsHelp := func() {
+			fmt.Println("",
+				"achievements show\tShow your achievements\n",
+				"achievements info\tShow all achievements",
+			)
+		}
+		switch action_selection {
+		case "achievements", "achievements help", "achievements ?":
+			printAchievementsHelp()
+		case "achievements show":
+			displayAchievements()
+		case "achievements info":
+			fmt.Println("Not implemented yet")
+		default:
+			fmt.Println(" Invalid command. Type 'achievements ?' for a list of commands.")
+		}
 
 	case "save":
 		save()
@@ -241,22 +256,17 @@ func actionsMenu() {
 		case "show network overview", "sh network overview":
 			overview()
 
-		case "show diagram":
+		case "show diagram", "sh diagram":
 			drawDiagram(snet.Router.ID)
-
-		case "show achievements":
-			displayAchievements()
 
 		default:
 			if len(action_selection) > 12 { // show device
 				show(action_selection[12:])
 			} else {
 				fmt.Println(
-					"COMMANDS:\n",
 					"show network overview\n",
 					"show device <hostname>\n",
-					"show diagram\n",
-					"show achievements",
+					"show diagram",
 				)
 			}
 		}
@@ -275,7 +285,7 @@ func actionsMenu() {
 				"1 - Errors\n",
 				"2 - General network traffic\n",
 				"3 - All network traffic\n",
-				"4 - All sorts of garbage (dev use)")
+				"4 - All sorts of garbage (development+learning)")
 		}
 
 	case "manual", "man":
@@ -293,7 +303,9 @@ func actionsMenu() {
 			"link <args>\t\tLinks two devices\n",
 			"unlink <args>\t\tUnlinks two devices\n",
 			"control <args>\t\tLogs in as device\n",
+
 			"\nSYSTEM COMMANDS:\n",
+			"achievements <action>\tView user achievements\n",
 			"save\t\t\tManually saves network changes\n",
 			"reload\t\t\tReloads the network file. May fix runtime bugs\n",
 			"debug <0-4>\t\tSets debug level. Default is 1\n",

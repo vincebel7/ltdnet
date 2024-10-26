@@ -8,8 +8,6 @@ package main
 
 import (
 	"fmt"
-	//"time"
-
 	"strings"
 )
 
@@ -62,30 +60,50 @@ func SwitchConn(id string) {
 
 			switch actionword1 {
 			case "":
+
 			case "ping":
 				fmt.Println("Not yet implemented on switches")
-			case "arprequest":
+
+			case "ip":
 				fmt.Println("Not yet implemented on switches")
-			case "ipset":
-				fmt.Println("Not yet implemented on switches")
-			case "ipclear":
-				fmt.Println("Not yet implemented on switches")
-				//ipclear(sw.ID)
-				//save()
-			case "arptable":
+
+			case "arp":
 				fmt.Println("Not yet implemented on switches")
 				//displayARPTable(sw.ID)
-			case "mactable":
-				displayMACTable(sw.ID)
+
+			case "mac":
+				if len(action) > 1 {
+					switch action[1] {
+					case "clear":
+						if snet.Router.VSwitch.ID == id {
+							snet.Router.VSwitch.MACTable = make(map[string]int)
+						} else {
+							snet.Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]int)
+						}
+						fmt.Println("MAC table cleared")
+
+					case "help", "?":
+						fmt.Println("",
+							"mac\t\t\tShows the device's MAC table (MAC address : Interface)\n",
+							"mac clear\t\tClears the device's MAC table",
+						)
+
+					default:
+						fmt.Println(" Invalid command. Type '?' for a list of commands.")
+					}
+				} else {
+					displayMACTable(sw.ID)
+				}
+
 			case "exit", "quit", "q":
 				return
+
 			case "help", "?":
 				fmt.Println("",
-					//"ping <dest_ip> [seconds]\tPings an IP address\n",
-					//"ipset\t\t\t\tStarts dialogue for statically assigning an IP configuration\n",
-					//"ipclear\t\t\tClears an IP configuration\n",
-					//"arptable\t\t\tShows the switch's ARP table (IP address : MAC address)\n",
-					"mactable\t\t\tShows the switch's MAC address table (MAC address : Switchport #)\n",
+					//"ping <dst_ip> [seconds]\tPings an IP address\n",
+					//"ip\t\t\t\tManage IP addressing\n",
+					//"arp\t\t\t\tShow and manage the ARP table\n",
+					"mac\t\t\t\tShow and manage the MAC address table\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 			default:

@@ -13,9 +13,10 @@ package main
 import "fmt"
 
 type Achievement struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	ProgramVer string `json:"program_ver"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ProgramVer  string `json:"program_ver"`
 }
 
 var AchievementCatalog = make(map[int]Achievement)
@@ -26,21 +27,23 @@ var UNITED_PINGDOM = 2
 
 func buildAchievementCatalog() {
 	achievement := Achievement{
-		ID:   ROUTINE_BUSINESS,
-		Name: "Route-ine Business",
+		ID:          ROUTINE_BUSINESS,
+		Name:        "Route-ine Business",
+		Description: "Add a router to your network.",
 	}
 	AchievementCatalog[ROUTINE_BUSINESS] = achievement
 
 	achievement = Achievement{
-		ID:   UNITED_PINGDOM,
-		Name: "United Pingdom",
+		ID:          UNITED_PINGDOM,
+		Name:        "United Pingdom",
+		Description: "Successfully ping from one device to another.",
 	}
 	AchievementCatalog[UNITED_PINGDOM] = achievement
 }
 
 func displayAchievements() {
 	fmt.Printf("ACHIEVEMENTS:\n")
-	fmt.Printf("#\tAchievement Name\t\tUnlocked\n")
+	fmt.Printf("#\tName\t\t\t\tDescription\t\t\t\t\tUnlocked\n")
 
 	keys := make([]int, 1, len(AchievementCatalog))
 	for k := range AchievementCatalog {
@@ -58,7 +61,7 @@ func displayAchievements() {
 			unlockedChar = "Y"
 		}
 
-		fmt.Printf("%d\t%s\t%s\n", AchievementCatalog[i].ID, PadRight(AchievementCatalog[i].Name, 25), unlockedChar)
+		fmt.Printf("%d\t%s\t%s\t%s\n", AchievementCatalog[i].ID, PadRight(AchievementCatalog[i].Name, 25), PadRight(AchievementCatalog[i].Description, 45), unlockedChar)
 	}
 }
 
