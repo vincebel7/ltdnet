@@ -108,3 +108,5 @@ Creating, saving, and loading JSON savefiles, creating a network, adding and lin
 ### v0.0 - July 17, 2019
 Basic interface
 
+## License
+This project is licensed under the terms of the GNU General Public License v3.0. See the [LICENSE](./LICENSE) file for details.
