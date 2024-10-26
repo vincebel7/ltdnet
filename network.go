@@ -35,9 +35,28 @@ var scanner = bufio.NewScanner(os.Stdin)
 
 func newNetworkPrompt() {
 	fmt.Println("Creating a new network")
-	fmt.Print("Your new network's name: ")
-	scanner.Scan()
-	netname := scanner.Text()
+
+	var netname = ""
+	for {
+		fmt.Print("Your new network's name: ")
+		scanner.Scan()
+		netname = scanner.Text()
+
+		// Check if file already exists
+		filename := "saves/user_saves/" + netname + ".json"
+		if _, err := os.Stat(filename); err == nil {
+			// File exists
+			fmt.Println("\nError: A network with this name already exists!")
+
+		} else if !os.IsNotExist(err) {
+			// Some other error occurred
+			log.Fatal(err)
+		} else if netname == "" {
+			fmt.Println("\nError: Network name cannot be blank.")
+		} else {
+			break
+		}
+	}
 
 	class_valid := false
 	networkPrefix := "24"
@@ -74,7 +93,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 		log.Println(err)
 	}
 
-	// Write to file
+	// Determine the file path
 	filename := ""
 	if saveType == "user" {
 		filename = "saves/user_saves/" + netname + ".json"
