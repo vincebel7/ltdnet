@@ -14,15 +14,19 @@ import (
 
 func intro() {
 	fmt.Println("ltdnet v0.3.0")
-	fmt.Println("by vincebel")
-	fmt.Println("\nPlease note that switch functionality is limited and in development")
+
+	if user_settings.Author == "" {
+		changeSettingsName()
+	}
 }
 
-func startMenu() {
+func startMenu() bool {
+	advanceMenus := false
 	selection := false
-	fmt.Println("\nPlease create or select a network:")
+	fmt.Println("\nPlease select an option:")
 	fmt.Println(" 1) Create new network")
 	fmt.Println(" 2) Select saved network")
+	fmt.Println(" 3) Preferences")
 	for !selection {
 		fmt.Print("\nAction: ")
 
@@ -32,14 +36,59 @@ func startMenu() {
 		switch strings.ToUpper(option) {
 		case "1", "C", "NEW", "CREATE":
 			selection = true
+			advanceMenus = true
 			newNetworkPrompt()
 		case "2", "S", "SELECT":
 			selection = true
+			advanceMenus = true
 			selectNetwork()
+		case "3", "P", "PREFERENCES", "PREF":
+			selection = true
+			preferencesMenu()
 		default:
-			fmt.Println("Not a valid option. Options: 1, 2")
+			fmt.Println("Not a valid option. Options: 1, 2, 3")
 		}
 	}
+
+	return advanceMenus
+}
+
+func preferencesMenu() {
+	selection := false
+	fmt.Println("\nUSER PREFERENCES")
+	fmt.Println("\nPlease select an option:")
+	fmt.Println(" 1) Change name")
+	fmt.Println(" 2) Disable/Enable Challenges")
+	fmt.Println(" 3) Reset Challenges")
+	fmt.Println(" 4) Reset user preferences")
+	fmt.Println(" 5) Reset all program data")
+
+	for !selection {
+		fmt.Print("\nAction: ")
+
+		scanner.Scan()
+		option := scanner.Text()
+
+		switch strings.ToUpper(option) {
+		case "1":
+			selection = true
+			changeSettingsName()
+		case "2":
+			toggleChallenges()
+		case "3":
+			selection = true
+			resetChallenges()
+		case "4":
+			selection = true
+			resetProgramSettings()
+		case "5":
+			selection = true
+			resetProgramPrompt()
+		default:
+			fmt.Println("Not a valid option. Options: 1, 2, 3, 4, 5")
+		}
+	}
+
 }
 
 func actionsMenu() {
@@ -241,14 +290,23 @@ func actionsMenu() {
 }
 
 func main() {
+	loadUserSettings()
 	intro()
-	startMenu()
+
+	for {
+		if startMenu() {
+			break
+		}
+	}
+
 	go Listener()
 
 	for range snet.Hosts {
 		<-listenSync
 	}
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
+	fmt.Printf("[Notice] Please note that switch functionality is limited and in development\n")
+
 	fmt.Println("\nltdnetOS:")
 
 	for {

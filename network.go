@@ -21,7 +21,6 @@ import (
 type Network struct {
 	ID         string   `json:"id"`
 	Name       string   `json:"name"`
-	Author     string   `json:"author"`
 	Netsize    string   `json:"netsize"`
 	Router     Router   `json:"router"`
 	Switches   []Switch `json:"switches"`
@@ -40,10 +39,6 @@ func newNetworkPrompt() {
 	scanner.Scan()
 	netname := scanner.Text()
 
-	fmt.Print("\nYour name: ")
-	scanner.Scan()
-	username := scanner.Text()
-
 	class_valid := false
 	networkPrefix := "24"
 	for !class_valid {
@@ -61,15 +56,14 @@ func newNetworkPrompt() {
 		}
 	}
 
-	newNetwork(netname, username, networkPrefix, "user")
+	newNetwork(netname, networkPrefix, "user")
 }
 
-func newNetwork(netname string, username string, networkPrefix string, saveType string) {
+func newNetwork(netname string, networkPrefix string, saveType string) {
 	netid := idgen(8)
 	net := Network{
 		ID:         netid,
 		Name:       netname,
-		Author:     username,
 		Netsize:    networkPrefix,
 		DebugLevel: 1,
 	}
