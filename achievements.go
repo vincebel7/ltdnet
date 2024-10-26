@@ -86,7 +86,7 @@ func achievementCheck() {
 	}
 
 	// Test state-based Achievements
-	achievementTester(ROUTINE_BUSINESS)
+	//achievementTester()
 }
 
 // Kicks off tests for incomplete Achievements
@@ -109,16 +109,9 @@ func achievementTester(achievementID int) {
 
 // Achievement 1: Create a router
 func achievement1Test() {
-	achievementComplete := false
-
-	if snet.Router.ID != "" {
-		achievementComplete = true
-	}
-
-	if achievementComplete {
-		achievement := AchievementCatalog[ROUTINE_BUSINESS]
-		achievementAward(achievement)
-	}
+	// If this function is called, the achievement is already complete (action-based)
+	achievement := AchievementCatalog[ROUTINE_BUSINESS]
+	achievementAward(achievement)
 }
 
 // Achievement 2: Successful ping
