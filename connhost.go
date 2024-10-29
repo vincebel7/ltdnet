@@ -145,7 +145,7 @@ func HostConn(device string, id string) {
 						}
 
 					case "clear":
-						snet.Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]string)
+						snet.Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]ARPEntry)
 						fmt.Println("ARP table cleared")
 
 					case "help", "?":

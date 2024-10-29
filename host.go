@@ -10,18 +10,26 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 type Host struct {
-	ID             string            `json:"id"`
-	Model          string            `json:"model"`
-	MACAddr        string            `json:"macaddr"`
-	Hostname       string            `json:"hostname"`
-	IPAddr         net.IP            `json:"ipaddr"`
-	SubnetMask     string            `json:"mask"`
-	DefaultGateway net.IP            `json:"gateway"`
-	UplinkID       string            `json:"uplinkid"`
-	ARPTable       map[string]string `json:"arptable"`
+	ID             string              `json:"id"`
+	Model          string              `json:"model"`
+	MACAddr        string              `json:"macaddr"`
+	Hostname       string              `json:"hostname"`
+	IPAddr         net.IP              `json:"ipaddr"`
+	SubnetMask     string              `json:"mask"`
+	DefaultGateway net.IP              `json:"gateway"`
+	UplinkID       string              `json:"uplinkid"`
+	ARPTable       map[string]ARPEntry `json:"arptable"`
+}
+
+type ARPEntry struct {
+	MACAddr    string    `json:"macaddr"`
+	ExpireTime time.Time `json:"expireTime"`
+	Interface  string    `json:"interface"`
+	State      string    `json:"state"`
 }
 
 func NewProbox(hostname string) Host {
@@ -30,7 +38,7 @@ func NewProbox(hostname string) Host {
 	p.Model = "ProBox 1"
 	p.MACAddr = macgen()
 	p.Hostname = hostname
-	p.ARPTable = make(map[string]string)
+	p.ARPTable = make(map[string]ARPEntry)
 
 	return p
 }

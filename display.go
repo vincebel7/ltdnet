@@ -289,7 +289,7 @@ func show(hostname string) {
 }
 
 func displayARPTable(deviceID string) {
-	var ARPTable map[string]string
+	var ARPTable map[string]ARPEntry
 
 	if snet.Router.ID == deviceID {
 		ARPTable = snet.Router.ARPTable
@@ -298,10 +298,10 @@ func displayARPTable(deviceID string) {
 	}
 
 	fmt.Printf("ARP Table:\n")
-	fmt.Printf("IP Address\t\tMAC Address\n")
+	fmt.Printf("IP Address\t\tMAC Address\t\tInterface\t\tExpiration\n")
 
 	for i := range ARPTable {
-		fmt.Printf("%s\t\t%s\n", i, ARPTable[i])
+		fmt.Printf("%s\t\t%s\t%s\n", i, ARPTable[i].MACAddr, ARPTable[i].Interface)
 	}
 	fmt.Printf("\n")
 }
