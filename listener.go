@@ -32,17 +32,13 @@ func Listener() {
 		go listenRouterChannel()
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-			go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
+			go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortIDs[i])
 		}
 	}
 
 	for i := range snet.Switches {
-		for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
-			channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
-			socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
-			actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
-
-			go listenSwitchportChannel(snet.Switches[i].PortIDs[j])
+		for j := 0; j < getActivePorts(snet.Switches[i]); j++ {
+			go listenSwitchportChannel(snet.Switches[i].ID, snet.Switches[i].PortIDs[j])
 		}
 	}
 
@@ -59,7 +55,7 @@ func generateHostChannels(i int) {
 }
 
 func generateSwitchChannels(i int) {
-	for j := 0; j < getActivePorts(snet.Switches[j]); j++ {
+	for j := 0; j < getActivePorts(snet.Switches[i]); j++ {
 		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
 		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
 		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
@@ -241,7 +237,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 	}
 }
 
-func listenSwitchportChannel(switchportID string) {
+func listenSwitchportChannel(switchID string, switchportID string) {
 	for {
 		rawFrame := <-channels[switchportID]
 		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
@@ -249,14 +245,14 @@ func listenSwitchportChannel(switchportID string) {
 		port := getSwitchportIDFromLink(switchportID)
 		checkMACTable(readFrame(rawFrame).SrcMAC, switchportID, port)
 
-		go switchportActionHandler(rawFrame, switchportID)
+		go switchportActionHandler(rawFrame, switchID, switchportID)
 	}
 }
 
-func switchportActionHandler(rawFrame json.RawMessage, switchportID string) {
+func switchportActionHandler(rawFrame json.RawMessage, switchID string, switchportID string) {
 	if false { // Traffic for switch. TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else { // Normal frame forward
-		switchforward(readFrame(rawFrame), switchportID)
+		switchforward(readFrame(rawFrame), switchID, switchportID)
 	}
 }

@@ -197,7 +197,17 @@ func removeHostFromSlice(s []Host, i int) []Host {
 	return s[:len(s)-1]
 }
 
+func removeSwitchFromSlice(s []Switch, i int) []Switch {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
 func removeStringFromSlice(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+func removeIntFromSlice(s []int, i int) []int {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }

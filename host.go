@@ -69,7 +69,7 @@ func addHost(hostHostname string) {
 	<-listenSync
 }
 
-func linkHost(localDevice string, remoteDevice string) {
+func linkHostTo(localDevice string, remoteDevice string) {
 	localDevice = strings.ToUpper(localDevice)
 	remoteDevice = strings.ToUpper(remoteDevice)
 
@@ -101,11 +101,10 @@ func linkHost(localDevice string, remoteDevice string) {
 				for k := range snet.Router.VSwitch.Ports {
 					if (snet.Router.VSwitch.Ports[k] == "") && (uplinkID == "") {
 						uplinkID = snet.Router.VSwitch.PortIDs[k]
+						assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
 					}
 				}
-				//uplinkID = snet.Router.VSwitch.ID
 
-				assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
 			} else {
 				//Remote device on the new link is not the Router. Search switches
 				for j := range snet.Switches {
@@ -115,8 +114,7 @@ func linkHost(localDevice string, remoteDevice string) {
 						for k := range snet.Switches[j].Ports {
 							if (snet.Switches[j].Ports[k] == "") && (uplinkID == "") {
 								uplinkID = snet.Switches[j].PortIDs[k]
-								k = len(snet.Switches[j].Ports)
-								fmt.Println("DEBUG TEST")
+								assignSwitchport(snet.Switches[j], snet.Hosts[i].ID)
 							}
 						}
 					}
@@ -152,15 +150,29 @@ func delHost(hostname string) {
 	//search for host
 	for i := range snet.Hosts {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
-			//unlink
+			//unlink, Vswitch
 			for j := range snet.Router.VSwitch.Ports {
 				if snet.Router.VSwitch.Ports[j] == snet.Hosts[i].ID {
-					snet.Router.VSwitch.Ports = removeStringFromSlice(snet.Router.VSwitch.Ports, j)
+					snet.Router.VSwitch.Ports[j] = ""
+					snet.Router.VSwitch.PortIDs[j] = ""
 
 					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
 					fmt.Printf("\nHost deleted\n")
-
 					return
+				}
+			}
+
+			//unlink, other switches
+			for sw := range snet.Switches {
+				for p := range snet.Switches[sw].Ports {
+					if snet.Switches[sw].Ports[p] == snet.Hosts[i].ID {
+						snet.Switches[sw].Ports[p] = ""
+						snet.Switches[sw].PortIDs[p] = ""
+
+						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
+						fmt.Printf("\nHost deleted\n")
+						return
+					}
 				}
 			}
 

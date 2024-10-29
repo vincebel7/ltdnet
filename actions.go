@@ -214,6 +214,7 @@ func arp_request(srcID string, targetIP string) string {
 	// Send frame and wait for ARPREPLY
 	channels[linkID] <- arpRequestFrameBytes
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
+	debug(4, "arp_request", srcID, "ARPREQUEST sent - linkid: "+linkID)
 
 	sockets := socketMaps[srcID]
 	socketID := "arp_" + string(targetIP)

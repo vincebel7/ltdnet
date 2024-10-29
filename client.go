@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var currentVersion = "v0.3.0"
+var currentVersion = "v0.3.1"
 
 func intro() {
 	fmt.Println("ltdnet " + currentVersion)
@@ -170,7 +170,7 @@ func actionsMenu() {
 				confirmation := scanner.Text()
 				confirmation = strings.ToUpper(confirmation)
 				if confirmation == "Y" {
-					delSwitch()
+					delSwitch(actionword3)
 					save()
 				}
 			}
@@ -193,10 +193,13 @@ func actionsMenu() {
 
 	case "link":
 		if (actionword2 == "host") && (actionword3 != "") && (actionword4 != "") {
-			linkHost(actionword3, actionword4)
+			linkHostTo(actionword3, actionword4)
+			save()
+		} else if (actionword2 == "switch") && (actionword3 != "") && (actionword4 != "") {
+			linkSwitchTo(actionword3, actionword4)
 			save()
 		} else {
-			fmt.Println(" Usage: link host <hostname> <router_hostname>")
+			fmt.Println(" Usage: link <host|switch> <hostname> <router_hostname>")
 		}
 
 	case "unlink":

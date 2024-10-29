@@ -40,9 +40,9 @@ func TestNetworkSetup(t *testing.T) {
 	}
 
 	// Test 3: Link hosts
-	linkHost("h1", "r1")
-	linkHost("h2", "r1")
-	linkHost("h3", "r1")
+	linkHostTo("h1", "r1")
+	linkHostTo("h2", "r1")
+	linkHostTo("h3", "r1")
 
 	if (snet.Hosts[0].UplinkID == "") || (snet.Router.VSwitch.Ports[1] == "") {
 		t.Errorf("Host not (properly) linked")
