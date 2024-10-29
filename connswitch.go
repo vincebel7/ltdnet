@@ -76,9 +76,9 @@ func SwitchConn(id string) {
 					switch action[1] {
 					case "clear":
 						if snet.Router.VSwitch.ID == id {
-							snet.Router.VSwitch.MACTable = make(map[string]int)
+							snet.Router.VSwitch.MACTable = make(map[string]MACEntry)
 						} else {
-							snet.Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]int)
+							snet.Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]MACEntry)
 						}
 						fmt.Println("MAC table cleared")
 

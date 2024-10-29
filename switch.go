@@ -11,19 +11,26 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 type Switch struct {
-	ID       string         `json:"id"`
-	Model    string         `json:"model"`
-	Hostname string         `json:"hostname"`
-	MgmtIP   net.IP         `json:"mgmtip"`
-	MACTable map[string]int `json:"mactable"`
-	Maxports int            `json:"maxports"`
-	Ports    []string       `json:"ports"`   // maps port # to downlink ID
-	PortIDs  []string       `json:"portids"` // maps port # to Port ID
+	ID       string              `json:"id"`
+	Model    string              `json:"model"`
+	Hostname string              `json:"hostname"`
+	MgmtIP   net.IP              `json:"mgmtip"`
+	MACTable map[string]MACEntry `json:"mactable"`
+	Maxports int                 `json:"maxports"`
+	Ports    []string            `json:"ports"`   // maps port # to downlink ID
+	PortIDs  []string            `json:"portids"` // maps port # to Port ID
 	//PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
-	ARPTable map[string]string `json:"arptable"`
+	ARPTable map[string]ARPEntry `json:"arptable"`
+}
+
+type MACEntry struct {
+	Interface  int       `json:"interface"`
+	State      string    `json:"state"`
+	ExpireTime time.Time `json:"expireTime"`
 }
 
 func NewSumerian2100(hostname string) Switch {
@@ -32,7 +39,7 @@ func NewSumerian2100(hostname string) Switch {
 	s.Model = "Sumerian 2100"
 	s.Hostname = hostname
 	s.Maxports = 4
-	s.ARPTable = make(map[string]string)
+	s.ARPTable = make(map[string]ARPEntry)
 
 	return s
 }
@@ -64,7 +71,7 @@ func addSwitch(switchHostname string) {
 		s.Ports[i] = ""
 	}
 
-	s.MACTable = make(map[string]int)
+	s.MACTable = make(map[string]MACEntry)
 	snet.Switches = append(snet.Switches, s)
 
 	generateSwitchChannels(getSwitchIndexFromID(s.ID))
@@ -94,7 +101,7 @@ func addVirtualSwitch(maxports int) Switch {
 		v.Ports[i] = ""
 	}
 
-	v.MACTable = make(map[string]int)
+	v.MACTable = make(map[string]MACEntry)
 
 	return v
 }
@@ -105,7 +112,7 @@ func delSwitch() {
 
 func lookupMACTable(dstMAC string, switchportID string) int { // For looking up addresses
 	resultPort := -1
-	var MACTable map[string]int
+	var MACTable map[string]MACEntry
 
 	if isSwitchportID(snet.Router.VSwitch, switchportID) {
 		MACTable = snet.Router.VSwitch.MACTable
@@ -119,7 +126,7 @@ func lookupMACTable(dstMAC string, switchportID string) int { // For looking up 
 
 	for k := range MACTable {
 		if k == dstMAC {
-			resultPort = MACTable[k]
+			resultPort = MACTable[k].Interface
 		}
 	}
 
@@ -128,7 +135,7 @@ func lookupMACTable(dstMAC string, switchportID string) int { // For looking up 
 
 func checkMACTable(macaddr string, id string, port int) { // For updating MAC table on incoming frames
 	result := 0
-	table := make(map[string]int)
+	table := make(map[string]MACEntry)
 	if isSwitchportID(snet.Router.VSwitch, id) {
 		table = snet.Router.VSwitch.MACTable
 	} else {
@@ -141,9 +148,9 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 
 	for k, v := range table {
 		if k == macaddr {
-			if v == port {
+			if v.Interface == port {
 				debug(4, "checkMACTable", id, "Source address found in MAC table")
-				result = v
+				result = v.Interface
 			} else {
 				delMACEntry(macaddr, id, port)
 			}
@@ -159,11 +166,17 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 
 func addMACEntry(macaddr string, id string, port int) {
 	if isSwitchportID(snet.Router.VSwitch, id) {
-		snet.Router.VSwitch.MACTable[macaddr] = port
+		macEntry := MACEntry{
+			Interface: port,
+		}
+		snet.Router.VSwitch.MACTable[macaddr] = macEntry
 	} else {
 		for i := range snet.Switches {
 			if isSwitchportID(snet.Switches[i], id) {
-				snet.Switches[i].MACTable[macaddr] = port
+				macEntry := MACEntry{
+					Interface: port,
+				}
+				snet.Switches[i].MACTable[macaddr] = macEntry
 			}
 		}
 	}

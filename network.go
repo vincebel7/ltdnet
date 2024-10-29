@@ -252,9 +252,9 @@ func (n *Network) ClearMACTables() {
 
 	// Switch MAC address tables
 	for _, sw := range n.Switches {
-		sw.MACTable = make(map[string]int)
+		sw.MACTable = make(map[string]MACEntry)
 	}
 
 	// VSwitch MAC address table
-	n.Router.VSwitch.MACTable = make(map[string]int)
+	n.Router.VSwitch.MACTable = make(map[string]MACEntry)
 }

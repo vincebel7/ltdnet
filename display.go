@@ -307,7 +307,7 @@ func displayARPTable(deviceID string) {
 }
 
 func displayMACTable(deviceID string) {
-	var MACTable map[string]int
+	var MACTable map[string]MACEntry
 
 	if snet.Router.VSwitch.ID == deviceID {
 		MACTable = snet.Router.VSwitch.MACTable
@@ -316,10 +316,10 @@ func displayMACTable(deviceID string) {
 	}
 
 	fmt.Printf("MAC Table:\n")
-	fmt.Printf("MAC Address\t\tInterface #\n")
+	fmt.Printf("MAC Address\t\tInterface\t\tExpiration\n")
 
 	for i := range MACTable {
-		fmt.Printf("%s\t%d\n", i, MACTable[i])
+		fmt.Printf("%s\t%d\n", i, MACTable[i].Interface)
 	}
 	fmt.Printf("\n")
 }
