@@ -151,7 +151,7 @@ func HostConn(device string, id string) {
 					case "help", "?":
 						fmt.Println("",
 							"arp\t\t\tShows the device's ARP table (IP address : MAC address)\n",
-							"arp request <dst_ip>\tManually ARP request an address",
+							"arp request <dst_ip>\tManually ARP request an address\n",
 							"arp clear\t\tClears the device's ARP table",
 						)
 

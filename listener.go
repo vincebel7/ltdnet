@@ -17,7 +17,6 @@ var actionsync = map[string]chan int{}                  // Blocks CLI prompt unt
 
 func Listener() {
 	// Generate channels
-	generateBroadcastChannel()
 	generateRouterChannels()
 
 	for i := range snet.Switches {
@@ -29,8 +28,6 @@ func Listener() {
 	}
 
 	// Listen on channels
-	go listenBroadcastChannel()
-
 	if snet.Router.Hostname != "" {
 		go listenRouterChannel()
 
@@ -53,10 +50,6 @@ func Listener() {
 		go listenHostChannel(snet.Hosts[i].ID)
 	}
 
-}
-
-func generateBroadcastChannel() {
-	channels["FFFFFFFF"] = make(chan json.RawMessage)
 }
 
 func generateHostChannels(i int) {
@@ -82,20 +75,6 @@ func generateRouterChannels() {
 			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
 			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan Frame)
 			actionsync[snet.Router.ID] = make(chan int)
-		}
-	}
-}
-
-func listenBroadcastChannel() { //Listens for broadcast frames on FF.. and broadcasts
-	for {
-		rawFrame := <-channels["FFFFFFFF"]
-
-		debug(4, "listenBroadcastChannel", snet.Router.ID, "Received broadcast frame")
-		go actionHandler(rawFrame, snet.Router.ID)
-
-		for i := range snet.Hosts {
-			debug(4, "listenHlistenBroadcastChannelostChannel", snet.Hosts[i].ID, "Received broadcast frame")
-			go actionHandler(rawFrame, snet.Hosts[i].ID)
 		}
 	}
 }
@@ -265,7 +244,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 func listenSwitchportChannel(switchportID string) {
 	for {
 		rawFrame := <-channels[switchportID]
-		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received unicast frame from port "+switchportID)
+		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
 
 		port := getSwitchportIDFromLink(switchportID)
 		checkMACTable(readFrame(rawFrame).SrcMAC, switchportID, port)
@@ -275,9 +254,7 @@ func listenSwitchportChannel(switchportID string) {
 }
 
 func switchportActionHandler(rawFrame json.RawMessage, switchportID string) {
-	if readFrame(rawFrame).DstMAC == "FF:FF:FF:FF:FF:FF" { // Broadcast
-		channels["FFFFFFFF"] <- rawFrame
-	} else if false { // Traffic for switch. TODO how to receive mgmt frames
+	if false { // Traffic for switch. TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else { // Normal frame forward
 		switchforward(readFrame(rawFrame), switchportID)

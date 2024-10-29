@@ -181,18 +181,20 @@ func arp_request(srcID string, targetIP string) string {
 	debug(4, "arp_request", srcID, "About to ARP request")
 
 	// Construct frame
-	linkID := "FFFFFFFF"
+	linkID := ""
 	srcMAC := ""
 	srcIP := ""
-	dstMAC := "00:00:00:00:00:00"
+	dstMAC := "ff:ff:ff:ff:ff:ff"
 
 	if srcID == snet.Router.ID {
 		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
+		linkID = snet.Router.LANLinkID
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcIP = snet.Hosts[index].IPAddr.String()
 		srcMAC = snet.Hosts[index].MACAddr
+		linkID = snet.Hosts[index].UplinkID
 	}
 
 	arpRequestMessage := ArpMessage{
@@ -288,7 +290,7 @@ func dhcp_discover(host Host) {
 	srcMAC := host.MACAddr
 	srcID := host.ID
 	dstIP := "255.255.255.255"
-	dstMAC := "FF:FF:FF:FF:FF:FF"
+	dstMAC := "ff:ff:ff:ff:ff:ff"
 	linkID := host.UplinkID
 
 	// Construct DHCPDISCOVER
@@ -563,7 +565,12 @@ func ipset(hostname string, ipaddr string) {
 
 // Run an ARP request, but synchronize with client
 func arpSynchronized(id string, targetIP string) {
-	dstMAC := hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+	dstMAC := ""
+	if snet.Router.ID == id {
+		dstMAC = routerDetermineDstMAC(snet.Router, targetIP, false)
+	} else {
+		dstMAC = hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+	}
 
 	if dstMAC != "" {
 		achievementTester(ARP_HOT)

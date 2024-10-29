@@ -220,8 +220,12 @@ func switchforward(frame Frame, switchportID string) {
 
 	outboundPort := lookupMACTable(dstMAC, switchportID)
 
-	if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table.
+	if dstMAC == "ff:ff:ff:ff:ff:ff" { // Broadcast
 		floodFrame = true
+		debug(4, "switchforward", snet.Router.VSwitch.ID, "L2 Broadcast. Flooding frame on all ports")
+	} else if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table
+		floodFrame = true
+		debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address not found in MAC table. Flooding frame on all ports")
 	} else {
 		if isSwitchportID(snet.Router.VSwitch, switchportID) {
 			debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address found in MAC table.")
@@ -247,7 +251,6 @@ func switchforward(frame Frame, switchportID string) {
 	outFrame, _ := json.Marshal(f)
 
 	if floodFrame {
-		debug(4, "switchforward", snet.Router.VSwitch.ID, "Destination address not found in MAC table. Flooding frame on all ports")
 		for port := range snet.Router.VSwitch.Ports {
 			linkID = snet.Router.VSwitch.Ports[port]
 			if snet.Router.VSwitch.PortIDs[port] != switchportID { // Don't send out source interface
