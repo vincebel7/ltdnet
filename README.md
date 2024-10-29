@@ -63,8 +63,8 @@ Clears the /saves directory
 ## Version History
 What has been accomplished at each version
 
-### v0.3.1 - ? 2024
-Switch fixes: Better broadcast handling, improved ARP + MAC tables
+### v0.3.1 - October 29, 2024
+Switch fixes: Hosts can link to switches, better broadcast handling, improved ARP + MAC tables
 
 ### v0.3.0 - October 26, 2024
 User Achievements, ARP table, switch MAC address tables, user preferences
