@@ -40,9 +40,9 @@ func TestNetworkSetup(t *testing.T) {
 	}
 
 	// Test 3: Link hosts
-	linkHost("h1", "r1")
-	linkHost("h2", "r1")
-	linkHost("h3", "r1")
+	linkHostTo("h1", "r1")
+	linkHostTo("h2", "r1")
+	linkHostTo("h3", "r1")
 
 	if (snet.Hosts[0].UplinkID == "") || (snet.Router.VSwitch.Ports[1] == "") {
 		t.Errorf("Host not (properly) linked")
@@ -60,6 +60,14 @@ func TestNetworkSetup(t *testing.T) {
 	if snet.Hosts[1].IPAddr.String() != "192.168.0.3" {
 		t.Errorf("DHCP failed for host")
 	}
+
+	// Test 5: Switching
+	addSwitch("s1")
+	addHost("h5")
+	addHost("h6")
+
+	linkHostTo("h5", "s1")
+	linkHostTo("h6", "s1")
 
 	cleanTestSaves()
 }

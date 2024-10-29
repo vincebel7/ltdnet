@@ -16,14 +16,15 @@ import (
 )
 
 type Router struct {
-	ID       string            `json:"id"`
-	Model    string            `json:"model"`
-	MACAddr  string            `json:"macaddr"` // LAN-facing interface
-	Hostname string            `json:"hostname"`
-	Gateway  net.IP            `json:"gateway"`
-	VSwitch  Switch            `json:"vswitchid"` // Virtual built-in switch to router
-	DHCPPool DHCPPool          `json:"dhcp_pool"` // Instance of DHCPPool
-	ARPTable map[string]string `json:"arptable"`
+	ID        string              `json:"id"`
+	Model     string              `json:"model"`
+	MACAddr   string              `json:"macaddr"` // LAN-facing interface
+	Hostname  string              `json:"hostname"`
+	Gateway   net.IP              `json:"gateway"`
+	VSwitch   Switch              `json:"vswitchid"` // Virtual built-in switch to router
+	DHCPPool  DHCPPool            `json:"dhcp_pool"` // Instance of DHCPPool
+	ARPTable  map[string]ARPEntry `json:"arptable"`
+	LANLinkID string              `json:"lanlinkid"` // link ID for its LAN connection
 }
 
 type DHCPPool struct {
@@ -50,7 +51,7 @@ func NewBobcat(hostname string) Router {
 	bobcat.Model = "Bobcat 100"
 	bobcat.MACAddr = macgen()
 	bobcat.Hostname = hostname
-	bobcat.ARPTable = make(map[string]string)
+	bobcat.ARPTable = make(map[string]ARPEntry)
 
 	vSwitch := addVirtualSwitch(BOBCAT_PORTS)
 	bobcat.VSwitch = vSwitch
@@ -64,7 +65,7 @@ func NewOsiris(hostname string) Router {
 	osiris.Model = "Osiris 2-I"
 	osiris.MACAddr = macgen()
 	osiris.Hostname = hostname
-	osiris.ARPTable = make(map[string]string)
+	osiris.ARPTable = make(map[string]ARPEntry)
 
 	vSwitch := addVirtualSwitch(OSIRIS_PORTS)
 	osiris.VSwitch = vSwitch
@@ -116,10 +117,12 @@ func addRouter(routerHostname string, routerModel string) {
 
 	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
 
+	snet.Router.LANLinkID = snet.Router.VSwitch.PortIDs[0]
+
 	generateRouterChannels()
 	go listenRouterChannel()
 	for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-		go listenSwitchportChannel(snet.Router.VSwitch.PortIDs[i])
+		go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortIDs[i])
 	}
 	achievementTester(ROUTINE_BUSINESS)
 }

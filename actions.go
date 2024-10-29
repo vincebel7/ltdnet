@@ -181,18 +181,20 @@ func arp_request(srcID string, targetIP string) string {
 	debug(4, "arp_request", srcID, "About to ARP request")
 
 	// Construct frame
-	linkID := "FFFFFFFF"
+	linkID := ""
 	srcMAC := ""
 	srcIP := ""
-	dstMAC := "00:00:00:00:00:00"
+	dstMAC := "ff:ff:ff:ff:ff:ff"
 
 	if srcID == snet.Router.ID {
 		srcIP = snet.Router.Gateway.String()
 		srcMAC = snet.Router.MACAddr
+		linkID = snet.Router.LANLinkID
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcIP = snet.Hosts[index].IPAddr.String()
 		srcMAC = snet.Hosts[index].MACAddr
+		linkID = snet.Hosts[index].UplinkID
 	}
 
 	arpRequestMessage := ArpMessage{
@@ -212,6 +214,7 @@ func arp_request(srcID string, targetIP string) string {
 	// Send frame and wait for ARPREPLY
 	channels[linkID] <- arpRequestFrameBytes
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
+	debug(4, "arp_request", srcID, "ARPREQUEST sent - linkid: "+linkID)
 
 	sockets := socketMaps[srcID]
 	socketID := "arp_" + string(targetIP)
@@ -288,7 +291,7 @@ func dhcp_discover(host Host) {
 	srcMAC := host.MACAddr
 	srcID := host.ID
 	dstIP := "255.255.255.255"
-	dstMAC := "FF:FF:FF:FF:FF:FF"
+	dstMAC := "ff:ff:ff:ff:ff:ff"
 	linkID := host.UplinkID
 
 	// Construct DHCPDISCOVER
@@ -563,7 +566,12 @@ func ipset(hostname string, ipaddr string) {
 
 // Run an ARP request, but synchronize with client
 func arpSynchronized(id string, targetIP string) {
-	dstMAC := hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+	dstMAC := ""
+	if snet.Router.ID == id {
+		dstMAC = routerDetermineDstMAC(snet.Router, targetIP, false)
+	} else {
+		dstMAC = hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, false)
+	}
 
 	if dstMAC != "" {
 		achievementTester(ARP_HOT)
@@ -582,15 +590,19 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
 
 		// Check ARP table
-		if useTable && snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] != "" {
-			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP]
+		if useTable && snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr != "" {
+			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr
 		} else {
 			// ARP request
 			dstMAC = arp_request(srcID, dstIP)
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("ARP request timed out.\n")
 			} else {
-				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = dstMAC // Add to ARP table
+				arpEntry := ARPEntry{
+					MACAddr:   dstMAC,
+					Interface: snet.Hosts[getHostIndexFromID(srcID)].UplinkID,
+				}
+				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = arpEntry // Add to ARP table
 			}
 		}
 
@@ -599,15 +611,19 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 		gateway := srcHost.DefaultGateway.String()
 
 		// Check ARP table
-		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] != "" {
-			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway]
+		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr != "" {
+			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr
 		} else {
 			// ARP request
 			dstMAC = arp_request(srcID, gateway)
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("ARP request timed out.\n")
 			} else {
-				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = dstMAC // Add to ARP table
+				arpEntry := ARPEntry{
+					MACAddr:   dstMAC,
+					Interface: snet.Hosts[getHostIndexFromID(srcID)].UplinkID,
+				}
+				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = arpEntry // Add to ARP table
 			}
 		}
 	}
@@ -626,15 +642,19 @@ func routerDetermineDstMAC(router Router, dstIP string, useTable bool) string {
 		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
 
 		// Check ARP table
-		if useTable && snet.Router.ARPTable[dstIP] != "" {
-			dstMAC = snet.Router.ARPTable[dstIP]
+		if useTable && snet.Router.ARPTable[dstIP].MACAddr != "" {
+			dstMAC = snet.Router.ARPTable[dstIP].MACAddr
 		} else {
 			// ARP request
 			dstMAC = arp_request(router.ID, dstIP)
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("ARP request timed out.\n")
 			} else {
-				snet.Router.ARPTable[dstIP] = dstMAC // Add to ARP table
+				arpEntry := ARPEntry{
+					MACAddr:   dstMAC,
+					Interface: router.LANLinkID,
+				}
+				snet.Router.ARPTable[dstIP] = arpEntry // Add to ARP table
 			}
 		}
 

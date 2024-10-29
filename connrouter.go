@@ -120,7 +120,7 @@ func RouterConn(device string, id string) {
 						}
 
 					case "clear":
-						snet.Router.ARPTable = make(map[string]string)
+						snet.Router.ARPTable = make(map[string]ARPEntry)
 						fmt.Println("ARP table cleared")
 
 					case "help", "?":

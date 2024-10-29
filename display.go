@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 )
 
 /* DIAGRAMMING */
@@ -16,7 +17,9 @@ func drawDiagram(rootID string) {
 	drawDiagramAction(rootID, "")
 
 	//Unlinked switches
-	// drawDiagramConnected(switch ID)
+	for i := range snet.Switches {
+		drawDiagramAction(snet.Switches[i].ID, "switch")
+	}
 
 	// Unlinked hosts
 	for i := range snet.Hosts {
@@ -35,14 +38,22 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 		rootType = "router"
 	}
 
-	if rootType == "" {
+	if rootType == "switch" {
 		for i := range snet.Switches {
 			if rootID == snet.Switches[i].ID {
 				rootHostname = snet.Switches[i].Hostname
 				rootType = "switch"
 				//rootIndex = i
+				drawSwitch(snet.Switches[i].ID)
+
+				for j := range snet.Switches[i].Ports {
+					if snet.Switches[i].Ports[j] != "" {
+						drawConnectedHost(snet.Switches[i].Ports[j], j, snet.Switches[i])
+					}
+				}
 			}
 		}
+
 	}
 
 	if rootType == "" {
@@ -63,7 +74,7 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 
 		for i := range snet.Router.VSwitch.Ports {
 			if snet.Router.VSwitch.Ports[i] != "" && i != 0 {
-				drawConnectedHost(snet.Router.VSwitch.Ports[i], i)
+				drawConnectedHost(snet.Router.VSwitch.Ports[i], i, snet.Router.VSwitch)
 			}
 		}
 	}
@@ -97,6 +108,47 @@ func drawRouter() {
 	fmt.Println("|\n|------------------------|")
 }
 
+func drawSwitch(id string) {
+	sw := snet.Switches[getSwitchIndexFromID(id)]
+
+	connectedPorts := 0
+	for i := range sw.Ports {
+		if sw.Ports[i] != "" {
+			connectedPorts++
+		}
+	}
+
+	space1 := 13 - len(sw.Hostname)
+	space2 := 11 - len(strconv.Itoa(len(sw.Ports)))
+	space3 := 5
+	space4 := 16 - len(sw.Model)
+
+	fmt.Println("")
+	fmt.Println("|------------------------|")
+	fmt.Println("|          Switch        |")
+	fmt.Printf("| Hostname: %s", sw.Hostname)
+	for i := 0; i < space1; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Printf("| Port count: %d", len(sw.Ports))
+	for i := 0; i < space2; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Printf("| Connected ports: %d", connectedPorts)
+	for i := 0; i < space3; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Printf("| Model: %s", sw.Model)
+	for i := 0; i < space4; i++ {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("|\n")
+	fmt.Println("|------------------------|")
+}
+
 func drawHost(id string) {
 	h := snet.Hosts[getHostIndexFromID(id)]
 
@@ -125,7 +177,7 @@ func drawHost(id string) {
 	fmt.Println("|------------------------|")
 }
 
-func drawConnectedHost(id string, iter int) {
+func drawConnectedHost(id string, iter int, sw Switch) {
 	h := snet.Hosts[getHostIndexFromID(id)]
 
 	space1 := 13 - len(h.Hostname)
@@ -146,7 +198,7 @@ func drawConnectedHost(id string, iter int) {
 	}
 	fmt.Printf("|\n")
 
-	if iter == getActivePorts(snet.Router.VSwitch)-1 {
+	if iter == getActivePorts(sw)-1 {
 		fmt.Printf("                    | Model: %s", h.Model)
 	} else {
 		fmt.Printf("            ||      | Model: %s", h.Model)
@@ -155,7 +207,7 @@ func drawConnectedHost(id string, iter int) {
 		fmt.Printf(" ")
 	}
 	fmt.Printf("|\n")
-	if iter == getActivePorts(snet.Router.VSwitch)-1 {
+	if iter == getActivePorts(sw)-1 {
 		fmt.Println("                    |------------------------|")
 	} else {
 		fmt.Println("            ||      |------------------------|")
@@ -289,7 +341,7 @@ func show(hostname string) {
 }
 
 func displayARPTable(deviceID string) {
-	var ARPTable map[string]string
+	var ARPTable map[string]ARPEntry
 
 	if snet.Router.ID == deviceID {
 		ARPTable = snet.Router.ARPTable
@@ -298,16 +350,16 @@ func displayARPTable(deviceID string) {
 	}
 
 	fmt.Printf("ARP Table:\n")
-	fmt.Printf("IP Address\t\tMAC Address\n")
+	fmt.Printf("IP Address\t\tMAC Address\t\tInterface\t\tExpiration\n")
 
 	for i := range ARPTable {
-		fmt.Printf("%s\t\t%s\n", i, ARPTable[i])
+		fmt.Printf("%s\t\t%s\t%s\n", i, ARPTable[i].MACAddr, ARPTable[i].Interface)
 	}
 	fmt.Printf("\n")
 }
 
 func displayMACTable(deviceID string) {
-	var MACTable map[string]int
+	var MACTable map[string]MACEntry
 
 	if snet.Router.VSwitch.ID == deviceID {
 		MACTable = snet.Router.VSwitch.MACTable
@@ -316,10 +368,10 @@ func displayMACTable(deviceID string) {
 	}
 
 	fmt.Printf("MAC Table:\n")
-	fmt.Printf("MAC Address\t\tInterface #\n")
+	fmt.Printf("MAC Address\t\tInterface\t\tExpiration\n")
 
 	for i := range MACTable {
-		fmt.Printf("%s\t%d\n", i, MACTable[i])
+		fmt.Printf("%s\t%d\n", i, MACTable[i].Interface)
 	}
 	fmt.Printf("\n")
 }
