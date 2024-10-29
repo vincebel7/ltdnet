@@ -18,21 +18,21 @@ func idgen(n int) string {
 	var idchars = []rune("abcdef1234567890")
 	id := make([]rune, n)
 
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := range id {
-		id[i] = idchars[rand.Intn(len(idchars))]
+		id[i] = idchars[r.Intn(len(idchars))]
 	}
 
 	return string(id)
 }
 
 func idgen_int(n int) int {
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	firstDigit := rand.Intn(9) + 1
+	firstDigit := r.Intn(9) + 1
 	numberStr := strconv.Itoa(firstDigit)
 	for i := 1; i < n; i++ {
-		digit := rand.Intn(10)
+		digit := r.Intn(10)
 		numberStr += strconv.Itoa(digit)
 	}
 	result, _ := strconv.Atoi(numberStr)
@@ -118,16 +118,6 @@ func getSwitchIDFromLink(link string) string {
 	return s.ID
 }
 
-func getMACfromID(id string) string {
-	//Router
-	if id == snet.Router.ID {
-		return snet.Router.MACAddr
-	}
-
-	//Hosts
-	return snet.Hosts[getHostIndexFromID(id)].MACAddr
-}
-
 func getIDfromMAC(mac string) string {
 	//Router
 	if mac == snet.Router.MACAddr {
@@ -198,16 +188,6 @@ func removeHostFromSlice(s []Host, i int) []Host {
 }
 
 func removeSwitchFromSlice(s []Switch, i int) []Switch {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
-}
-
-func removeStringFromSlice(s []string, i int) []string {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
-}
-
-func removeIntFromSlice(s []int, i int) []int {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }

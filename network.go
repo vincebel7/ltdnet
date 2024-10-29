@@ -243,16 +243,16 @@ func save() {
 
 func (n *Network) ClearMACTables() {
 	// Host ARP tables
-	for _, host := range n.Hosts {
-		host.ARPTable = make(map[string]ARPEntry)
+	for i := range n.Hosts {
+		n.Hosts[i].ARPTable = make(map[string]ARPEntry)
 	}
 
 	// Router ARP table
 	n.Router.ARPTable = make(map[string]ARPEntry)
 
 	// Switch MAC address tables
-	for _, sw := range n.Switches {
-		sw.MACTable = make(map[string]MACEntry)
+	for i := range n.Switches {
+		n.Switches[i].MACTable = make(map[string]MACEntry)
 	}
 
 	// VSwitch MAC address table

@@ -61,5 +61,13 @@ func TestNetworkSetup(t *testing.T) {
 		t.Errorf("DHCP failed for host")
 	}
 
+	// Test 5: Switching
+	addSwitch("s1")
+	addHost("h5")
+	addHost("h6")
+
+	linkHostTo("h5", "s1")
+	linkHostTo("h6", "s1")
+
 	cleanTestSaves()
 }

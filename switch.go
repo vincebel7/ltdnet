@@ -23,7 +23,6 @@ type Switch struct {
 	Maxports int                 `json:"maxports"`
 	Ports    []string            `json:"ports"`   // maps port # to downlink ID
 	PortIDs  []string            `json:"portids"` // maps port # to Port ID
-	//PortMACs []string       `json:"portmacs"` // maps port # to interface MAC address
 	ARPTable map[string]ARPEntry `json:"arptable"`
 }
 
