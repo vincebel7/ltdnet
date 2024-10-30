@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -147,21 +148,23 @@ func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetmask 
 }
 
 func hostname_exists(hostname string) bool {
-	if snet.Router.Hostname == hostname {
+	hostname = strings.ToUpper(hostname)
+
+	if strings.ToUpper(snet.Router.Hostname) == hostname {
 		return true
 	}
-	if snet.Router.VSwitch.Hostname == hostname {
+	if strings.ToUpper(snet.Router.VSwitch.Hostname) == hostname {
 		return true
 	}
 
 	for s := range snet.Switches {
-		if snet.Switches[s].Hostname == hostname {
+		if strings.ToUpper(snet.Switches[s].Hostname) == hostname {
 			return true
 		}
 	}
 
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == hostname {
+		if strings.ToUpper(snet.Hosts[h].Hostname) == hostname {
 			return true
 		}
 	}
