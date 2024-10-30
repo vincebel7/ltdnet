@@ -246,9 +246,21 @@ func actionsMenu() {
 		case "achievements show":
 			displayAchievements()
 		case "achievements info":
+
 			fmt.Println("Not implemented yet")
+		case "achievements explain":
+			printAchievementsExplanation()
 		default:
-			fmt.Println(" Invalid command. Type 'achievements ?' for a list of commands.")
+			if actionword2 == "info" {
+				if actionword3 != "" {
+					//achieveNum, _ := strconv.Atoi(actionword3)
+					printAchievementInfo(actionword3)
+				} else {
+					fmt.Println("usage: achievements info <#>")
+				}
+			} else {
+				fmt.Println(" Invalid command. Type 'achievements ?' for a list of commands.")
+			}
 		}
 
 	case "save":

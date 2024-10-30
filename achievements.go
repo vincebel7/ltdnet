@@ -10,12 +10,16 @@ Action-based: Achievements given when a particular action occurs (successful pin
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Achievement struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Hint        string `json:"hint"`
 	ProgramVer  string `json:"program_ver"`
 }
 
@@ -31,6 +35,7 @@ func buildAchievementCatalog() {
 		ID:          ROUTINE_BUSINESS,
 		Name:        "Route-ine Business",
 		Description: "Add a router to your network.",
+		Hint:        "Have you tried the 'add router' command?",
 	}
 	AchievementCatalog[ROUTINE_BUSINESS] = achievement
 
@@ -38,6 +43,7 @@ func buildAchievementCatalog() {
 		ID:          UNITED_PINGDOM,
 		Name:        "United Pingdom",
 		Description: "Successfully ping from one device to another.",
+		Hint:        "Control a host and ping your default gateway, see if you get a response.",
 	}
 	AchievementCatalog[UNITED_PINGDOM] = achievement
 
@@ -45,6 +51,7 @@ func buildAchievementCatalog() {
 		ID:          ARP_HOT,
 		Name:        "ARP It Like It's Hot",
 		Description: "Manually send an ARP request, and receive a reply.",
+		Hint:        "ARP is how hosts find out other MAC addresses on their network. Try 'arp ?' from a host.",
 	}
 	AchievementCatalog[ARP_HOT] = achievement
 }
@@ -66,11 +73,36 @@ func displayAchievements() {
 		unlockedChar := "."
 
 		if _, exists := user_settings.Achievements[i]; exists {
-			unlockedChar = "Y"
+			unlockedChar = "Yes"
 		}
 
 		fmt.Printf("%d\t%s\t%s\t%s\n", AchievementCatalog[i].ID, PadRight(AchievementCatalog[i].Name, 25), PadRight(AchievementCatalog[i].Description, 50), unlockedChar)
 	}
+}
+
+func printAchievementsExplanation() {
+	fmt.Println("Achievements are a fun way to learn how to use ltdnet, and learn networking concepts. Use the achievement commands to guide what you try next. 'achievements show' will list all the achievements and whether you've earned it or not. 'achievements info <#>' will give you a hint about how to unlock an achievement.")
+}
+
+func printAchievementInfo(achieveStr string) {
+	achievement := Achievement{}
+	achievementFound := false
+	achieveNum, _ := strconv.Atoi(achieveStr)
+	for a := range AchievementCatalog {
+		if AchievementCatalog[a].ID == achieveNum {
+			achievement = AchievementCatalog[a]
+			achievementFound = true
+		}
+	}
+
+	if !achievementFound {
+		fmt.Printf("No achievement \"%s\" found. Usage: achievements info <#>\n", achieveStr)
+		return
+	}
+
+	fmt.Printf("Achievement #%d: %s\n", achievement.ID, achievement.Name)
+	fmt.Printf("Description: %s\n", achievement.Description)
+	fmt.Printf("Hint: %s\n", achievement.Hint)
 }
 
 func achievementAward(achievement Achievement) {
