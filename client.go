@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var currentVersion = "v0.3.1"
+var currentVersion = "v0.3.2"
 
 func intro() {
 	fmt.Println("ltdnet " + currentVersion)
@@ -52,7 +52,7 @@ func startMenu() bool {
 			selection = true
 			preferencesMenu()
 		default:
-			fmt.Println("Not a valid option. Options: 1, 2, 3")
+			fmt.Println("Not a valid option. Options: 1, 2, 3, 4")
 		}
 	}
 
@@ -89,7 +89,7 @@ func preferencesMenu() {
 			resetProgramSettings()
 		case "5":
 			selection = true
-			resetProgramPrompt()
+			resetAllPrompt()
 		default:
 			fmt.Println("Not a valid option. Options: 1, 2, 3, 4, 5")
 		}
