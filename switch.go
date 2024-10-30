@@ -112,11 +112,11 @@ func delSwitch(hostname string) {
 	for i := range snet.Switches {
 		if strings.ToUpper(snet.Switches[i].Hostname) == hostname {
 			// Unlink all devices connected to this switch
-			for j := range snet.Switches[i].Ports {
-				if snet.Switches[i].Ports[j] != "" {
+			for j := range snet.Switches[i].PortIDs {
+				if snet.Switches[i].PortIDs[j] != "" {
 					// Unlink if host
 					for h := range snet.Hosts {
-						if snet.Hosts[h].ID == snet.Switches[i].Ports[j] {
+						if snet.Hosts[h].UplinkID == snet.Switches[i].PortIDs[j] {
 							snet.Hosts[h].UplinkID = ""
 						}
 					}
@@ -162,8 +162,8 @@ func linkSwitchTo(localDevice string, remoteDevice string) {
 			//Remote device on new link is the Router
 			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
-				for k := range snet.Router.VSwitch.Ports {
-					if (snet.Router.VSwitch.Ports[k] == "") && (uplinkID == "") {
+				for k := range snet.Router.VSwitch.PortIDs {
+					if (snet.Router.VSwitch.PortIDs[k] == "") && (uplinkID == "") {
 						uplinkID = snet.Router.VSwitch.PortIDs[k]
 					}
 				}
@@ -177,8 +177,8 @@ func linkSwitchTo(localDevice string, remoteDevice string) {
 					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
 
 						//find next free port
-						for k := range snet.Switches[j].Ports {
-							if (snet.Switches[j].Ports[k] == "") && (uplinkID == "") {
+						for k := range snet.Switches[j].PortIDs {
+							if (snet.Switches[j].PortIDs[k] == "") && (uplinkID == "") {
 								uplinkID = snet.Switches[j].PortIDs[k]
 
 								// Assign switchport on remote device
@@ -378,9 +378,12 @@ func freeSwitchport(link string) {
 	switchID := getSwitchIDFromLink(link)
 
 	if snet.Router.VSwitch.ID == switchID {
+		snet.Router.VSwitch.PortIDs[switchport] = ""
 		snet.Router.VSwitch.Ports[switchport] = ""
 	} else {
 		i := getSwitchIndexFromID(switchID)
+		snet.Switches[i].PortIDs[switchport] = ""
 		snet.Switches[i].Ports[switchport] = ""
 	}
+
 }

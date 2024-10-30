@@ -76,6 +76,15 @@ func getHostIndexFromID(id string) int {
 	return -1
 }
 
+func getHostIndexFromLinkID(id string) int {
+	for h := range snet.Hosts {
+		if snet.Hosts[h].UplinkID == id {
+			return h
+		}
+	}
+	return -1
+}
+
 func getSwitchIndexFromID(id string) int {
 	for s := range snet.Switches {
 		if snet.Switches[s].ID == id {

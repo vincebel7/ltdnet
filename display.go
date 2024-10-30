@@ -112,14 +112,14 @@ func drawSwitch(id string) {
 	sw := snet.Switches[getSwitchIndexFromID(id)]
 
 	connectedPorts := 0
-	for i := range sw.Ports {
-		if sw.Ports[i] != "" {
+	for i := range sw.PortIDs {
+		if sw.PortIDs[i] != "" {
 			connectedPorts++
 		}
 	}
 
 	space1 := 13 - len(sw.Hostname)
-	space2 := 11 - len(strconv.Itoa(len(sw.Ports)))
+	space2 := 11 - len(strconv.Itoa(len(sw.PortIDs)))
 	space3 := 5
 	space4 := 16 - len(sw.Model)
 

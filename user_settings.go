@@ -100,7 +100,8 @@ func resetAchievements() {
 
 func resetProgramSettings() {
 	os.Remove("saves/user_settings.json")
-	fmt.Println("[Notice] User preferences have been reset\n")
+	fmt.Println("[Notice] User preferences have been reset")
+	fmt.Println("")
 	loadUserSettings()
 	intro()
 }
