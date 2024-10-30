@@ -113,7 +113,7 @@ func delSwitch(hostname string) {
 		if strings.ToUpper(snet.Switches[i].Hostname) == hostname {
 			// Unlink all devices connected to this switch
 			for j := range snet.Switches[i].PortIDs {
-				if snet.Switches[i].PortIDs[j] != "" {
+				if snet.Switches[i].Ports[j] != "" {
 					// Unlink if host
 					for h := range snet.Hosts {
 						if snet.Hosts[h].UplinkID == snet.Switches[i].PortIDs[j] {
@@ -354,7 +354,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 		if isSwitchportID(snet.Router.VSwitch, switchportID) { // VSwitch
 			for port := range snet.Router.VSwitch.Ports {
 				linkID = snet.Router.VSwitch.Ports[port]
-				if (snet.Router.VSwitch.PortIDs[port] != switchportID) && (snet.Router.VSwitch.PortIDs[port] != "") { // Don't send out source interface
+				if (snet.Router.VSwitch.PortIDs[port] != switchportID) && (snet.Router.VSwitch.Ports[port] != "") { // Don't send out source interface
 					channels[linkID] <- outFrame
 				}
 			}
@@ -362,7 +362,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 			switchIndex := getSwitchIndexFromID(switchID)
 			for port := range snet.Switches[switchIndex].Ports {
 				linkID = snet.Switches[switchIndex].Ports[port]
-				if (snet.Switches[switchIndex].PortIDs[port] != switchportID) && (snet.Switches[switchIndex].PortIDs[port] != "") { // Don't send out source interface
+				if (snet.Switches[switchIndex].PortIDs[port] != switchportID) && (snet.Switches[switchIndex].Ports[port] != "") { // Don't send out source interface
 					channels[linkID] <- outFrame
 				}
 			}

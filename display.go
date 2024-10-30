@@ -112,8 +112,8 @@ func drawSwitch(id string) {
 	sw := snet.Switches[getSwitchIndexFromID(id)]
 
 	connectedPorts := 0
-	for i := range sw.PortIDs {
-		if sw.PortIDs[i] != "" {
+	for i := range sw.Ports {
+		if sw.Ports[i] != "" {
 			connectedPorts++
 		}
 	}
@@ -131,7 +131,7 @@ func drawSwitch(id string) {
 		fmt.Printf(" ")
 	}
 	fmt.Printf("|\n")
-	fmt.Printf("| Port count: %d", len(sw.Ports))
+	fmt.Printf("| Port count: %d", len(sw.PortIDs))
 	for i := 0; i < space2; i++ {
 		fmt.Printf(" ")
 	}
