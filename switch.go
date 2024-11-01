@@ -356,7 +356,6 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 				// Don't send out source interface, or unplugged ports
 				if (snet.Router.VSwitch.PortLinksLocal[port] != switchportID) && (linkID != "") {
 					channels[linkID] <- outFrame
-					fmt.Println("I sent linkid " + linkID + " a frame")
 				}
 			}
 		} else { // Regular switch
@@ -371,7 +370,6 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 		}
 	} else {
 		channels[linkID] <- outFrame
-		fmt.Println("I sent linkid " + linkID + " a frame")
 	}
 }
 

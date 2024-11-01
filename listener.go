@@ -241,8 +241,8 @@ func listenSwitchportChannel(switchID string, switchportID string) {
 	for {
 		rawFrame := <-channels[switchportID]
 		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
-
 		port := getSwitchportIDFromLink(switchportID)
+
 		checkMACTable(readFrame(rawFrame).SrcMAC, switchportID, port)
 
 		go switchportActionHandler(rawFrame, switchID, switchportID)

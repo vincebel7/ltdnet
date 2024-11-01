@@ -128,20 +128,13 @@ func pong(srcID string, frame Frame) {
 	srcIP := ""
 	srcMAC := ""
 	dstIP := readIPv4PacketHeader(receivedIpv4Packet.Header).SrcIP
-	dstMAC := frame.SrcMAC // Value only used if it cannot be determined below
+	dstMAC := ""
 
 	if snet.Router.ID == srcID {
 		srcMAC = snet.Router.Interface.MACAddr
 		srcIP = snet.Router.GetIP()
-		dstMAC := routerDetermineDstMAC(snet.Router, dstIP, true)
-
-		//Get link to send ping to
-		dstID := getIDfromMAC(dstMAC)
-		if getHostIndexFromID(dstID) != -1 {
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].Interface.RemoteL1ID
-		} else if snet.Router.ID == dstID {
-			linkID = snet.Router.Interface.RemoteL1ID
-		}
+		dstMAC = routerDetermineDstMAC(snet.Router, dstIP, true)
+		linkID = snet.Router.Interface.RemoteL1ID
 
 	} else {
 		index := getHostIndexFromID(srcID)
