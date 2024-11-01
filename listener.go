@@ -105,9 +105,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			debug(3, "actionHandler", id, "ARPREPLY received")
 
 			amTarget := false
-			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.Gateway.String()) {
+			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP()) {
 				amTarget = true
-			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
+			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
 				amTarget = true
 			}
 			if amTarget {
@@ -121,9 +121,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 			// Check if target device at network-level
 			amTarget := false
-			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.Gateway.String()) {
+			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP()) {
 				amTarget = true
-			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
+			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
 				amTarget = true
 			}
 
@@ -146,9 +146,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 				// Check if target device at network-level
 				amTarget := false
-				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.Gateway.String()) {
+				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP()) {
 					amTarget = true
-				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
+				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
 					amTarget = true
 				}
 
@@ -161,9 +161,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 				// Check if target device at network-level
 				amTarget := false
-				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.Gateway.String()) {
+				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP()) {
 					amTarget = true
-				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].IPAddr.String()) {
+				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
 					amTarget = true
 				}
 
@@ -209,7 +209,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			case 68: // DHCP: Client-bound
 				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
-				if dhcpMessage.CHAddr == snet.Hosts[getHostIndexFromID(id)].MACAddr { // I am target
+				if dhcpMessage.CHAddr == snet.Hosts[getHostIndexFromID(id)].Interface.MACAddr { // I am target
 					// 53 is DHCP message type
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {

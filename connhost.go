@@ -59,7 +59,7 @@ func HostConn(device string, id string) {
 			case "ping":
 				if host.UplinkID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
-				} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
+				} else if (host.GetIP() == "0.0.0.0") || (host.GetIP() == "") {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
@@ -97,11 +97,11 @@ func HostConn(device string, id string) {
 				if len(action) > 1 {
 					switch action[1] {
 					case "a", "addr", "address":
-						fmt.Println("IPv4 address: " + host.IPAddr.String())
-						fmt.Println("Subnet mask: " + host.SubnetMask)
+						fmt.Println("IPv4 address: " + host.GetIP())
+						fmt.Println("Subnet mask: " + host.GetMask())
 
 					case "route":
-						fmt.Println("Default gateway: " + host.DefaultGateway.String())
+						fmt.Println("Default gateway: " + host.GetGateway())
 
 					case "set":
 						if host.UplinkID == "" {
@@ -133,7 +133,7 @@ func HostConn(device string, id string) {
 					case "request":
 						if host.UplinkID == "" {
 							fmt.Println("Device is not connected. Please set an uplink")
-						} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
+						} else if (host.GetIP() == "0.0.0.0") || (host.GetIP() == "") {
 							fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
 						} else {
 							if len(action) > 2 {

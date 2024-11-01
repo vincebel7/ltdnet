@@ -130,13 +130,13 @@ func getSwitchIDFromLink(link string) string {
 
 func getIDfromMAC(mac string) string {
 	//Router
-	if mac == snet.Router.MACAddr {
+	if mac == snet.Router.Interface.MACAddr {
 		return snet.Router.ID
 	}
 
 	//Hosts
 	for h := range snet.Hosts {
-		if snet.Hosts[h].MACAddr == mac {
+		if snet.Hosts[h].Interface.MACAddr == mac {
 			return snet.Hosts[h].ID
 		}
 	}
@@ -144,12 +144,12 @@ func getIDfromMAC(mac string) string {
 	return ""
 }
 
-func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetmask string) {
+func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask string) {
 	for h := range snet.Hosts {
 		if snet.Hosts[h].ID == id {
-			snet.Hosts[h].IPAddr = ipaddr
-			snet.Hosts[h].SubnetMask = subnetmask
-			snet.Hosts[h].DefaultGateway = defaultgateway
+			snet.Hosts[h].Interface.IPConfig.IPAddress = ipaddr
+			snet.Hosts[h].Interface.IPConfig.SubnetMask = subnetMask
+			snet.Hosts[h].Interface.IPConfig.DefaultGateway = defaultgateway
 			fmt.Println("Network configuration updated")
 		}
 	}

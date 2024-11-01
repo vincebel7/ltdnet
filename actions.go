@@ -34,15 +34,15 @@ func ping(srcID string, dstIP string, count int) {
 
 	if snet.Router.ID == srcID {
 		srcHostname = snet.Router.Hostname
-		srcIP = snet.Router.Gateway.String()
-		srcMAC = snet.Router.MACAddr
+		srcIP = snet.Router.GetIP()
+		srcMAC = snet.Router.Interface.MACAddr
 	} else {
 		for h := range snet.Hosts {
 			if snet.Hosts[h].ID == srcID {
 				srcHost = snet.Hosts[h]
 				srcHostname = snet.Hosts[h].Hostname
-				srcIP = snet.Hosts[h].IPAddr.String()
-				srcMAC = snet.Hosts[h].MACAddr
+				srcIP = snet.Hosts[h].GetIP()
+				srcMAC = snet.Hosts[h].Interface.MACAddr
 				linkID = snet.Hosts[h].UplinkID
 			}
 		}
@@ -139,8 +139,8 @@ func pong(srcID string, frame Frame) {
 	dstMAC := frame.SrcMAC // Value only used if it cannot be determined below
 
 	if snet.Router.ID == srcID {
-		srcMAC = snet.Router.MACAddr
-		srcIP = snet.Router.Gateway.String()
+		srcMAC = snet.Router.Interface.MACAddr
+		srcIP = snet.Router.GetIP()
 		dstMAC := routerDetermineDstMAC(snet.Router, dstIP, true)
 
 		//Get link to send ping to
@@ -153,8 +153,8 @@ func pong(srcID string, frame Frame) {
 
 	} else {
 		index := getHostIndexFromID(srcID)
-		srcMAC = snet.Hosts[index].MACAddr
-		srcIP = snet.Hosts[index].IPAddr.String()
+		srcMAC = snet.Hosts[index].Interface.MACAddr
+		srcIP = snet.Hosts[index].GetIP()
 		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP, true)
 
 		linkID = snet.Hosts[index].UplinkID
@@ -187,13 +187,13 @@ func arp_request(srcID string, targetIP string) string {
 	dstMAC := "ff:ff:ff:ff:ff:ff"
 
 	if srcID == snet.Router.ID {
-		srcIP = snet.Router.Gateway.String()
-		srcMAC = snet.Router.MACAddr
+		srcIP = snet.Router.GetIP()
+		srcMAC = snet.Router.Interface.MACAddr
 		linkID = snet.Router.LANLinkID
 	} else {
 		index := getHostIndexFromID(srcID)
-		srcIP = snet.Hosts[index].IPAddr.String()
-		srcMAC = snet.Hosts[index].MACAddr
+		srcIP = snet.Hosts[index].GetIP()
+		srcMAC = snet.Hosts[index].Interface.MACAddr
 		linkID = snet.Hosts[index].UplinkID
 	}
 
@@ -246,8 +246,8 @@ func arp_reply(id string, arpRequestFrame Frame) {
 	// Network listener decided to reply to this request - no checking needed.
 	if id == snet.Router.ID {
 		srcID = snet.Router.ID
-		srcMAC = snet.Router.MACAddr
-		srcIP = snet.Router.Gateway.String()
+		srcMAC = snet.Router.Interface.MACAddr
+		srcIP = snet.Router.GetIP()
 
 		// Determine linkID
 		dstID := getIDfromMAC(dstMAC)
@@ -261,8 +261,8 @@ func arp_reply(id string, arpRequestFrame Frame) {
 		i := getHostIndexFromID(id)
 		linkID = snet.Hosts[i].UplinkID
 		srcID = snet.Hosts[i].ID
-		srcMAC = snet.Hosts[i].MACAddr
-		srcIP = snet.Hosts[i].IPAddr.String()
+		srcMAC = snet.Hosts[i].Interface.MACAddr
+		srcIP = snet.Hosts[i].GetIP()
 	}
 
 	arpReplyMessage := ArpMessage{
@@ -287,8 +287,8 @@ func arp_reply(id string, arpRequestFrame Frame) {
 func dhcp_discover(host Host) {
 	debug(4, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
 	//get info
-	srcIP := host.IPAddr.String()
-	srcMAC := host.MACAddr
+	srcIP := host.GetIP()
+	srcMAC := host.Interface.MACAddr
 	srcID := host.ID
 	dstIP := "255.255.255.255"
 	dstMAC := "ff:ff:ff:ff:ff:ff"
@@ -403,16 +403,16 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	dhcpDiscoverUDPSegment := readUDPSegment(dhcpDiscoverIPv4Packet.Data)
 	dhcpDiscoverMessage := ReadDHCPMessage(dhcpDiscoverUDPSegment.Data)
 
-	srcIP := snet.Router.Gateway.String()
+	srcIP := snet.Router.GetIP()
 	dstIP := "255.255.255.255"
-	srcMAC := snet.Router.MACAddr
+	srcMAC := snet.Router.Interface.MACAddr
 	dstMAC := dhcpDiscoverFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
 	dstid := getIDfromMAC(dstMAC)
 	linkID := dstid
 
 	// Find open address
 	addr_to_give := snet.Router.NextFreePoolAddress()
-	gateway := snet.Router.Gateway.String()
+	gateway := snet.Router.GetIP()
 	netSize, _ := strconv.Atoi(snet.Netsize)
 	subnetmask := prefixLengthToSubnetMask(netSize)
 
@@ -463,9 +463,9 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	dhcpRequestUDPSegment := readUDPSegment(dhcpRequestIPv4Packet.Data)
 	dhcpRequestMessage := ReadDHCPMessage(dhcpRequestUDPSegment.Data)
 
-	srcIP := snet.Router.Gateway.String()
+	srcIP := snet.Router.GetIP()
 	dstIP := dhcpRequestIPv4PacketHeader.SrcIP
-	srcMAC := snet.Router.MACAddr
+	srcMAC := snet.Router.Interface.MACAddr
 	dstMAC := dhcpRequestFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
 	dstid := getIDfromMAC(dstMAC)
 	linkID := dstid
@@ -483,7 +483,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 		}
 	}
 
-	gateway := snet.Router.Gateway.String()
+	gateway := snet.Router.GetIP()
 	netSize, _ := strconv.Atoi(snet.Netsize)
 	subnetmask := prefixLengthToSubnetMask(netSize)
 
@@ -534,7 +534,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 func ipset(hostname string, ipaddr string) {
 	prefixLength, _ := strconv.Atoi(snet.Netsize)
 	subnetMask := prefixLengthToSubnetMask(prefixLength)
-	defaultGateway := snet.Router.Gateway.String()
+	defaultGateway := snet.Router.GetIP()
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
 	fmt.Print("\nIs this correct? [Y/n]: ")
@@ -556,9 +556,9 @@ func ipset(hostname string, ipaddr string) {
 	//update info
 	for h := range snet.Hosts {
 		if snet.Hosts[h].Hostname == hostname {
-			snet.Hosts[h].IPAddr = net.ParseIP(ipaddr)
-			snet.Hosts[h].SubnetMask = subnetMask
-			snet.Hosts[h].DefaultGateway = net.ParseIP(defaultGateway)
+			snet.Hosts[h].Interface.IPConfig.IPAddress = net.ParseIP(ipaddr)
+			snet.Hosts[h].Interface.IPConfig.SubnetMask = subnetMask
+			snet.Hosts[h].Interface.IPConfig.DefaultGateway = net.ParseIP(defaultGateway)
 			fmt.Println("Network configuration updated")
 		}
 	}
@@ -586,7 +586,7 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 	dstMAC := ""
 
 	// Same subnet - ARP table, or ARP request.
-	if iphelper.IPInSameSubnet(srcHost.IPAddr.String(), dstIP, srcHost.SubnetMask) {
+	if iphelper.IPInSameSubnet(srcHost.GetIP(), dstIP, srcHost.GetMask()) {
 		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
 
 		// Check ARP table
@@ -608,7 +608,7 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 
 	} else { // Different subnet - GW.
 		debug(4, "hostDetermineDstMAC", srcID, "Sending to different subnet, sending to GW")
-		gateway := srcHost.DefaultGateway.String()
+		gateway := srcHost.GetGateway()
 
 		// Check ARP table
 		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr != "" {
@@ -638,7 +638,7 @@ func routerDetermineDstMAC(router Router, dstIP string, useTable bool) string {
 	// Same subnet - ARP table, or ARP request.
 	netsizeInt, _ := strconv.Atoi(snet.Netsize)
 	subnetMask := prefixLengthToSubnetMask(netsizeInt)
-	if iphelper.IPInSameSubnet(router.Gateway.String(), dstIP, subnetMask) {
+	if iphelper.IPInSameSubnet(router.GetIP(), dstIP, subnetMask) {
 		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
 
 		// Check ARP table

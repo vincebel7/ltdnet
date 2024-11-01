@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/vincebel7/ltdnet/iphelper"
@@ -18,13 +19,12 @@ import (
 type Router struct {
 	ID        string              `json:"id"`
 	Model     string              `json:"model"`
-	MACAddr   string              `json:"macaddr"` // LAN-facing interface
 	Hostname  string              `json:"hostname"`
-	Gateway   net.IP              `json:"gateway"`
 	VSwitch   Switch              `json:"vswitchid"` // Virtual built-in switch to router
 	DHCPPool  DHCPPool            `json:"dhcp_pool"` // Instance of DHCPPool
 	ARPTable  map[string]ARPEntry `json:"arptable"`
 	LANLinkID string              `json:"lanlinkid"` // link ID for its LAN connection
+	Interface Interface           `json:"interface"`
 }
 
 type DHCPPool struct {
@@ -45,13 +45,9 @@ func NewDHCPPool(start_addr net.IP, end_addr net.IP) DHCPPool {
 	return pool
 }
 
-func NewBobcat(hostname string) Router {
+func NewBobcat() Router {
 	bobcat := Router{}
-	bobcat.ID = idgen(8)
 	bobcat.Model = "Bobcat 100"
-	bobcat.MACAddr = macgen()
-	bobcat.Hostname = hostname
-	bobcat.ARPTable = make(map[string]ARPEntry)
 
 	vSwitch := addVirtualSwitch(BOBCAT_PORTS)
 	bobcat.VSwitch = vSwitch
@@ -59,13 +55,9 @@ func NewBobcat(hostname string) Router {
 	return bobcat
 }
 
-func NewOsiris(hostname string) Router {
+func NewOsiris() Router {
 	osiris := Router{}
-	osiris.ID = idgen(8)
 	osiris.Model = "Osiris 2-I"
-	osiris.MACAddr = macgen()
-	osiris.Hostname = hostname
-	osiris.ARPTable = make(map[string]ARPEntry)
 
 	vSwitch := addVirtualSwitch(OSIRIS_PORTS)
 	osiris.VSwitch = vSwitch
@@ -87,25 +79,45 @@ func addRouter(routerHostname string, routerModel string) {
 	dhcpPoolSize := 0
 
 	if routerModel == "BOBCAT" {
-		r = NewBobcat(routerHostname)
+		r = NewBobcat()
 		dhcpPoolSize = 253
 	} else if routerModel == "OSIRIS" {
-		r = NewOsiris(routerHostname)
+		r = NewOsiris()
 		dhcpPoolSize = 2
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
 	}
 
+	var gateway net.IP
 	if snet.Netsize == "8" {
-		r.Gateway = net.ParseIP("10.0.0.1")
+		gateway = net.ParseIP("10.0.0.1")
 	} else if snet.Netsize == "16" {
-		r.Gateway = net.ParseIP("172.16.0.1")
+		gateway = net.ParseIP("172.16.0.1")
 	} else if snet.Netsize == "24" {
-		r.Gateway = net.ParseIP("192.168.0.1")
+		gateway = net.ParseIP("192.168.0.1")
 	}
 
-	network_portion := strings.TrimSuffix(r.Gateway.String(), "1")
+	r.ID = idgen(8)
+	r.Hostname = routerHostname
+	r.ARPTable = make(map[string]ARPEntry)
+
+	netsizeInt, _ := strconv.Atoi(snet.Netsize)
+	ipConfig := IPConfig{
+		IPAddress:  gateway,
+		SubnetMask: prefixLengthToSubnetMask(netsizeInt),
+		DNSServer:  nil,
+		ConfigType: "",
+	}
+
+	// Blank interface, no remote L1ID or IP configuration yet
+	r.Interface = Interface{
+		L1ID:     idgen(8),
+		MACAddr:  macgen(),
+		IPConfig: ipConfig,
+	}
+
+	network_portion := strings.TrimSuffix(r.GetIP(), "1")
 
 	// Create DHCP Pool
 	start_ip := net.ParseIP(network_portion + "2")
@@ -132,7 +144,7 @@ func delRouter() {
 
 	r.ID = ""
 	r.Model = ""
-	r.MACAddr = ""
+	r.Interface = Interface{}
 	r.Hostname = ""
 	r.DHCPPool = NewDHCPPool(net.ParseIP("0.0.0.0"), net.ParseIP("0.0.0.0"))
 	r.VSwitch = addVirtualSwitch(0)

@@ -36,7 +36,7 @@ func RouterConn(device string, id string) {
 			case "":
 
 			case "ping":
-				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
+				if (snet.Router.GetIP() == "0.0.0.0") || (snet.Router.GetIP() == "") {
 					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
@@ -52,7 +52,7 @@ func RouterConn(device string, id string) {
 					}
 				}
 			case "arprequest":
-				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
+				if (snet.Router.GetIP() == "0.0.0.0") || (snet.Router.GetIP() == "") {
 					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
@@ -80,7 +80,7 @@ func RouterConn(device string, id string) {
 					case "a", "addr", "address":
 						netsizeInt, _ := strconv.Atoi(snet.Netsize)
 						subnetMask := prefixLengthToSubnetMask(netsizeInt)
-						fmt.Println("IPv4 address: " + snet.Router.Gateway.String())
+						fmt.Println("IPv4 address: " + snet.Router.GetIP())
 						fmt.Println("Subnet mask: " + subnetMask)
 
 					case "route":
@@ -95,7 +95,7 @@ func RouterConn(device string, id string) {
 						}
 
 					case "clear":
-						ipclear(snet.Router.Gateway.String())
+						ipclear(snet.Router.GetIP())
 						save()
 
 					case "help", "?":

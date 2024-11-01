@@ -25,7 +25,7 @@ func TestNetworkSetup(t *testing.T) {
 	// Test 1: Add router
 	addRouter("r1", "Bobcat")
 
-	if snet.Router.Gateway.String() != "192.168.0.1" {
+	if snet.Router.GetIP() != "192.168.0.1" {
 		t.Errorf("Router not (properly) created")
 	}
 
@@ -51,17 +51,30 @@ func TestNetworkSetup(t *testing.T) {
 	// Test 4: DHCP
 	go dhcp_discover(snet.Hosts[0])
 	<-actionsync[snet.Hosts[0].ID]
-	if snet.Hosts[0].IPAddr.String() != "192.168.0.2" {
+	if snet.Hosts[0].GetIP() != "192.168.0.2" {
 		t.Errorf("DHCP failed for host")
 	}
 
 	go dhcp_discover(snet.Hosts[1])
 	<-actionsync[snet.Hosts[1].ID]
-	if snet.Hosts[1].IPAddr.String() != "192.168.0.3" {
+	if snet.Hosts[1].GetIP() != "192.168.0.3" {
 		t.Errorf("DHCP failed for host")
 	}
 
-	// Test 5: Switching
+	go dhcp_discover(snet.Hosts[2])
+	<-actionsync[snet.Hosts[2].ID]
+	if snet.Hosts[2].GetIP() != "192.168.0.4" {
+		t.Errorf("DHCP failed for host")
+	}
+
+	// Test 5: Delete host
+	delHost("h2")
+
+	// Test 5: Pinging
+	go ping(snet.Hosts[0].ID, "192.168.0.4", 1)
+	<-actionsync[snet.Hosts[0].ID]
+
+	// Test 6: Switch linking
 	addSwitch("s1")
 	addHost("h5")
 	addHost("h6")

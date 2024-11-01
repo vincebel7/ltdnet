@@ -9,7 +9,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 )
@@ -18,7 +17,6 @@ type Switch struct {
 	ID              string              `json:"id"`
 	Model           string              `json:"model"`
 	Hostname        string              `json:"hostname"`
-	MgmtIP          net.IP              `json:"mgmtip"`
 	MACTable        map[string]MACEntry `json:"mactable"`
 	Maxports        int                 `json:"maxports"`
 	PortLinksRemote []string            `json:"links_remote"` // maps port # to remote link ID

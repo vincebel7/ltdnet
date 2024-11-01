@@ -8,21 +8,17 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"strings"
 	"time"
 )
 
 type Host struct {
-	ID             string              `json:"id"`
-	Model          string              `json:"model"`
-	MACAddr        string              `json:"macaddr"`
-	Hostname       string              `json:"hostname"`
-	IPAddr         net.IP              `json:"ipaddr"`
-	SubnetMask     string              `json:"mask"`
-	DefaultGateway net.IP              `json:"gateway"`
-	UplinkID       string              `json:"uplinkid"`
-	ARPTable       map[string]ARPEntry `json:"arptable"`
+	ID        string              `json:"id"`
+	Model     string              `json:"model"`
+	Hostname  string              `json:"hostname"`
+	UplinkID  string              `json:"uplinkid"`
+	ARPTable  map[string]ARPEntry `json:"arptable"`
+	Interface Interface           `json:"interface"`
 }
 
 type ARPEntry struct {
@@ -32,13 +28,10 @@ type ARPEntry struct {
 	State      string    `json:"state"`
 }
 
-func NewProbox(hostname string) Host {
+// Populate fields specific to the Probox 1
+func NewProbox() Host {
 	p := Host{}
-	p.ID = idgen(8)
 	p.Model = "ProBox 1"
-	p.MACAddr = macgen()
-	p.Hostname = hostname
-	p.ARPTable = make(map[string]ARPEntry)
 
 	return p
 }
@@ -54,13 +47,30 @@ func addHost(hostHostname string) {
 
 	h := Host{}
 	if hostModel == "PROBOX" {
-		h = NewProbox(hostHostname)
+		h = NewProbox()
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
 	}
 
-	h.IPAddr = net.ParseIP("0.0.0.0")
+	h.ID = idgen(8)
+	h.Hostname = hostHostname
+	h.ARPTable = make(map[string]ARPEntry)
+
+	ipConfig := IPConfig{
+		IPAddress:      nil,
+		SubnetMask:     "",
+		DefaultGateway: nil,
+		DNSServer:      nil,
+		ConfigType:     "",
+	}
+
+	// Blank interface, no remote L1ID or IP configuration yet
+	h.Interface = Interface{
+		L1ID:     idgen(8),
+		MACAddr:  macgen(),
+		IPConfig: ipConfig,
+	}
 
 	snet.Hosts = append(snet.Hosts, h)
 
@@ -175,8 +185,8 @@ func delHost(hostname string) {
 
 func ipclear(id string) {
 	index := getHostIndexFromID(id)
-	snet.Hosts[index].IPAddr = nil
-	snet.Hosts[index].SubnetMask = ""
-	snet.Hosts[index].DefaultGateway = nil
+	snet.Hosts[index].Interface.IPConfig.IPAddress = nil
+	snet.Hosts[index].Interface.IPConfig.SubnetMask = ""
+	snet.Hosts[index].Interface.IPConfig.DefaultGateway = nil
 	fmt.Println("Network configuration cleared")
 }
