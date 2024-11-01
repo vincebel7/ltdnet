@@ -9,6 +9,8 @@ package main
 import (
 	"encoding/json"
 	"strconv"
+
+	"github.com/vincebel7/ltdnet/iphelper"
 )
 
 var channels = make(map[string]chan json.RawMessage)    // Physical links
@@ -105,12 +107,24 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			debug(3, "actionHandler", id, "ARPREPLY received")
 
 			amTarget := false
+			shouldRespond := false
+
 			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP()) {
 				amTarget = true
+
+				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Router.GetIP(), snet.Router.GetMask()) {
+					shouldRespond = true
+				}
+
 			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
 				amTarget = true
+
+				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Hosts[getHostIndexFromID(id)].GetIP(), snet.Hosts[getHostIndexFromID(id)].GetMask()) {
+					shouldRespond = true
+				}
 			}
-			if amTarget {
+
+			if amTarget && shouldRespond {
 				sockets := socketMaps[id]
 				socketID := "arp_" + string(arpMessage.SenderIP)
 				sockets[socketID] <- frame
