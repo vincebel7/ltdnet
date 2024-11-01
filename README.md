@@ -6,7 +6,10 @@
 A little CLI-based network simulator for learning networking concepts, utilizing lightweight goroutines and channels for network traffic.
 Includes fictional network appliances and simple implementations of essential TCP/IP protocols.
 
-## How to run
+## How to run (binary)
+Download the Windows or Linux executable binary from the [Releases](https://github.com/vincebel7/ltdnet/releases) page
+
+## How to run (from source)
 1. Install Go (https://golang.org/doc/install)
 2. Clone this repository and enter the directory
 3. Make the run script executable, and execute it (./run.sh)
