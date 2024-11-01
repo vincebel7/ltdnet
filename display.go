@@ -23,7 +23,7 @@ func drawDiagram(rootID string) {
 
 	// Unlinked hosts
 	for i := range snet.Hosts {
-		if snet.Hosts[i].UplinkID == "" {
+		if snet.Hosts[i].Interface.RemoteL1ID == "" {
 			drawHost(snet.Hosts[i].ID)
 		}
 	}
@@ -247,13 +247,13 @@ func overview() {
 		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].GetMask())
 		uplinkHostname := ""
 		//Router
-		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[i].UplinkID) {
+		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[i].Interface.RemoteL1ID) {
 			uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
 		}
 
 		//Switches
 		for j := range snet.Switches {
-			if isSwitchportID(snet.Switches[j], snet.Hosts[i].UplinkID) {
+			if isSwitchportID(snet.Switches[j], snet.Hosts[i].Interface.RemoteL1ID) {
 				uplinkHostname = snet.Switches[j].Hostname
 			}
 		}
@@ -307,12 +307,12 @@ func show(hostname string) {
 		uplinkHostname := ""
 
 		//Router
-		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[id].UplinkID) {
+		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[id].Interface.RemoteL1ID) {
 			uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
 		}
 		//Switches
 		for j := range snet.Switches {
-			if isSwitchportID(snet.Switches[j], snet.Hosts[id].UplinkID) {
+			if isSwitchportID(snet.Switches[j], snet.Hosts[id].Interface.RemoteL1ID) {
 				uplinkHostname = snet.Switches[j].Hostname
 			}
 		}

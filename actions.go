@@ -36,6 +36,7 @@ func ping(srcID string, dstIP string, count int) {
 		srcHostname = snet.Router.Hostname
 		srcIP = snet.Router.GetIP()
 		srcMAC = snet.Router.Interface.MACAddr
+		linkID = snet.Router.Interface.RemoteL1ID
 	} else {
 		for h := range snet.Hosts {
 			if snet.Hosts[h].ID == srcID {
@@ -43,7 +44,7 @@ func ping(srcID string, dstIP string, count int) {
 				srcHostname = snet.Hosts[h].Hostname
 				srcIP = snet.Hosts[h].GetIP()
 				srcMAC = snet.Hosts[h].Interface.MACAddr
-				linkID = snet.Hosts[h].UplinkID
+				linkID = snet.Hosts[h].Interface.RemoteL1ID
 			}
 		}
 	}
@@ -54,15 +55,6 @@ func ping(srcID string, dstIP string, count int) {
 		// Get destination MAC address
 		if snet.Router.ID == srcID {
 			dstMAC = routerDetermineDstMAC(snet.Router, dstIP, true)
-
-			// Get linkID (which link to send ping over)
-			dstID := getIDfromMAC(dstMAC)
-			if getHostIndexFromID(dstID) != -1 {
-				linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
-
-			} else if snet.Router.ID == dstID {
-				linkID = snet.Router.ID
-			}
 		} else {
 			dstMAC = hostDetermineDstMAC(srcHost, dstIP, true)
 		}
@@ -146,9 +138,9 @@ func pong(srcID string, frame Frame) {
 		//Get link to send ping to
 		dstID := getIDfromMAC(dstMAC)
 		if getHostIndexFromID(dstID) != -1 {
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
+			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].Interface.RemoteL1ID
 		} else if snet.Router.ID == dstID {
-			linkID = snet.Router.ID
+			linkID = snet.Router.Interface.RemoteL1ID
 		}
 
 	} else {
@@ -157,7 +149,7 @@ func pong(srcID string, frame Frame) {
 		srcIP = snet.Hosts[index].GetIP()
 		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP, true)
 
-		linkID = snet.Hosts[index].UplinkID
+		linkID = snet.Hosts[index].Interface.RemoteL1ID
 	}
 
 	icmpReplyPacket := ICMPEchoPacket{
@@ -189,12 +181,12 @@ func arp_request(srcID string, targetIP string) string {
 	if srcID == snet.Router.ID {
 		srcIP = snet.Router.GetIP()
 		srcMAC = snet.Router.Interface.MACAddr
-		linkID = snet.Router.LANLinkID
+		linkID = snet.Router.Interface.RemoteL1ID
 	} else {
 		index := getHostIndexFromID(srcID)
 		srcIP = snet.Hosts[index].GetIP()
 		srcMAC = snet.Hosts[index].Interface.MACAddr
-		linkID = snet.Hosts[index].UplinkID
+		linkID = snet.Hosts[index].Interface.RemoteL1ID
 	}
 
 	arpRequestMessage := ArpMessage{
@@ -248,18 +240,10 @@ func arp_reply(id string, arpRequestFrame Frame) {
 		srcID = snet.Router.ID
 		srcMAC = snet.Router.Interface.MACAddr
 		srcIP = snet.Router.GetIP()
-
-		// Determine linkID
-		dstID := getIDfromMAC(dstMAC)
-		if getHostIndexFromID(dstID) != -1 {
-			linkID = snet.Hosts[getHostIndexFromID(getIDfromMAC(dstMAC))].ID
-		} else if snet.Router.ID == dstID {
-			linkID = snet.Router.ID
-		}
-
+		linkID = snet.Router.Interface.RemoteL1ID
 	} else {
 		i := getHostIndexFromID(id)
-		linkID = snet.Hosts[i].UplinkID
+		linkID = snet.Hosts[i].Interface.RemoteL1ID
 		srcID = snet.Hosts[i].ID
 		srcMAC = snet.Hosts[i].Interface.MACAddr
 		srcIP = snet.Hosts[i].GetIP()
@@ -292,7 +276,7 @@ func dhcp_discover(host Host) {
 	srcID := host.ID
 	dstIP := "255.255.255.255"
 	dstMAC := "ff:ff:ff:ff:ff:ff"
-	linkID := host.UplinkID
+	linkID := host.Interface.RemoteL1ID
 
 	// Construct DHCPDISCOVER
 	options := map[byte][]byte{
@@ -407,8 +391,7 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	dstIP := "255.255.255.255"
 	srcMAC := snet.Router.Interface.MACAddr
 	dstMAC := dhcpDiscoverFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
-	dstid := getIDfromMAC(dstMAC)
-	linkID := dstid
+	linkID := snet.Router.Interface.RemoteL1ID
 
 	// Find open address
 	addr_to_give := snet.Router.NextFreePoolAddress()
@@ -467,8 +450,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	dstIP := dhcpRequestIPv4PacketHeader.SrcIP
 	srcMAC := snet.Router.Interface.MACAddr
 	dstMAC := dhcpRequestFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
-	dstid := getIDfromMAC(dstMAC)
-	linkID := dstid
+	linkID := snet.Router.Interface.RemoteL1ID
 
 	messageType := 6
 	if dhcpRequestUDPSegment.Data != nil {
@@ -600,7 +582,7 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 			} else {
 				arpEntry := ARPEntry{
 					MACAddr:   dstMAC,
-					Interface: snet.Hosts[getHostIndexFromID(srcID)].UplinkID,
+					Interface: snet.Hosts[getHostIndexFromID(srcID)].Interface.RemoteL1ID,
 				}
 				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = arpEntry // Add to ARP table
 			}
@@ -621,7 +603,7 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, useTable bool) string {
 			} else {
 				arpEntry := ARPEntry{
 					MACAddr:   dstMAC,
-					Interface: snet.Hosts[getHostIndexFromID(srcID)].UplinkID,
+					Interface: snet.Hosts[getHostIndexFromID(srcID)].Interface.RemoteL1ID,
 				}
 				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = arpEntry // Add to ARP table
 			}
@@ -652,7 +634,7 @@ func routerDetermineDstMAC(router Router, dstIP string, useTable bool) string {
 			} else {
 				arpEntry := ARPEntry{
 					MACAddr:   dstMAC,
-					Interface: router.LANLinkID,
+					Interface: router.Interface.RemoteL1ID,
 				}
 				snet.Router.ARPTable[dstIP] = arpEntry // Add to ARP table
 			}

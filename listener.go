@@ -43,13 +43,13 @@ func Listener() {
 	}
 
 	for i := range snet.Hosts {
-		go listenHostChannel(snet.Hosts[i].ID)
+		go listenHostChannel(snet.Hosts[i])
 	}
 
 }
 
 func generateHostChannels(i int) {
-	channels[snet.Hosts[i].ID] = make(chan json.RawMessage)
+	channels[snet.Hosts[i].Interface.L1ID] = make(chan json.RawMessage)
 	socketMaps[snet.Hosts[i].ID] = make(map[string]chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
 }
@@ -64,7 +64,7 @@ func generateSwitchChannels(i int) {
 
 func generateRouterChannels() {
 	if snet.Router.Hostname != "" {
-		channels[snet.Router.ID] = make(chan json.RawMessage)
+		channels[snet.Router.Interface.L1ID] = make(chan json.RawMessage)
 		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
@@ -75,19 +75,19 @@ func generateRouterChannels() {
 	}
 }
 
-func listenHostChannel(id string) {
-	listenSync <- id //synchronizing with client.go
+func listenHostChannel(host Host) {
+	listenSync <- host.ID //synchronizing with client.go
 
 	for {
-		rawFrame := <-channels[id]
-		debug(4, "listenHostChannel", id, "Received unicast frame")
-		go actionHandler(rawFrame, id)
+		rawFrame := <-channels[host.Interface.L1ID]
+		debug(4, "listenHostChannel", host.Hostname, "Received unicast frame")
+		go actionHandler(rawFrame, host.ID)
 	}
 }
 
 func listenRouterChannel() {
 	for {
-		rawFrame := <-channels[snet.Router.ID]
+		rawFrame := <-channels[snet.Router.Interface.L1ID]
 		debug(4, "listenRouterChannel", snet.Router.ID, "Received unicast frame")
 		go actionHandler(rawFrame, snet.Router.ID)
 	}

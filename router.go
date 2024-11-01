@@ -23,7 +23,6 @@ type Router struct {
 	VSwitch   Switch              `json:"vswitchid"` // Virtual built-in switch to router
 	DHCPPool  DHCPPool            `json:"dhcp_pool"` // Instance of DHCPPool
 	ARPTable  map[string]ARPEntry `json:"arptable"`
-	LANLinkID string              `json:"lanlinkid"` // link ID for its LAN connection
 	Interface Interface           `json:"interface"`
 }
 
@@ -127,9 +126,9 @@ func addRouter(routerHostname string, routerModel string) {
 
 	snet.Router = r
 
-	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
+	assignSwitchport(snet.Router.VSwitch, snet.Router.Interface.L1ID)
 
-	snet.Router.LANLinkID = snet.Router.VSwitch.PortLinksLocal[0]
+	snet.Router.Interface.RemoteL1ID = snet.Router.VSwitch.PortLinksLocal[0]
 
 	generateRouterChannels()
 	go listenRouterChannel()

@@ -16,7 +16,6 @@ type Host struct {
 	ID        string              `json:"id"`
 	Model     string              `json:"model"`
 	Hostname  string              `json:"hostname"`
-	UplinkID  string              `json:"uplinkid"`
 	ARPTable  map[string]ARPEntry `json:"arptable"`
 	Interface Interface           `json:"interface"`
 }
@@ -75,7 +74,7 @@ func addHost(hostHostname string) {
 	snet.Hosts = append(snet.Hosts, h)
 
 	generateHostChannels(getHostIndexFromID(h.ID))
-	go listenHostChannel(h.ID)
+	go listenHostChannel(h)
 	<-listenSync
 }
 
@@ -108,7 +107,7 @@ func linkHostTo(localDevice string, remoteDevice string) {
 			//Remote device on new link is the Router
 			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
-				portIndex := assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
+				portIndex := assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].Interface.L1ID)
 				uplinkID = snet.Router.VSwitch.PortLinksLocal[portIndex]
 
 			} else {
@@ -116,14 +115,14 @@ func linkHostTo(localDevice string, remoteDevice string) {
 				for j := range snet.Switches {
 					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
 						//find next free port
-						portIndex := assignSwitchport(snet.Switches[j], snet.Hosts[i].ID)
+						portIndex := assignSwitchport(snet.Switches[j], snet.Hosts[i].Interface.L1ID)
 						uplinkID = snet.Switches[j].PortLinksLocal[portIndex]
 
 					}
 				}
 			}
 
-			snet.Hosts[i].UplinkID = uplinkID
+			snet.Hosts[i].Interface.RemoteL1ID = uplinkID
 			return
 		}
 	}
@@ -135,11 +134,11 @@ func unlinkHost(hostname string) {
 	for i := range snet.Hosts {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 			//first, unplug from switch (switch-end unlink). TODO try/catch this whole block.
-			freeSwitchport(snet.Hosts[i].UplinkID)
+			freeSwitchport(snet.Hosts[i].Interface.RemoteL1ID)
 
 			//next, remove the host's uplink (host-end unlink)
 			uplinkID := ""
-			snet.Hosts[i].UplinkID = uplinkID
+			snet.Hosts[i].Interface.RemoteL1ID = uplinkID
 
 			return
 		}
@@ -153,7 +152,7 @@ func delHost(hostname string) {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 			//unlink, Vswitch
 			for j := range snet.Router.VSwitch.PortLinksRemote {
-				if snet.Router.VSwitch.PortLinksLocal[j] == snet.Hosts[i].UplinkID {
+				if snet.Router.VSwitch.PortLinksLocal[j] == snet.Hosts[i].Interface.RemoteL1ID {
 					snet.Router.VSwitch.PortLinksRemote[j] = ""
 
 					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
@@ -165,7 +164,7 @@ func delHost(hostname string) {
 			//unlink, other switches
 			for sw := range snet.Switches {
 				for p := range snet.Switches[sw].PortLinksRemote {
-					if snet.Switches[sw].PortLinksLocal[p] == snet.Hosts[i].UplinkID {
+					if snet.Switches[sw].PortLinksLocal[p] == snet.Hosts[i].Interface.RemoteL1ID {
 						snet.Switches[sw].PortLinksRemote[p] = ""
 
 						snet.Hosts = removeHostFromSlice(snet.Hosts, i)

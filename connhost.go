@@ -57,7 +57,7 @@ func HostConn(device string, id string) {
 			case "":
 
 			case "ping":
-				if host.UplinkID == "" {
+				if host.Interface.RemoteL1ID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else if (host.GetIP() == "0.0.0.0") || (host.GetIP() == "") {
 					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
@@ -76,7 +76,7 @@ func HostConn(device string, id string) {
 				}
 
 			case "dhcp":
-				if host.UplinkID == "" {
+				if host.Interface.RemoteL1ID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
 					go dhcp_discover(host)
@@ -104,7 +104,7 @@ func HostConn(device string, id string) {
 						fmt.Println("Default gateway: " + host.GetGateway())
 
 					case "set":
-						if host.UplinkID == "" {
+						if host.Interface.RemoteL1ID == "" {
 							fmt.Println("Device is not connected. Please set an uplink")
 						} else {
 							if len(action) > 2 {
@@ -131,7 +131,7 @@ func HostConn(device string, id string) {
 				if len(action) > 1 {
 					switch action[1] {
 					case "request":
-						if host.UplinkID == "" {
+						if host.Interface.RemoteL1ID == "" {
 							fmt.Println("Device is not connected. Please set an uplink")
 						} else if (host.GetIP() == "0.0.0.0") || (host.GetIP() == "") {
 							fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")

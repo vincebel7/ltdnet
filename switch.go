@@ -114,8 +114,8 @@ func delSwitch(hostname string) {
 				if snet.Switches[i].PortLinksRemote[j] != "" {
 					// Unlink if host
 					for h := range snet.Hosts {
-						if snet.Hosts[h].UplinkID == snet.Switches[i].PortLinksLocal[j] {
-							snet.Hosts[h].UplinkID = ""
+						if snet.Hosts[h].Interface.RemoteL1ID == snet.Switches[i].PortLinksLocal[j] {
+							snet.Hosts[h].Interface.RemoteL1ID = ""
 						}
 					}
 
@@ -238,6 +238,7 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 				debug(4, "checkMACTable", id, "Source address found in MAC table")
 				result = v.Interface
 			} else {
+				debug(4, "checkMACTable", id, "Source address found in MAC table, but wrong - removing old.")
 				delMACEntry(macaddr, id, port)
 			}
 		}
@@ -355,6 +356,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 				// Don't send out source interface, or unplugged ports
 				if (snet.Router.VSwitch.PortLinksLocal[port] != switchportID) && (linkID != "") {
 					channels[linkID] <- outFrame
+					fmt.Println("I sent linkid " + linkID + " a frame")
 				}
 			}
 		} else { // Regular switch
@@ -369,6 +371,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 		}
 	} else {
 		channels[linkID] <- outFrame
+		fmt.Println("I sent linkid " + linkID + " a frame")
 	}
 }
 

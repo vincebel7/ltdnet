@@ -78,7 +78,7 @@ func getHostIndexFromID(id string) int {
 
 func getHostIndexFromLinkID(id string) int {
 	for h := range snet.Hosts {
-		if snet.Hosts[h].UplinkID == id {
+		if snet.Hosts[h].Interface.RemoteL1ID == id {
 			return h
 		}
 	}
