@@ -80,7 +80,7 @@ func ping(srcID string, dstIP string, count int) {
 		frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
 		debug(4, "ping", srcID, "Awaiting ping send")
-		channels[linkID] <- frameBytes
+		sendFrame(frameBytes, linkID, srcID)
 		debug(2, "ping", srcID, "Ping sent")
 
 		sendCount++
@@ -158,7 +158,7 @@ func pong(srcID string, frame Frame) {
 	frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
 	debug(4, "pong", srcID, "Awaiting pong send")
-	channels[linkID] <- frameBytes
+	sendFrame(frameBytes, linkID, srcID)
 	debug(2, "pong", srcID, "Pong sent")
 }
 
@@ -197,9 +197,8 @@ func arp_request(srcID string, targetIP string) string {
 	arpRequestFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpRequestMessageBytes)
 
 	// Send frame and wait for ARPREPLY
-	channels[linkID] <- arpRequestFrameBytes
+	sendFrame(arpRequestFrameBytes, linkID, srcID)
 	debug(2, "arp_request", srcID, "ARPREQUEST sent")
-	debug(4, "arp_request", srcID, "ARPREQUEST sent - linkid: "+linkID)
 
 	sockets := socketMaps[srcID]
 	socketID := "arp_" + string(targetIP)
@@ -257,7 +256,7 @@ func arp_reply(id string, arpRequestFrame Frame) {
 	arpReplyFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpReplyMessageBytes)
 
 	// Send frame
-	channels[linkID] <- arpReplyFrameBytes
+	sendFrame(arpReplyFrameBytes, linkID, srcID)
 	debug(2, "arp_reply", srcID, "ARPREPLY sent")
 }
 
@@ -300,7 +299,7 @@ func dhcp_discover(host Host) {
 
 	// Send DHCPDISCOVER, await DHCPOFFER
 	//need to give it to uplink
-	channels[linkID] <- frameData
+	sendFrame(frameData, linkID, srcID)
 	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
 	sockets := socketMaps[srcID]
@@ -348,7 +347,7 @@ func dhcp_discover(host Host) {
 		dhcpRequestFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpRequestIPv4Packet)
 
 		// Send DHCPREQUEST, await DHCPACK
-		channels[linkID] <- dhcpRequestFrame
+		sendFrame(dhcpRequestFrame, linkID, srcID)
 		debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent")
 		dhcpAckFrame := <-sockets[socketID]
 
@@ -428,7 +427,7 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	dhcpOfferFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpOfferPacket)
 
 	// Send DHCPOFFER, await DHCPREQUEST
-	channels[linkID] <- dhcpOfferFrame
+	sendFrame(dhcpOfferFrame, linkID, snet.Router.ID)
 	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
 }
 
@@ -493,7 +492,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	dhcpAckFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpAckIPv4Packet)
 
 	// Send DHCPACK
-	channels[linkID] <- dhcpAckFrame
+	sendFrame(dhcpAckFrame, linkID, snet.Router.ID)
 	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
 
 	// Setting leasee's MAC in pool (new)
