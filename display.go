@@ -74,7 +74,15 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 
 		for i := range snet.Router.VSwitch.PortLinksRemote {
 			if snet.Router.VSwitch.PortLinksRemote[i] != "" && i != 0 {
-				drawConnectedHost(snet.Router.VSwitch.PortLinksRemote[i], i, snet.Router.VSwitch)
+
+				hostID := ""
+				for h := range snet.Hosts {
+					if snet.Hosts[h].Interface.L1ID == snet.Router.VSwitch.PortLinksRemote[i] {
+						hostID = snet.Hosts[h].ID
+					}
+				}
+
+				drawConnectedHost(hostID, i, snet.Router.VSwitch)
 			}
 		}
 	}
