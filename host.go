@@ -98,25 +98,17 @@ func linkHostTo(localDevice string, remoteDevice string) {
 			//Remote device on new link is the Router
 			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
-				for k := range snet.Router.VSwitch.Ports {
-					if (snet.Router.VSwitch.Ports[k] == "") && (uplinkID == "") {
-						uplinkID = snet.Router.VSwitch.PortIDs[k]
-						assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
-					}
-				}
+				portIndex := assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
+				uplinkID = snet.Router.VSwitch.PortLinksLocal[portIndex]
 
 			} else {
 				//Remote device on the new link is not the Router. Search switches
 				for j := range snet.Switches {
 					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
-
 						//find next free port
-						for k := range snet.Switches[j].Ports {
-							if (snet.Switches[j].Ports[k] == "") && (uplinkID == "") {
-								uplinkID = snet.Switches[j].PortIDs[k]
-								assignSwitchport(snet.Switches[j], snet.Hosts[i].ID)
-							}
-						}
+						portIndex := assignSwitchport(snet.Switches[j], snet.Hosts[i].ID)
+						uplinkID = snet.Switches[j].PortLinksLocal[portIndex]
+
 					}
 				}
 			}
@@ -138,7 +130,6 @@ func unlinkHost(hostname string) {
 			//next, remove the host's uplink (host-end unlink)
 			uplinkID := ""
 			snet.Hosts[i].UplinkID = uplinkID
-			//snet.Router.Ports = removeStringFromSlice(snet.Router.Ports, i)
 
 			return
 		}
@@ -151,10 +142,9 @@ func delHost(hostname string) {
 	for i := range snet.Hosts {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 			//unlink, Vswitch
-			for j := range snet.Router.VSwitch.Ports {
-				if snet.Router.VSwitch.Ports[j] == snet.Hosts[i].ID {
-					snet.Router.VSwitch.Ports[j] = ""
-					snet.Router.VSwitch.PortIDs[j] = ""
+			for j := range snet.Router.VSwitch.PortLinksRemote {
+				if snet.Router.VSwitch.PortLinksLocal[j] == snet.Hosts[i].UplinkID {
+					snet.Router.VSwitch.PortLinksRemote[j] = ""
 
 					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
 					fmt.Printf("\nHost deleted\n")
@@ -164,10 +154,9 @@ func delHost(hostname string) {
 
 			//unlink, other switches
 			for sw := range snet.Switches {
-				for p := range snet.Switches[sw].Ports {
-					if snet.Switches[sw].Ports[p] == snet.Hosts[i].ID {
-						snet.Switches[sw].Ports[p] = ""
-						snet.Switches[sw].PortIDs[p] = ""
+				for p := range snet.Switches[sw].PortLinksRemote {
+					if snet.Switches[sw].PortLinksLocal[p] == snet.Hosts[i].UplinkID {
+						snet.Switches[sw].PortLinksRemote[p] = ""
 
 						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
 						fmt.Printf("\nHost deleted\n")

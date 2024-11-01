@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -44,14 +45,14 @@ func loadUserSettings() {
 	}
 	f, err := os.Open(filename)
 	if err != nil {
-		fmt.Printf("1File not found: %s", filename)
+		fmt.Printf("[Error] File not found: %s", filename)
 	}
 
 	b1 := make([]byte, 1000000) //TODO: secure this
 	n1, err := f.Read(b1)
 
 	if err != nil {
-		fmt.Printf("1File not found: %s", filename)
+		fmt.Printf("[Error] File not found: %s", filename)
 	}
 
 	//unmarshal
@@ -94,20 +95,52 @@ func toggleAchievements() {}
 func resetAchievements() {
 	user_settings.Achievements = make(map[int]Achievement)
 	saveUserSettings()
-	fmt.Println("Achievements have been reset")
+	fmt.Println("[Notice] Achievements have been reset")
 }
 
 func resetProgramSettings() {
 	os.Remove("saves/user_settings.json")
+	fmt.Println("[Notice] User preferences have been reset")
+	fmt.Println("")
+	loadUserSettings()
+	intro()
 }
 
-func resetProgramPrompt() {
+func wipeSaves() {
+	dir := "saves/user_saves"
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Check if the file ends with .json
+		if !info.IsDir() && filepath.Ext(info.Name()) == ".json" {
+			err := os.Remove(path) // Delete the file
+			if err != nil {
+				log.Printf("[Error] Failed to remove file: %s, error: %v", path, err)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Fatalf("[Error] Error wiping saves: %v", err)
+	} else {
+		fmt.Println("[Notice] Save files have been wiped")
+	}
+}
+
+func resetAllPrompt() {
 	fmt.Printf("\nAre you sure you want do delete all settings, Achievements, and saved networks? [y/n]: ")
 	scanner.Scan()
 	confirmation := scanner.Text()
 	confirmation = strings.ToUpper(confirmation)
+
+	fmt.Printf("\n")
+
 	if confirmation == "Y" {
+		wipeSaves()
+		resetAchievements()
 		resetProgramSettings()
-		//TODO: Wipe saves
 	}
 }

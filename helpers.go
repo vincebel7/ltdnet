@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -75,6 +76,15 @@ func getHostIndexFromID(id string) int {
 	return -1
 }
 
+func getHostIndexFromLinkID(id string) int {
+	for h := range snet.Hosts {
+		if snet.Hosts[h].UplinkID == id {
+			return h
+		}
+	}
+	return -1
+}
+
 func getSwitchIndexFromID(id string) int {
 	for s := range snet.Switches {
 		if snet.Switches[s].ID == id {
@@ -93,8 +103,8 @@ func getSwitchportIDFromLink(link string) int {
 		s = snet.Switches[getSwitchIndexFromID(switchID)]
 	}
 
-	for i := range s.PortIDs {
-		if s.PortIDs[i] == link {
+	for i := range s.PortLinksLocal {
+		if s.PortLinksLocal[i] == link {
 			return i
 		}
 	}
@@ -147,21 +157,23 @@ func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetmask 
 }
 
 func hostname_exists(hostname string) bool {
-	if snet.Router.Hostname == hostname {
+	hostname = strings.ToUpper(hostname)
+
+	if strings.ToUpper(snet.Router.Hostname) == hostname {
 		return true
 	}
-	if snet.Router.VSwitch.Hostname == hostname {
+	if strings.ToUpper(snet.Router.VSwitch.Hostname) == hostname {
 		return true
 	}
 
 	for s := range snet.Switches {
-		if snet.Switches[s].Hostname == hostname {
+		if strings.ToUpper(snet.Switches[s].Hostname) == hostname {
 			return true
 		}
 	}
 
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == hostname {
+		if strings.ToUpper(snet.Hosts[h].Hostname) == hostname {
 			return true
 		}
 	}

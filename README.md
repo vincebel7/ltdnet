@@ -6,7 +6,10 @@
 A little CLI-based network simulator for learning networking concepts, utilizing lightweight goroutines and channels for network traffic.
 Includes fictional network appliances and simple implementations of essential TCP/IP protocols.
 
-## How to run
+## How to run (binary)
+Download the Windows or Linux executable binary from the [Releases](https://github.com/vincebel7/ltdnet/releases) page
+
+## How to run (from source)
 1. Install Go (https://golang.org/doc/install)
 2. Clone this repository and enter the directory
 3. Make the run script executable, and execute it (./run.sh)
@@ -53,15 +56,21 @@ Simple run script to run *.go
 ### wipesaves.sh
 Clears the /saves directory
 
-## Known bugs
-- Save files may break with newer versions (Future fix: No breaking changes in minor versions)
+## Known bugs (highest to lowest impact)
+- Switches can't yet connect to routers, or other switches
 
-- Resetting user settings puts program into errored state. (Temporary fix: Restart program)
+- Can't ping yourself (This will be fixed with proper interfaces in v0.4)
 
-- Hosts ARP for their own MAC address (Low priority)
+- Hosts ARP for their own MAC address (No adverse impact, just needless traffic)
+
+- Save files may break with newer versions (Future fix: No breaking changes in minor versions after v1.0)
+
 
 ## Version History
 What has been accomplished at each version
+
+### v0.3.2 - November 1, 2024
+Bugfixes, rework local and remote ends of switchport links
 
 ### v0.3.1 - October 29, 2024
 Switch fixes: Hosts can link to switches, better broadcast handling, improved ARP + MAC tables
