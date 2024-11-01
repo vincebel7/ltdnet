@@ -44,7 +44,7 @@ func TestNetworkSetup(t *testing.T) {
 	linkHostTo("h2", "r1")
 	linkHostTo("h3", "r1")
 
-	if (snet.Hosts[0].UplinkID == "") || (snet.Router.VSwitch.PortIDs[1] == "") {
+	if (snet.Hosts[0].UplinkID == "") || (snet.Router.VSwitch.PortLinksRemote[1] == "") {
 		t.Errorf("Host not (properly) linked")
 	}
 

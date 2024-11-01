@@ -103,8 +103,8 @@ func getSwitchportIDFromLink(link string) int {
 		s = snet.Switches[getSwitchIndexFromID(switchID)]
 	}
 
-	for i := range s.PortIDs {
-		if s.PortIDs[i] == link {
+	for i := range s.PortLinksLocal {
+		if s.PortLinksLocal[i] == link {
 			return i
 		}
 	}

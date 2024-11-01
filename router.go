@@ -117,12 +117,12 @@ func addRouter(routerHostname string, routerModel string) {
 
 	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
 
-	snet.Router.LANLinkID = snet.Router.VSwitch.PortIDs[0]
+	snet.Router.LANLinkID = snet.Router.VSwitch.PortLinksLocal[0]
 
 	generateRouterChannels()
 	go listenRouterChannel()
 	for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-		go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortIDs[i])
+		go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortLinksLocal[i])
 	}
 	achievementTester(ROUTINE_BUSINESS)
 }

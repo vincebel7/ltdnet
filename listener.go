@@ -32,13 +32,13 @@ func Listener() {
 		go listenRouterChannel()
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-			go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortIDs[i])
+			go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortLinksLocal[i])
 		}
 	}
 
 	for i := range snet.Switches {
 		for j := 0; j < getActivePorts(snet.Switches[i]); j++ {
-			go listenSwitchportChannel(snet.Switches[i].ID, snet.Switches[i].PortIDs[j])
+			go listenSwitchportChannel(snet.Switches[i].ID, snet.Switches[i].PortLinksLocal[j])
 		}
 	}
 
@@ -56,9 +56,9 @@ func generateHostChannels(i int) {
 
 func generateSwitchChannels(i int) {
 	for j := 0; j < getActivePorts(snet.Switches[i]); j++ {
-		channels[snet.Switches[i].PortIDs[j]] = make(chan json.RawMessage)
-		socketMaps[snet.Switches[i].PortIDs[j]] = make(map[string]chan Frame)
-		actionsync[snet.Switches[i].PortIDs[j]] = make(chan int)
+		channels[snet.Switches[i].PortLinksLocal[j]] = make(chan json.RawMessage)
+		socketMaps[snet.Switches[i].PortLinksLocal[j]] = make(map[string]chan Frame)
+		actionsync[snet.Switches[i].PortLinksLocal[j]] = make(chan int)
 	}
 }
 
@@ -68,8 +68,8 @@ func generateRouterChannels() {
 		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-			channels[snet.Router.VSwitch.PortIDs[i]] = make(chan json.RawMessage)
-			socketMaps[snet.Router.VSwitch.PortIDs[i]] = make(map[string]chan Frame)
+			channels[snet.Router.VSwitch.PortLinksLocal[i]] = make(chan json.RawMessage)
+			socketMaps[snet.Router.VSwitch.PortLinksLocal[i]] = make(map[string]chan Frame)
 			actionsync[snet.Router.ID] = make(chan int)
 		}
 	}

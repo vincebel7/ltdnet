@@ -46,9 +46,9 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 				//rootIndex = i
 				drawSwitch(snet.Switches[i].ID)
 
-				for j := range snet.Switches[i].Ports {
-					if snet.Switches[i].Ports[j] != "" {
-						drawConnectedHost(snet.Switches[i].Ports[j], j, snet.Switches[i])
+				for j := range snet.Switches[i].PortLinksRemote {
+					if snet.Switches[i].PortLinksRemote[j] != "" {
+						drawConnectedHost(snet.Switches[i].PortLinksRemote[j], j, snet.Switches[i])
 					}
 				}
 			}
@@ -72,9 +72,9 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 			drawRouter()
 		}
 
-		for i := range snet.Router.VSwitch.Ports {
-			if snet.Router.VSwitch.Ports[i] != "" && i != 0 {
-				drawConnectedHost(snet.Router.VSwitch.Ports[i], i, snet.Router.VSwitch)
+		for i := range snet.Router.VSwitch.PortLinksRemote {
+			if snet.Router.VSwitch.PortLinksRemote[i] != "" && i != 0 {
+				drawConnectedHost(snet.Router.VSwitch.PortLinksRemote[i], i, snet.Router.VSwitch)
 			}
 		}
 	}
@@ -112,14 +112,14 @@ func drawSwitch(id string) {
 	sw := snet.Switches[getSwitchIndexFromID(id)]
 
 	connectedPorts := 0
-	for i := range sw.Ports {
-		if sw.Ports[i] != "" {
+	for i := range sw.PortLinksRemote {
+		if sw.PortLinksRemote[i] != "" {
 			connectedPorts++
 		}
 	}
 
 	space1 := 13 - len(sw.Hostname)
-	space2 := 11 - len(strconv.Itoa(len(sw.PortIDs)))
+	space2 := 11 - len(strconv.Itoa(len(sw.PortLinksLocal)))
 	space3 := 5
 	space4 := 16 - len(sw.Model)
 
@@ -131,7 +131,7 @@ func drawSwitch(id string) {
 		fmt.Printf(" ")
 	}
 	fmt.Printf("|\n")
-	fmt.Printf("| Port count: %d", len(sw.PortIDs))
+	fmt.Printf("| Port count: %d", len(sw.PortLinksLocal))
 	for i := 0; i < space2; i++ {
 		fmt.Printf(" ")
 	}
