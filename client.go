@@ -210,7 +210,7 @@ func actionsMenu() {
 			fmt.Println(" Usage: unlink host <hostname>")
 		}
 
-	case "control":
+	case "control", "c":
 		if actionword2 != "" {
 			switch actionword2 {
 			case "host":
@@ -281,7 +281,7 @@ func actionsMenu() {
 			if len(action_selection) > 12 { // show device
 				show(action_selection[12:])
 			} else {
-				fmt.Println(
+				fmt.Println("",
 					"show network overview\n",
 					"show device <hostname>\n",
 					"show diagram",

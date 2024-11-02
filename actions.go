@@ -106,7 +106,7 @@ func ping(srcID string, dst string, count int) {
 
 		debug(4, "ping", srcID, "Awaiting ping send")
 		sendFrame(frameBytes, iface, srcID)
-		debug(2, "ping", srcID, "Ping sent")
+		debug(3, "ping", srcID, "Ping request sent")
 
 		sendCount++
 
@@ -189,7 +189,7 @@ func pong(srcID string, frame Frame) {
 
 	debug(4, "pong", srcID, "Awaiting pong send")
 	sendFrame(frameBytes, iface, srcID)
-	debug(2, "pong", srcID, "Pong sent")
+	debug(3, "pong", srcID, "Ping reply sent")
 }
 
 func arp_request(srcID string, targetIP string) string {
@@ -233,7 +233,7 @@ func arp_request(srcID string, targetIP string) string {
 
 	// Send frame and wait for ARPREPLY
 	sendFrame(arpRequestFrameBytes, iface, srcID)
-	debug(2, "arp_request", srcID, "ARPREQUEST sent")
+	debug(3, "arp_request", srcID, "ARPREQUEST sent")
 
 	sockets := socketMaps[srcID]
 	socketID := "arp_" + string(targetIP)
@@ -291,7 +291,7 @@ func arp_reply(id string, arpRequestFrame Frame) {
 
 	// Send frame
 	sendFrame(arpReplyFrameBytes, iface, srcID)
-	debug(2, "arp_reply", srcID, "ARPREPLY sent")
+	debug(3, "arp_reply", srcID, "ARPREPLY sent")
 }
 
 func dhcp_discover(host Host) {
@@ -334,7 +334,7 @@ func dhcp_discover(host Host) {
 	// Send DHCPDISCOVER, await DHCPOFFER
 	//need to give it to uplink
 	sendFrame(frameData, iface, srcID)
-	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
+	debug(3, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
 	sockets := socketMaps[srcID]
 	socketID := "udp_" + strconv.Itoa(68)
@@ -382,7 +382,7 @@ func dhcp_discover(host Host) {
 
 		// Send DHCPREQUEST, await DHCPACK
 		sendFrame(dhcpRequestFrame, iface, srcID)
-		debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent")
+		debug(3, "dhcp_discover", srcID, "DHCPREQUEST sent")
 		dhcpAckFrame := <-sockets[socketID]
 
 		// De-encapsulate DHCPACK
@@ -391,7 +391,7 @@ func dhcp_discover(host Host) {
 		dhcpAckMessage := ReadDHCPMessage(dhcpAckUDPSegment.Data)
 
 		if int(dhcpAckMessage.Options[53][0]) == 5 {
-			debug(2, "dhcp_discover", srcID, "DHCPACK received - "+dhcpAckMessage.YIAddr.String())
+			debug(3, "dhcp_discover", srcID, "DHCPACK assigned a lease - "+dhcpAckMessage.YIAddr.String())
 
 			assignedAddress := dhcpAckMessage.YIAddr
 			defaultGateway := net.IP(dhcpAckMessage.Options[3]).To4()
@@ -462,7 +462,7 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 
 	// Send DHCPOFFER, await DHCPREQUEST
 	sendFrame(dhcpOfferFrame, iface, snet.Router.ID)
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
+	debug(3, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
 }
 
 func dhcp_ack(dhcpRequestFrame Frame) {
@@ -527,7 +527,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 
 	// Send DHCPACK
 	sendFrame(dhcpAckFrame, iface, snet.Router.ID)
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
+	debug(3, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
 
 	// Setting leasee's MAC in pool (new)
 	pool := snet.Router.GetDHCPPoolAddresses()

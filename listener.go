@@ -112,7 +112,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 		arpMessage := readArpMessage(frame.Data)
 		switch arpMessage.Opcode {
 		case 2:
-			debug(3, "actionHandler", id, "ARPREPLY received")
+			debug(2, "actionHandler", id, "ARPREPLY received")
 
 			amTarget := false
 			shouldRespond := false
@@ -139,7 +139,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			}
 
 		case 1:
-			debug(3, "actionHandler", id, "ARPREQUEST received")
+			debug(2, "actionHandler", id, "ARPREQUEST received")
 
 			// Check if target device at network-level
 			amTarget := false
@@ -164,7 +164,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 			switch icmpPacket.ControlType {
 			case 8:
-				debug(3, "actionHandler", id, "Ping request received")
+				debug(2, "actionHandler", id, "Ping request received")
 
 				// Check if target device at network-level
 				amTarget := false
@@ -179,7 +179,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 
 			case 0:
-				debug(3, "actionHandler", id, "Ping reply received")
+				debug(2, "actionHandler", id, "Ping reply received")
 
 				// Check if target device at network-level
 				amTarget := false
@@ -211,11 +211,11 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 1: // DHCPDISCOVER
-							debug(3, "actionHandler", id, "DHCPDISCOVER received")
+							debug(2, "actionHandler", id, "DHCPDISCOVER received")
 							dhcp_offer(frame)
 
 						case 3: // DHCPREQUEST
-							debug(3, "actionHandler", id, "DHCPREQUEST received")
+							debug(2, "actionHandler", id, "DHCPREQUEST received")
 							dhcp_ack(frame)
 
 						case 2, 4, 5:
@@ -236,13 +236,13 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 2: // DHCPOFFER
-							debug(3, "actionHandler", id, "DHCPOFFER received")
+							debug(2, "actionHandler", id, "DHCPOFFER received")
 							sockets := socketMaps[id]
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets[socketID] <- frame
 
 						case 5: // DHCPACK
-							debug(3, "actionHandler", id, "DHCPACK received")
+							debug(2, "actionHandler", id, "DHCPACK received")
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets := socketMaps[id]
 							sockets[socketID] <- frame

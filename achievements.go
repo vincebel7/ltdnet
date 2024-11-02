@@ -35,7 +35,7 @@ func buildAchievementCatalog() {
 	achievement := Achievement{
 		ID:          ROUTINE_BUSINESS,
 		Name:        "Route-ine Business",
-		Description: "Add a router to your network.",
+		Description: "Add a router to your network",
 		Hint:        "Have you tried the 'add router' command?",
 	}
 	AchievementCatalog[ROUTINE_BUSINESS] = achievement
