@@ -117,7 +117,7 @@ func ping(srcID string, dstIP string, count int) {
 	fmt.Printf("\nPing statistics for %s:\n", dstIP)
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
 
-	actionsync[srcID] <- 1
+	actionsync[srcID] <- lossCount
 }
 
 func pong(srcID string, frame Frame) {

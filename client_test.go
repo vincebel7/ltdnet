@@ -72,7 +72,16 @@ func TestNetworkSetup(t *testing.T) {
 
 	// Test 5: Pinging
 	go ping(snet.Hosts[0].ID, "192.168.0.4", 1)
-	<-actionsync[snet.Hosts[0].ID]
+	lossCount := <-actionsync[snet.Hosts[0].ID]
+	if lossCount != 0 {
+		t.Errorf("Ping from h1 to h3 failed")
+	}
+
+	go ping(snet.Hosts[0].ID, "192.168.0.2", 1)
+	lossCount = <-actionsync[snet.Hosts[0].ID]
+	if lossCount != 0 {
+		t.Errorf("Ping from h1 to h1 failed")
+	}
 
 	// Test 6: Switch linking
 	addSwitch("s1")
