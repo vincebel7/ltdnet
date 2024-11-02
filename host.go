@@ -17,6 +17,7 @@ type Host struct {
 	Model     string              `json:"model"`
 	Hostname  string              `json:"hostname"`
 	ARPTable  map[string]ARPEntry `json:"arptable"`
+	DNSTable  map[string]DNSEntry `json:"dnstable"`
 	Interface Interface           `json:"interface"`
 }
 
@@ -25,6 +26,13 @@ type ARPEntry struct {
 	ExpireTime time.Time `json:"expireTime"`
 	Interface  string    `json:"interface"`
 	State      string    `json:"state"`
+}
+
+type DNSEntry struct {
+	IPAddress  string    // Resolved IP address
+	TTL        int       // Time-to-live in seconds, for cache expiration
+	RecordType string    // Type of DNS record ("A", "AAAA")
+	Timestamp  time.Time // Time the entry was created, for tracking TTL expiration
 }
 
 // Populate fields specific to the Probox 1
@@ -55,6 +63,22 @@ func addHost(hostHostname string) {
 	h.ID = idgen(8)
 	h.Hostname = hostHostname
 	h.ARPTable = make(map[string]ARPEntry)
+
+	// DNS table
+	h.DNSTable = make(map[string]DNSEntry)
+
+	h.DNSTable[h.Hostname] = DNSEntry{
+		IPAddress:  "127.0.0.1",
+		TTL:        -1,
+		RecordType: "A",
+		Timestamp:  time.Time{},
+	}
+	h.DNSTable["localhost"] = DNSEntry{
+		IPAddress:  "127.0.0.1",
+		TTL:        -1,
+		RecordType: "A",
+		Timestamp:  time.Time{},
+	}
 
 	ipConfig := IPConfig{
 		IPAddress:      nil,

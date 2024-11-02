@@ -137,6 +137,16 @@ func RouterConn(device string, id string) {
 					displayARPTable(snet.Router.ID)
 				}
 
+			case "nslookup":
+				if len(action) > 1 {
+					address := resolveHostname(action[1], snet.Router.DNSTable)
+					fmt.Println("Name: " + action[1])
+					fmt.Println("Address: " + address + "\n")
+
+				} else {
+					fmt.Println("Usage: nslookup <hostname>")
+				}
+
 			case "exit", "quit", "q":
 				return
 
@@ -146,6 +156,7 @@ func RouterConn(device string, id string) {
 					"dhcpserver\t\t\tDisplays DHCP server and DHCP pool settings\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
+					"nslookup\t\t\tPerform a DNS lookup\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 			default:

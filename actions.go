@@ -644,3 +644,17 @@ func routerDetermineDstMAC(router Router, dstIP string, useTable bool) string {
 
 	return dstMAC
 }
+
+func resolveHostname(hostname string, dnsTable map[string]DNSEntry) string {
+	// Check local table
+	if entry, found := dnsTable[hostname]; found {
+		if entry.TTL == -1 || time.Since(entry.Timestamp).Seconds() < float64(entry.TTL) {
+			return entry.IPAddress
+		} else {
+			delete(dnsTable, hostname)
+		}
+	}
+
+	// If not found, initiate DNS request
+	return ""
+}

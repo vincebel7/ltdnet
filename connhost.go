@@ -162,15 +162,26 @@ func HostConn(device string, id string) {
 					displayARPTable(host.ID)
 				}
 
+			case "nslookup":
+				if len(action) > 1 {
+					address := resolveHostname(action[1], host.DNSTable)
+					fmt.Println("Name: " + action[1])
+					fmt.Println("Address: " + address + "\n")
+
+				} else {
+					fmt.Println("Usage: nslookup <hostname>")
+				}
+
 			case "exit", "quit", "q":
 				return
 
 			case "help", "?":
 				fmt.Println("",
-					"ping <dst_ip> [seconds]\tPings an IP address\n",
+					"ping\t\t\t\tPings an IP address\n",
 					"dhcp\t\t\t\tGets IP configuration via DHCP\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
+					"nslookup\t\t\tPerform a DNS lookup\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 

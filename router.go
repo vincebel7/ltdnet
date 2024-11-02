@@ -12,6 +12,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vincebel7/ltdnet/iphelper"
 )
@@ -23,6 +24,7 @@ type Router struct {
 	VSwitch   Switch              `json:"vswitchid"` // Virtual built-in switch to router
 	DHCPPool  DHCPPool            `json:"dhcp_pool"` // Instance of DHCPPool
 	ARPTable  map[string]ARPEntry `json:"arptable"`
+	DNSTable  map[string]DNSEntry `json:"dnstable"`
 	Interface Interface           `json:"interface"`
 }
 
@@ -102,6 +104,23 @@ func addRouter(routerHostname string, routerModel string) {
 	r.ARPTable = make(map[string]ARPEntry)
 
 	netsizeInt, _ := strconv.Atoi(snet.Netsize)
+
+	// DNS table
+	r.DNSTable = make(map[string]DNSEntry)
+
+	r.DNSTable[r.Hostname] = DNSEntry{
+		IPAddress:  "127.0.0.1",
+		TTL:        -1,
+		RecordType: "A",
+		Timestamp:  time.Time{},
+	}
+	r.DNSTable["localhost"] = DNSEntry{
+		IPAddress:  "127.0.0.1",
+		TTL:        -1,
+		RecordType: "A",
+		Timestamp:  time.Time{},
+	}
+
 	ipConfig := IPConfig{
 		IPAddress:  gateway,
 		SubnetMask: prefixLengthToSubnetMask(netsizeInt),

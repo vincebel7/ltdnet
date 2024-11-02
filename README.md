@@ -48,26 +48,30 @@ I hope you find this program to be fun. Many more features are on their way, but
 
 For any further questions, please email vincebel@protonmail.com
 
-## Scripts
-
-### run.sh
-Simple run script to run *.go
-
-### wipesaves.sh
-Clears the /saves directory
 
 ## Known bugs (highest to lowest impact)
 - Switches can't yet connect to routers, or other switches
 
-- Can't ping yourself (This will be fixed with proper interfaces in v0.4)
-
-- Hosts ARP for their own MAC address (No adverse impact, just needless traffic)
+- Display functions sometimes cause program to crash if a host has been deleted
 
 - Save files may break with newer versions (Future fix: No breaking changes in minor versions after v1.0)
 
+## Scripts
+
+### run.sh
+Simple run script to run *.go from source
+
+### wipesaves.sh
+Clears the /saves directory
+
+### build.sh
+Builds executables for Linux and Windows
 
 ## Version History
 What has been accomplished at each version
+
+### v0.4.0 - November 2, 2024
+Layer 1 rework (interfaces), frame-sending function, bypasses for self-bound traffic
 
 ### v0.3.2 - November 1, 2024
 Bugfixes, rework local and remote ends of switchport links
