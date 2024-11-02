@@ -123,7 +123,11 @@ func ping(srcID string, dst string, count int) {
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
 				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
-				achievementTester(UNITED_PINGDOM)
+
+				if srcIP != dstIP {
+					achievementTester(UNITED_PINGDOM)
+				}
+
 				if dstIP == "127.0.0.1" {
 					achievementTester(SNIFF_FRAMES)
 				}

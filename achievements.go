@@ -43,7 +43,7 @@ func buildAchievementCatalog() {
 	achievement = Achievement{
 		ID:          UNITED_PINGDOM,
 		Name:        "United Pingdom",
-		Description: "Successfully ping from one device to another.",
+		Description: "Successfully ping from one device to another",
 		Hint:        "Control a host and ping your default gateway, see if you get a response.",
 	}
 	AchievementCatalog[UNITED_PINGDOM] = achievement
@@ -51,7 +51,7 @@ func buildAchievementCatalog() {
 	achievement = Achievement{
 		ID:          ARP_HOT,
 		Name:        "ARP It Like It's Hot",
-		Description: "Manually send an ARP request, and receive a reply.",
+		Description: "Manually send an ARP request, and receive a reply",
 		Hint:        "ARP is how hosts find out other MAC addresses on their network. Try 'arp ?' from a host.",
 	}
 	AchievementCatalog[ARP_HOT] = achievement
