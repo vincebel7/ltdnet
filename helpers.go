@@ -78,7 +78,7 @@ func getHostIndexFromID(id string) int {
 
 func getHostIndexFromLinkID(id string) int {
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Interface.RemoteL1ID == id {
+		if snet.Hosts[h].Interfaces["eth0"].RemoteL1ID == id {
 			return h
 		}
 	}
@@ -130,13 +130,13 @@ func getSwitchIDFromLink(link string) string {
 
 func getIDfromMAC(mac string) string {
 	//Router
-	if mac == snet.Router.Interface.MACAddr {
+	if mac == snet.Router.Interfaces["eth0"].MACAddr {
 		return snet.Router.ID
 	}
 
 	//Hosts
 	for h := range snet.Hosts {
-		if snet.Hosts[h].Interface.MACAddr == mac {
+		if snet.Hosts[h].Interfaces["eth0"].MACAddr == mac {
 			return snet.Hosts[h].ID
 		}
 	}
@@ -147,9 +147,14 @@ func getIDfromMAC(mac string) string {
 func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask string) {
 	for h := range snet.Hosts {
 		if snet.Hosts[h].ID == id {
-			snet.Hosts[h].Interface.IPConfig.IPAddress = ipaddr
-			snet.Hosts[h].Interface.IPConfig.SubnetMask = subnetMask
-			snet.Hosts[h].Interface.IPConfig.DefaultGateway = defaultgateway
+			iface := snet.Hosts[h].Interfaces["eth0"]
+
+			iface.IPConfig.IPAddress = ipaddr
+			iface.IPConfig.SubnetMask = subnetMask
+			iface.IPConfig.DefaultGateway = defaultgateway
+
+			snet.Hosts[h].Interfaces["eth0"] = iface
+
 			fmt.Println("Network configuration updated")
 		}
 	}

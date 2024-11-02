@@ -351,8 +351,10 @@ func main() {
 
 	go Listener()
 
-	for range snet.Hosts {
-		<-listenSync
+	for h := range snet.Hosts {
+		for range snet.Hosts[h].Interfaces {
+			<-listenSync
+		}
 	}
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
 	fmt.Printf("[Notice] Please note that switches can't yet link to routers or other switches.\n")

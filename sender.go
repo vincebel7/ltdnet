@@ -10,23 +10,15 @@ import (
 	"encoding/json"
 )
 
-func sendFrame(frameBytes json.RawMessage, linkID string, srcID string) {
+func sendFrame(frameBytes json.RawMessage, iface Interface, srcID string) {
 	if isToSelf(readFrame(frameBytes)) {
 		debug(4, "sendFrame", srcID, "Frame destination is to itself. Mirroring back across the interface.")
 
-		mirrorLinkID := ""
-
-		if srcID == snet.Router.ID {
-			mirrorLinkID = snet.Router.Interface.L1ID
-		} else {
-			index := getHostIndexFromID(srcID)
-			mirrorLinkID = snet.Hosts[index].Interface.L1ID
-		}
-
+		mirrorLinkID := iface.L1ID
 		channels[mirrorLinkID] <- frameBytes
 
 	} else {
-		channels[linkID] <- frameBytes
+		channels[iface.RemoteL1ID] <- frameBytes
 	}
 }
 

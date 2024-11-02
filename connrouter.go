@@ -36,7 +36,7 @@ func RouterConn(device string, id string) {
 			case "":
 
 			case "ping":
-				if (snet.Router.GetIP() == "0.0.0.0") || (snet.Router.GetIP() == "") {
+				if (snet.Router.GetIP("eth0") == "0.0.0.0") || (snet.Router.GetIP("eth0") == "") {
 					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
@@ -51,17 +51,7 @@ func RouterConn(device string, id string) {
 						fmt.Println("Usage: ping <dst_ip> [seconds]")
 					}
 				}
-			case "arprequest":
-				if (snet.Router.GetIP() == "0.0.0.0") || (snet.Router.GetIP() == "") {
-					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
-				} else {
-					if len(action) > 1 {
-						go arpSynchronized(id, action[1])
-						<-actionsync[id]
-					} else {
-						fmt.Println("Usage: arp <target_ip>")
-					}
-				}
+
 			case "dhcpserver":
 				displayDHCPServer()
 
@@ -78,10 +68,11 @@ func RouterConn(device string, id string) {
 				if len(action) > 1 {
 					switch action[1] {
 					case "a", "addr", "address":
-						netsizeInt, _ := strconv.Atoi(snet.Netsize)
-						subnetMask := prefixLengthToSubnetMask(netsizeInt)
-						fmt.Println("IPv4 address: " + snet.Router.GetIP())
-						fmt.Println("Subnet mask: " + subnetMask)
+						for iface := range snet.Router.Interfaces {
+							fmt.Println("Interface " + snet.Router.Interfaces[iface].Name)
+							fmt.Println("IPv4 address: " + snet.Router.GetIP(iface))
+							fmt.Println("Subnet mask: " + snet.Router.GetMask(iface))
+						}
 
 					case "route":
 						fmt.Println("Routing not implemented yet.")
@@ -95,7 +86,7 @@ func RouterConn(device string, id string) {
 						}
 
 					case "clear":
-						ipclear(snet.Router.GetIP())
+						ipclear(snet.Router.GetIP("eth0"))
 						save()
 
 					case "help", "?":

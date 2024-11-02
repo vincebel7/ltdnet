@@ -9,6 +9,7 @@ package main
 import "net"
 
 type Interface struct {
+	Name       string   `json:"name"`
 	L1ID       string   `json:"id"`             // L1ID establishes one end of a Layer-1 connection
 	RemoteL1ID string   `json:"remote_link_id"` // Remote L1ID this interface is connected to
 	MACAddr    string   `json:"macaddr"`        // MAC Address
@@ -23,22 +24,22 @@ type IPConfig struct {
 	ConfigType     string `json:"configtype"` // Static or DHCP
 }
 
-func (h *Host) GetIP() string {
-	return h.Interface.IPConfig.IPAddress.String()
+func (h *Host) GetIP(interfaceName string) string {
+	return h.Interfaces[interfaceName].IPConfig.IPAddress.String()
 }
 
-func (h *Host) GetMask() string {
-	return h.Interface.IPConfig.SubnetMask
+func (h *Host) GetMask(interfaceName string) string {
+	return h.Interfaces[interfaceName].IPConfig.SubnetMask
 }
 
-func (h *Host) GetGateway() string {
-	return h.Interface.IPConfig.DefaultGateway.String()
+func (h *Host) GetGateway(interfaceName string) string {
+	return h.Interfaces[interfaceName].IPConfig.DefaultGateway.String()
 }
 
-func (r *Router) GetIP() string {
-	return r.Interface.IPConfig.IPAddress.String()
+func (r *Router) GetIP(interfaceName string) string {
+	return r.Interfaces[interfaceName].IPConfig.IPAddress.String()
 }
 
-func (r *Router) GetMask() string {
-	return r.Interface.IPConfig.SubnetMask
+func (r *Router) GetMask(interfaceName string) string {
+	return r.Interfaces[interfaceName].IPConfig.SubnetMask
 }

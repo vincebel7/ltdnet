@@ -31,7 +31,9 @@ func Listener() {
 
 	// Listen on channels
 	if snet.Router.Hostname != "" {
-		go listenRouterChannel()
+		for iface := range snet.Router.Interfaces {
+			go listenRouterChannel(iface)
+		}
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 			go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortLinksLocal[i])
@@ -45,13 +47,17 @@ func Listener() {
 	}
 
 	for i := range snet.Hosts {
-		go listenHostChannel(snet.Hosts[i])
+		for iface := range snet.Hosts[i].Interfaces {
+			go listenHostChannel(snet.Hosts[i], iface)
+		}
 	}
 
 }
 
 func generateHostChannels(i int) {
-	channels[snet.Hosts[i].Interface.L1ID] = make(chan json.RawMessage)
+	for iface := range snet.Hosts[i].Interfaces {
+		channels[snet.Hosts[i].Interfaces[iface].L1ID] = make(chan json.RawMessage)
+	}
 	socketMaps[snet.Hosts[i].ID] = make(map[string]chan Frame)
 	actionsync[snet.Hosts[i].ID] = make(chan int)
 }
@@ -66,7 +72,9 @@ func generateSwitchChannels(i int) {
 
 func generateRouterChannels() {
 	if snet.Router.Hostname != "" {
-		channels[snet.Router.Interface.L1ID] = make(chan json.RawMessage)
+		for iface := range snet.Router.Interfaces {
+			channels[snet.Router.Interfaces[iface].L1ID] = make(chan json.RawMessage)
+		}
 		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
 
 		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
@@ -77,26 +85,26 @@ func generateRouterChannels() {
 	}
 }
 
-func listenHostChannel(host Host) {
+func listenHostChannel(host Host, iface string) {
 	listenSync <- host.ID //synchronizing with client.go
 
 	for {
-		rawFrame := <-channels[host.Interface.L1ID]
+		rawFrame := <-channels[host.Interfaces[iface].L1ID]
 		debug(4, "listenHostChannel", host.Hostname, "Received unicast frame")
-		go actionHandler(rawFrame, host.ID)
+		go actionHandler(rawFrame, host.ID, iface)
 	}
 }
 
-func listenRouterChannel() {
+func listenRouterChannel(iface string) {
 	for {
-		rawFrame := <-channels[snet.Router.Interface.L1ID]
+		rawFrame := <-channels[snet.Router.Interfaces[iface].L1ID]
 		debug(4, "listenRouterChannel", snet.Router.ID, "Received unicast frame")
-		go actionHandler(rawFrame, snet.Router.ID)
+		go actionHandler(rawFrame, snet.Router.ID, iface)
 	}
 }
 
 // Should actions be broken into functions?
-func actionHandler(rawFrame json.RawMessage, id string) {
+func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 	frame := readFrame(rawFrame)
 
 	switch frame.EtherType {
@@ -109,17 +117,17 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			amTarget := false
 			shouldRespond := false
 
-			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP()) {
+			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP(iface)) {
 				amTarget = true
 
-				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Router.GetIP(), snet.Router.GetMask()) {
+				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Router.GetIP(iface), snet.Router.GetMask(iface)) {
 					shouldRespond = true
 				}
 
-			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
+			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 				amTarget = true
 
-				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Hosts[getHostIndexFromID(id)].GetIP(), snet.Hosts[getHostIndexFromID(id)].GetMask()) {
+				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Hosts[getHostIndexFromID(id)].GetIP(iface), snet.Hosts[getHostIndexFromID(id)].GetMask(iface)) {
 					shouldRespond = true
 				}
 			}
@@ -135,9 +143,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 			// Check if target device at network-level
 			amTarget := false
-			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP()) {
+			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP(iface)) {
 				amTarget = true
-			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
+			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 				amTarget = true
 			}
 
@@ -160,9 +168,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 				// Check if target device at network-level
 				amTarget := false
-				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP()) {
+				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP(iface)) {
 					amTarget = true
-				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
+				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 					amTarget = true
 				}
 
@@ -175,9 +183,9 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 
 				// Check if target device at network-level
 				amTarget := false
-				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP()) {
+				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP(iface)) {
 					amTarget = true
-				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP()) {
+				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 					amTarget = true
 				}
 
@@ -223,7 +231,7 @@ func actionHandler(rawFrame json.RawMessage, id string) {
 			case 68: // DHCP: Client-bound
 				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
-				if dhcpMessage.CHAddr == snet.Hosts[getHostIndexFromID(id)].Interface.MACAddr { // I am target
+				if dhcpMessage.CHAddr == snet.Hosts[getHostIndexFromID(id)].Interfaces[iface].MACAddr { // I am target
 					// 53 is DHCP message type
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {

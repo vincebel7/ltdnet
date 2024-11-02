@@ -8,17 +8,20 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
+
+	"github.com/vincebel7/ltdnet/iphelper"
 )
 
 type Host struct {
-	ID        string              `json:"id"`
-	Model     string              `json:"model"`
-	Hostname  string              `json:"hostname"`
-	ARPTable  map[string]ARPEntry `json:"arptable"`
-	DNSTable  map[string]DNSEntry `json:"dnstable"`
-	Interface Interface           `json:"interface"`
+	ID         string               `json:"id"`
+	Model      string               `json:"model"`
+	Hostname   string               `json:"hostname"`
+	ARPTable   map[string]ARPEntry  `json:"arptable"`
+	DNSTable   map[string]DNSEntry  `json:"dnstable"`
+	Interfaces map[string]Interface `json:"interfaces"`
 }
 
 type ARPEntry struct {
@@ -36,11 +39,9 @@ type DNSEntry struct {
 }
 
 // Populate fields specific to the Probox 1
-func NewProbox() Host {
-	p := Host{}
-	p.Model = "ProBox 1"
-
-	return p
+func NewProbox(h Host) Host {
+	h.Model = "ProBox 1"
+	return h
 }
 
 func addHost(hostHostname string) {
@@ -52,9 +53,14 @@ func addHost(hostHostname string) {
 		return
 	}
 
-	h := Host{}
+	h := Host{
+		Interfaces: map[string]Interface{
+			"eth0": Interface{},
+			"lo":   Interface{},
+		},
+	}
 	if hostModel == "PROBOX" {
-		h = NewProbox()
+		h = NewProbox(h)
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
@@ -63,6 +69,37 @@ func addHost(hostHostname string) {
 	h.ID = idgen(8)
 	h.Hostname = hostHostname
 	h.ARPTable = make(map[string]ARPEntry)
+
+	// Interfaces
+	h.Interfaces = make(map[string]Interface)
+
+	loopbackIPConfig := IPConfig{
+		IPAddress:      net.ParseIP("127.0.0.1"),
+		SubnetMask:     "255.0.0.0",
+		DefaultGateway: nil,
+		DNSServer:      nil,
+		ConfigType:     "static",
+	}
+	eth0IPConfig := IPConfig{
+		IPAddress:      nil,
+		SubnetMask:     "",
+		DefaultGateway: nil,
+		DNSServer:      nil,
+		ConfigType:     "",
+	}
+
+	h.Interfaces["lo"] = Interface{
+		Name:     "lo",
+		L1ID:     idgen(8),
+		MACAddr:  macgen(),
+		IPConfig: loopbackIPConfig,
+	}
+	h.Interfaces["eth0"] = Interface{
+		Name:     "eth0",
+		L1ID:     idgen(8),
+		MACAddr:  macgen(),
+		IPConfig: eth0IPConfig,
+	}
 
 	// DNS table
 	h.DNSTable = make(map[string]DNSEntry)
@@ -80,25 +117,12 @@ func addHost(hostHostname string) {
 		Timestamp:  time.Time{},
 	}
 
-	ipConfig := IPConfig{
-		IPAddress:      nil,
-		SubnetMask:     "",
-		DefaultGateway: nil,
-		DNSServer:      nil,
-		ConfigType:     "",
-	}
-
-	// Blank interface, no remote L1ID or IP configuration yet
-	h.Interface = Interface{
-		L1ID:     idgen(8),
-		MACAddr:  macgen(),
-		IPConfig: ipConfig,
-	}
-
 	snet.Hosts = append(snet.Hosts, h)
 
 	generateHostChannels(getHostIndexFromID(h.ID))
-	go listenHostChannel(h)
+	go listenHostChannel(h, "lo")
+	<-listenSync
+	go listenHostChannel(h, "eth0")
 	<-listenSync
 }
 
@@ -131,7 +155,7 @@ func linkHostTo(localDevice string, remoteDevice string) {
 			//Remote device on new link is the Router
 			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
 				//find next free port
-				portIndex := assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].Interface.L1ID)
+				portIndex := assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].Interfaces["eth0"].L1ID)
 				uplinkID = snet.Router.VSwitch.PortLinksLocal[portIndex]
 
 			} else {
@@ -139,14 +163,18 @@ func linkHostTo(localDevice string, remoteDevice string) {
 				for j := range snet.Switches {
 					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
 						//find next free port
-						portIndex := assignSwitchport(snet.Switches[j], snet.Hosts[i].Interface.L1ID)
+						portIndex := assignSwitchport(snet.Switches[j], snet.Hosts[i].Interfaces["eth0"].L1ID)
 						uplinkID = snet.Switches[j].PortLinksLocal[portIndex]
 
 					}
 				}
 			}
 
-			snet.Hosts[i].Interface.RemoteL1ID = uplinkID
+			// Assign uplink ID to host
+			iface := snet.Hosts[i].Interfaces["eth0"]
+			iface.RemoteL1ID = uplinkID
+			snet.Hosts[i].Interfaces["eth0"] = iface
+
 			return
 		}
 	}
@@ -158,11 +186,13 @@ func unlinkHost(hostname string) {
 	for i := range snet.Hosts {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 			//first, unplug from switch (switch-end unlink). TODO try/catch this whole block.
-			freeSwitchport(snet.Hosts[i].Interface.RemoteL1ID)
+			freeSwitchport(snet.Hosts[i].Interfaces["eth0"].RemoteL1ID)
 
 			//next, remove the host's uplink (host-end unlink)
 			uplinkID := ""
-			snet.Hosts[i].Interface.RemoteL1ID = uplinkID
+			iface := snet.Hosts[i].Interfaces["eth0"]
+			iface.RemoteL1ID = uplinkID
+			snet.Router.Interfaces["eth0"] = iface
 
 			return
 		}
@@ -176,7 +206,7 @@ func delHost(hostname string) {
 		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
 			//unlink, Vswitch
 			for j := range snet.Router.VSwitch.PortLinksRemote {
-				if snet.Router.VSwitch.PortLinksLocal[j] == snet.Hosts[i].Interface.RemoteL1ID {
+				if snet.Router.VSwitch.PortLinksLocal[j] == snet.Hosts[i].Interfaces["eth0"].RemoteL1ID {
 					snet.Router.VSwitch.PortLinksRemote[j] = ""
 
 					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
@@ -188,7 +218,7 @@ func delHost(hostname string) {
 			//unlink, other switches
 			for sw := range snet.Switches {
 				for p := range snet.Switches[sw].PortLinksRemote {
-					if snet.Switches[sw].PortLinksLocal[p] == snet.Hosts[i].Interface.RemoteL1ID {
+					if snet.Switches[sw].PortLinksLocal[p] == snet.Hosts[i].Interfaces["eth0"].RemoteL1ID {
 						snet.Switches[sw].PortLinksRemote[p] = ""
 
 						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
@@ -208,8 +238,28 @@ func delHost(hostname string) {
 
 func ipclear(id string) {
 	index := getHostIndexFromID(id)
-	snet.Hosts[index].Interface.IPConfig.IPAddress = nil
-	snet.Hosts[index].Interface.IPConfig.SubnetMask = ""
-	snet.Hosts[index].Interface.IPConfig.DefaultGateway = nil
+
+	iface := snet.Hosts[index].Interfaces["eth0"]
+
+	iface.IPConfig.IPAddress = nil
+	iface.IPConfig.SubnetMask = ""
+	iface.IPConfig.DefaultGateway = nil
+
+	snet.Hosts[index].Interfaces["eth0"] = iface
+
 	fmt.Println("Network configuration cleared")
+}
+
+func (host Host) routeToInterface(dstIP string) Interface {
+	for iface := range host.Interfaces {
+		devIP := host.GetIP(iface)
+		devMask := host.GetMask(iface)
+
+		if iphelper.IPInSameSubnet(devIP, dstIP, devMask) {
+			return host.Interfaces[iface]
+		}
+	}
+
+	// Default gateway
+	return host.Interfaces["eth0"]
 }

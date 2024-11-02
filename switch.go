@@ -114,8 +114,10 @@ func delSwitch(hostname string) {
 				if snet.Switches[i].PortLinksRemote[j] != "" {
 					// Unlink if host
 					for h := range snet.Hosts {
-						if snet.Hosts[h].Interface.RemoteL1ID == snet.Switches[i].PortLinksLocal[j] {
-							snet.Hosts[h].Interface.RemoteL1ID = ""
+						if snet.Hosts[h].Interfaces["eth0"].RemoteL1ID == snet.Switches[i].PortLinksLocal[j] {
+							iface := snet.Hosts[h].Interfaces["eth0"]
+							iface.RemoteL1ID = ""
+							snet.Hosts[h].Interfaces["eth0"] = iface
 						}
 					}
 
@@ -220,7 +222,7 @@ func lookupMACTable(dstMAC string, switchportID string) int { // For looking up 
 }
 
 func checkMACTable(macaddr string, id string, port int) { // For updating MAC table on incoming frames
-	result := 0
+	result := -1
 	table := make(map[string]MACEntry)
 	if isSwitchportID(snet.Router.VSwitch, id) {
 		table = snet.Router.VSwitch.MACTable
@@ -244,7 +246,7 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 		}
 	}
 
-	if result == 0 {
+	if result == -1 {
 		msg := "Source address " + macaddr + " not found in MAC table. Adding"
 		debug(3, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
@@ -325,7 +327,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 		debug(4, "switchforward", switchID, "L2 Broadcast. Flooding frame on all ports")
 	} else if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table
 		floodFrame = true
-		debug(4, "switchforward", switchID, "Destination address not found in MAC table. Flooding frame on all ports")
+		debug(4, "switchforward", switchID, "Destination address "+dstMAC+" not found in MAC table. Flooding frame on all ports")
 	} else {
 		if isSwitchportID(snet.Router.VSwitch, switchportID) { // VSwitch
 			debug(4, "switchforward", switchID, "Destination address found in MAC table.")
