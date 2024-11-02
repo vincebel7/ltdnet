@@ -10,21 +10,22 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vincebel7/ltdnet/iphelper"
 )
 
 type Router struct {
-	ID        string              `json:"id"`
-	Model     string              `json:"model"`
-	MACAddr   string              `json:"macaddr"` // LAN-facing interface
-	Hostname  string              `json:"hostname"`
-	Gateway   net.IP              `json:"gateway"`
-	VSwitch   Switch              `json:"vswitchid"` // Virtual built-in switch to router
-	DHCPPool  DHCPPool            `json:"dhcp_pool"` // Instance of DHCPPool
-	ARPTable  map[string]ARPEntry `json:"arptable"`
-	LANLinkID string              `json:"lanlinkid"` // link ID for its LAN connection
+	ID         string               `json:"id"`
+	Model      string               `json:"model"`
+	Hostname   string               `json:"hostname"`
+	VSwitch    Switch               `json:"vswitchid"` // Virtual built-in switch to router
+	DHCPPool   DHCPPool             `json:"dhcp_pool"` // Instance of DHCPPool
+	ARPTable   map[string]ARPEntry  `json:"arptable"`
+	DNSTable   map[string]DNSEntry  `json:"dnstable"`
+	Interfaces map[string]Interface `json:"interfaces"`
 }
 
 type DHCPPool struct {
@@ -45,32 +46,22 @@ func NewDHCPPool(start_addr net.IP, end_addr net.IP) DHCPPool {
 	return pool
 }
 
-func NewBobcat(hostname string) Router {
-	bobcat := Router{}
-	bobcat.ID = idgen(8)
-	bobcat.Model = "Bobcat 100"
-	bobcat.MACAddr = macgen()
-	bobcat.Hostname = hostname
-	bobcat.ARPTable = make(map[string]ARPEntry)
+func NewBobcat(r Router) Router {
+	r.Model = "Bobcat 100"
 
 	vSwitch := addVirtualSwitch(BOBCAT_PORTS)
-	bobcat.VSwitch = vSwitch
+	r.VSwitch = vSwitch
 
-	return bobcat
+	return r
 }
 
-func NewOsiris(hostname string) Router {
-	osiris := Router{}
-	osiris.ID = idgen(8)
-	osiris.Model = "Osiris 2-I"
-	osiris.MACAddr = macgen()
-	osiris.Hostname = hostname
-	osiris.ARPTable = make(map[string]ARPEntry)
+func NewOsiris(r Router) Router {
+	r.Model = "Osiris 2-I"
 
 	vSwitch := addVirtualSwitch(OSIRIS_PORTS)
-	osiris.VSwitch = vSwitch
+	r.VSwitch = vSwitch
 
-	return osiris
+	return r
 }
 
 func addRouter(routerHostname string, routerModel string) {
@@ -87,25 +78,78 @@ func addRouter(routerHostname string, routerModel string) {
 	dhcpPoolSize := 0
 
 	if routerModel == "BOBCAT" {
-		r = NewBobcat(routerHostname)
+		r = NewBobcat(r)
 		dhcpPoolSize = 253
 	} else if routerModel == "OSIRIS" {
-		r = NewOsiris(routerHostname)
+		r = NewOsiris(r)
 		dhcpPoolSize = 2
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
 	}
 
+	var gateway net.IP
 	if snet.Netsize == "8" {
-		r.Gateway = net.ParseIP("10.0.0.1")
+		gateway = net.ParseIP("10.0.0.1")
 	} else if snet.Netsize == "16" {
-		r.Gateway = net.ParseIP("172.16.0.1")
+		gateway = net.ParseIP("172.16.0.1")
 	} else if snet.Netsize == "24" {
-		r.Gateway = net.ParseIP("192.168.0.1")
+		gateway = net.ParseIP("192.168.0.1")
 	}
 
-	network_portion := strings.TrimSuffix(r.Gateway.String(), "1")
+	r.ID = idgen(8)
+	r.Hostname = routerHostname
+	r.ARPTable = make(map[string]ARPEntry)
+
+	netsizeInt, _ := strconv.Atoi(snet.Netsize)
+
+	// Interfaces
+	r.Interfaces = make(map[string]Interface)
+
+	loopbackIPConfig := IPConfig{
+		IPAddress:      net.ParseIP("127.0.0.1"),
+		SubnetMask:     "255.0.0.0",
+		DefaultGateway: nil,
+		DNSServer:      nil,
+		ConfigType:     "static",
+	}
+	eth0IPConfig := IPConfig{
+		IPAddress:  gateway,
+		SubnetMask: prefixLengthToSubnetMask(netsizeInt),
+		DNSServer:  nil,
+		ConfigType: "",
+	}
+
+	r.Interfaces["lo"] = Interface{
+		Name:     "lo",
+		L1ID:     idgen(8),
+		MACAddr:  macgen(),
+		IPConfig: loopbackIPConfig,
+	}
+	r.Interfaces["eth0"] = Interface{
+		Name:     "eth0",
+		L1ID:     idgen(8),
+		MACAddr:  macgen(),
+		IPConfig: eth0IPConfig,
+	}
+
+	// DNS table
+	r.DNSTable = make(map[string]DNSEntry)
+
+	r.DNSTable[r.Hostname] = DNSEntry{
+		IPAddress:  "127.0.0.1",
+		TTL:        -1,
+		RecordType: "A",
+		Timestamp:  time.Time{},
+	}
+	r.DNSTable["localhost"] = DNSEntry{
+		IPAddress:  "127.0.0.1",
+		TTL:        -1,
+		RecordType: "A",
+		Timestamp:  time.Time{},
+	}
+
+	network_portion := strings.TrimSuffix(r.GetIP("eth0"), "1")
 
 	// Create DHCP Pool
 	start_ip := net.ParseIP(network_portion + "2")
@@ -115,12 +159,16 @@ func addRouter(routerHostname string, routerModel string) {
 
 	snet.Router = r
 
-	assignSwitchport(snet.Router.VSwitch, snet.Router.ID)
+	assignSwitchport(snet.Router.VSwitch, snet.Router.Interfaces["eth0"].L1ID)
 
-	snet.Router.LANLinkID = snet.Router.VSwitch.PortLinksLocal[0]
+	iface := snet.Router.Interfaces["eth0"]
+	iface.RemoteL1ID = snet.Router.VSwitch.PortLinksLocal[0]
+	snet.Router.Interfaces["eth0"] = iface
 
 	generateRouterChannels()
-	go listenRouterChannel()
+	go listenRouterChannel("lo")
+	go listenRouterChannel("eth0")
+
 	for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
 		go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortLinksLocal[i])
 	}
@@ -132,7 +180,7 @@ func delRouter() {
 
 	r.ID = ""
 	r.Model = ""
-	r.MACAddr = ""
+	r.Interfaces["eth0"] = Interface{}
 	r.Hostname = ""
 	r.DHCPPool = NewDHCPPool(net.ParseIP("0.0.0.0"), net.ParseIP("0.0.0.0"))
 	r.VSwitch = addVirtualSwitch(0)
@@ -186,4 +234,18 @@ func (router Router) IsAvailableAddress(testAddr net.IP) bool {
 	}
 
 	return false
+}
+
+func (router Router) routeToInterface(dstIP string) Interface {
+	for iface := range router.Interfaces {
+		devIP := router.GetIP(iface)
+		devMask := router.GetMask(iface)
+
+		if iphelper.IPInSameSubnet(devIP, dstIP, devMask) {
+			return router.Interfaces[iface]
+		}
+	}
+
+	// Default gateway
+	return router.Interfaces["eth0"]
 }

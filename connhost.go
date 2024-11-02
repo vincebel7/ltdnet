@@ -57,26 +57,20 @@ func HostConn(device string, id string) {
 			case "":
 
 			case "ping":
-				if host.UplinkID == "" {
-					fmt.Println("Device is not connected. Please set an uplink")
-				} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
-					fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
-				} else {
-					if len(action) > 1 {
-						if len(action) > 2 { //if count is specified
-							count, _ := strconv.Atoi(action[2])
-							go ping(host.ID, action[1], count)
-						} else {
-							go ping(host.ID, action[1], 4)
-						}
-						<-actionsync[id]
+				if len(action) > 1 {
+					if len(action) > 2 { //if count is specified
+						count, _ := strconv.Atoi(action[2])
+						go ping(host.ID, action[1], count)
 					} else {
-						fmt.Println("Usage: ping <dst_ip> [count]")
+						go ping(host.ID, action[1], 4)
 					}
+					<-actionsync[id]
+				} else {
+					fmt.Println("Usage: ping <dst_ip> [count]")
 				}
 
 			case "dhcp":
-				if host.UplinkID == "" {
+				if host.Interfaces["eth0"].RemoteL1ID == "" {
 					fmt.Println("Device is not connected. Please set an uplink")
 				} else {
 					go dhcp_discover(host)
@@ -97,14 +91,16 @@ func HostConn(device string, id string) {
 				if len(action) > 1 {
 					switch action[1] {
 					case "a", "addr", "address":
-						fmt.Println("IPv4 address: " + host.IPAddr.String())
-						fmt.Println("Subnet mask: " + host.SubnetMask)
-
+						for iface := range host.Interfaces {
+							fmt.Printf("Interface %s\n", host.Interfaces[iface].Name)
+							fmt.Printf("\tIPv4 address: %s\n", host.GetIP(iface))
+							fmt.Printf("\tSubnet mask: %s\n\n", host.GetMask(iface))
+						}
 					case "route":
-						fmt.Println("Default gateway: " + host.DefaultGateway.String())
+						fmt.Printf("default via %s dev %s\n", host.GetGateway("eth0"), "eth0")
 
 					case "set":
-						if host.UplinkID == "" {
+						if host.Interfaces["eth0"].RemoteL1ID == "" {
 							fmt.Println("Device is not connected. Please set an uplink")
 						} else {
 							if len(action) > 2 {
@@ -131,17 +127,11 @@ func HostConn(device string, id string) {
 				if len(action) > 1 {
 					switch action[1] {
 					case "request":
-						if host.UplinkID == "" {
-							fmt.Println("Device is not connected. Please set an uplink")
-						} else if (host.IPAddr.String() == "0.0.0.0") || (host.IPAddr == nil) {
-							fmt.Println("Device does not have IP configuration. Please use DHCP or statically assign an IP configuration")
+						if len(action) > 2 {
+							go arpSynchronized(id, action[2])
+							<-actionsync[id]
 						} else {
-							if len(action) > 2 {
-								go arpSynchronized(id, action[2])
-								<-actionsync[id]
-							} else {
-								fmt.Println("Usage: arp request <target_ip>")
-							}
+							fmt.Println("Usage: arp request <target_ip>")
 						}
 
 					case "clear":
@@ -162,15 +152,26 @@ func HostConn(device string, id string) {
 					displayARPTable(host.ID)
 				}
 
+			case "nslookup":
+				if len(action) > 1 {
+					address := resolveHostname(action[1], host.DNSTable)
+					fmt.Println("Name: " + action[1])
+					fmt.Println("Address: " + address + "\n")
+
+				} else {
+					fmt.Println("Usage: nslookup <hostname>")
+				}
+
 			case "exit", "quit", "q":
 				return
 
 			case "help", "?":
 				fmt.Println("",
-					"ping <dst_ip> [seconds]\tPings an IP address\n",
+					"ping\t\t\t\tPings an IP address\n",
 					"dhcp\t\t\t\tGets IP configuration via DHCP\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
+					"nslookup\t\t\tPerform a DNS lookup\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 

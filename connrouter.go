@@ -36,7 +36,7 @@ func RouterConn(device string, id string) {
 			case "":
 
 			case "ping":
-				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
+				if (snet.Router.GetIP("eth0") == "0.0.0.0") || (snet.Router.GetIP("eth0") == "") {
 					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
 				} else {
 					if len(action) > 1 {
@@ -51,17 +51,7 @@ func RouterConn(device string, id string) {
 						fmt.Println("Usage: ping <dst_ip> [seconds]")
 					}
 				}
-			case "arprequest":
-				if (snet.Router.Gateway.String() == "0.0.0.0") || (snet.Router.Gateway == nil) {
-					fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
-				} else {
-					if len(action) > 1 {
-						go arpSynchronized(id, action[1])
-						<-actionsync[id]
-					} else {
-						fmt.Println("Usage: arp <target_ip>")
-					}
-				}
+
 			case "dhcpserver":
 				displayDHCPServer()
 
@@ -78,10 +68,11 @@ func RouterConn(device string, id string) {
 				if len(action) > 1 {
 					switch action[1] {
 					case "a", "addr", "address":
-						netsizeInt, _ := strconv.Atoi(snet.Netsize)
-						subnetMask := prefixLengthToSubnetMask(netsizeInt)
-						fmt.Println("IPv4 address: " + snet.Router.Gateway.String())
-						fmt.Println("Subnet mask: " + subnetMask)
+						for iface := range snet.Router.Interfaces {
+							fmt.Printf("Interface %s\n", snet.Router.Interfaces[iface].Name)
+							fmt.Printf("\tIPv4 address: %s\n", snet.Router.GetIP(iface))
+							fmt.Printf("\tSubnet mask: %s\n\n", snet.Router.GetMask(iface))
+						}
 
 					case "route":
 						fmt.Println("Routing not implemented yet.")
@@ -95,7 +86,7 @@ func RouterConn(device string, id string) {
 						}
 
 					case "clear":
-						ipclear(snet.Router.Gateway.String())
+						ipclear(snet.Router.GetIP("eth0"))
 						save()
 
 					case "help", "?":
@@ -137,6 +128,16 @@ func RouterConn(device string, id string) {
 					displayARPTable(snet.Router.ID)
 				}
 
+			case "nslookup":
+				if len(action) > 1 {
+					address := resolveHostname(action[1], snet.Router.DNSTable)
+					fmt.Println("Name: " + action[1])
+					fmt.Println("Address: " + address + "\n")
+
+				} else {
+					fmt.Println("Usage: nslookup <hostname>")
+				}
+
 			case "exit", "quit", "q":
 				return
 
@@ -146,6 +147,7 @@ func RouterConn(device string, id string) {
 					"dhcpserver\t\t\tDisplays DHCP server and DHCP pool settings\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
+					"nslookup\t\t\tPerform a DNS lookup\n",
 					"exit\t\t\t\tReturns to main menu",
 				)
 			default:

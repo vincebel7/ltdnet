@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var currentVersion = "v0.3.2"
+var currentVersion = "v0.4.0"
 
 func intro() {
 	fmt.Println("ltdnet " + currentVersion)
@@ -298,12 +298,12 @@ func actionsMenu() {
 			save()
 		} else {
 			fmt.Printf("Current debug level: %d\n", getDebug())
-			fmt.Println("\nAll levels:\n",
+			fmt.Println("\nAll levels (least to most verbose):\n",
 				"0 - No debugging\n",
 				"1 - Errors\n",
-				"2 - General network traffic\n",
-				"3 - All network traffic\n",
-				"4 - All sorts of garbage (development+learning)")
+				"2 - Network traffic (receive)\n",
+				"3 - Network traffic (send+receive) + Warnings\n",
+				"4 - Step-by-step device actions")
 		}
 
 	case "manual", "man":
@@ -351,8 +351,10 @@ func main() {
 
 	go Listener()
 
-	for range snet.Hosts {
-		<-listenSync
+	for h := range snet.Hosts {
+		for range snet.Hosts[h].Interfaces {
+			<-listenSync
+		}
 	}
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
 	fmt.Printf("[Notice] Please note that switches can't yet link to routers or other switches.\n")

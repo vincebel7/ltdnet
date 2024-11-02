@@ -29,6 +29,7 @@ var AchievementCatalog = make(map[int]Achievement)
 var ROUTINE_BUSINESS = 1
 var UNITED_PINGDOM = 2
 var ARP_HOT = 3
+var SNIFF_FRAMES = 4
 
 func buildAchievementCatalog() {
 	achievement := Achievement{
@@ -42,7 +43,7 @@ func buildAchievementCatalog() {
 	achievement = Achievement{
 		ID:          UNITED_PINGDOM,
 		Name:        "United Pingdom",
-		Description: "Successfully ping from one device to another.",
+		Description: "Successfully ping from one device to another",
 		Hint:        "Control a host and ping your default gateway, see if you get a response.",
 	}
 	AchievementCatalog[UNITED_PINGDOM] = achievement
@@ -50,10 +51,18 @@ func buildAchievementCatalog() {
 	achievement = Achievement{
 		ID:          ARP_HOT,
 		Name:        "ARP It Like It's Hot",
-		Description: "Manually send an ARP request, and receive a reply.",
+		Description: "Manually send an ARP request, and receive a reply",
 		Hint:        "ARP is how hosts find out other MAC addresses on their network. Try 'arp ?' from a host.",
 	}
 	AchievementCatalog[ARP_HOT] = achievement
+
+	achievement = Achievement{
+		ID:          SNIFF_FRAMES,
+		Name:        "Sniffing Your Own Frames",
+		Description: "Talk to yourself on localhost",
+		Hint:        "Every host has a loopback interface with an address of 127.0.0.1. Try pinging it.",
+	}
+	AchievementCatalog[SNIFF_FRAMES] = achievement
 }
 
 func displayAchievements() {
@@ -135,6 +144,8 @@ func achievementTester(achievementID int) {
 			achievement2Test()
 		case 3:
 			achievement3Test()
+		case 4:
+			achievement4Test()
 		}
 	}
 }
@@ -153,9 +164,16 @@ func achievement2Test() {
 	achievementAward(achievement)
 }
 
-// Achievement 2: Successful manual ARP request
+// Achievement 3: Successful manual ARP request
 func achievement3Test() {
 	// If this function is called, the achievement is already complete (action-based)
 	achievement := AchievementCatalog[ARP_HOT]
+	achievementAward(achievement)
+}
+
+// Achievement 4: Successful manual ARP request
+func achievement4Test() {
+	// If this function is called, the achievement is already complete (action-based)
+	achievement := AchievementCatalog[SNIFF_FRAMES]
 	achievementAward(achievement)
 }
