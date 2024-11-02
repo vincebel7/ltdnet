@@ -69,9 +69,9 @@ func RouterConn(device string, id string) {
 					switch action[1] {
 					case "a", "addr", "address":
 						for iface := range snet.Router.Interfaces {
-							fmt.Println("Interface " + snet.Router.Interfaces[iface].Name)
-							fmt.Println("IPv4 address: " + snet.Router.GetIP(iface))
-							fmt.Println("Subnet mask: " + snet.Router.GetMask(iface))
+							fmt.Printf("Interface %s\n", snet.Router.Interfaces[iface].Name)
+							fmt.Printf("\tIPv4 address: %s\n", snet.Router.GetIP(iface))
+							fmt.Printf("\tSubnet mask: %s\n\n", snet.Router.GetMask(iface))
 						}
 
 					case "route":

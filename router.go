@@ -73,12 +73,7 @@ func addRouter(routerHostname string, routerModel string) {
 		return
 	}
 
-	r := Router{
-		Interfaces: map[string]Interface{
-			"eth0": Interface{},
-			"lo":   Interface{},
-		},
-	}
+	r := Router{}
 
 	dhcpPoolSize := 0
 

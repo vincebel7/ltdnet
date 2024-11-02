@@ -124,6 +124,9 @@ func ping(srcID string, dst string, count int) {
 				recvCount++
 				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
 				achievementTester(UNITED_PINGDOM)
+				if dstIP == "127.0.0.1" {
+					achievementTester(SNIFF_FRAMES)
+				}
 			} else {
 				debug(1, "ping", srcID, "Error: Out-of-order channel")
 			}
@@ -139,7 +142,8 @@ func ping(srcID string, dst string, count int) {
 
 	// Ping stats
 	fmt.Printf("\nPing statistics for %s:\n", dstIP)
-	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
+	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
+	fmt.Printf("\tSource address: %s\n\n", srcIP)
 
 	actionsync[srcID] <- lossCount
 }

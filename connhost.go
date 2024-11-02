@@ -92,12 +92,12 @@ func HostConn(device string, id string) {
 					switch action[1] {
 					case "a", "addr", "address":
 						for iface := range host.Interfaces {
-							fmt.Println("Interface " + host.Interfaces[iface].Name)
-							fmt.Println("IPv4 address: " + host.GetIP(iface))
-							fmt.Println("Subnet mask: " + host.GetMask(iface))
+							fmt.Printf("Interface %s\n", host.Interfaces[iface].Name)
+							fmt.Printf("\tIPv4 address: %s\n", host.GetIP(iface))
+							fmt.Printf("\tSubnet mask: %s\n\n", host.GetMask(iface))
 						}
 					case "route":
-						fmt.Println("Default gateway: " + host.GetGateway("eth0"))
+						fmt.Printf("default via %s dev %s\n", host.GetGateway("eth0"), "eth0")
 
 					case "set":
 						if host.Interfaces["eth0"].RemoteL1ID == "" {

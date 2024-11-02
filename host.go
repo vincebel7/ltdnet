@@ -53,12 +53,7 @@ func addHost(hostHostname string) {
 		return
 	}
 
-	h := Host{
-		Interfaces: map[string]Interface{
-			"eth0": Interface{},
-			"lo":   Interface{},
-		},
-	}
+	h := Host{}
 	if hostModel == "PROBOX" {
 		h = NewProbox(h)
 	} else {
@@ -99,6 +94,11 @@ func addHost(hostHostname string) {
 		L1ID:     idgen(8),
 		MACAddr:  macgen(),
 		IPConfig: eth0IPConfig,
+	}
+
+	h.ARPTable["127.0.0.1"] = ARPEntry{
+		MACAddr:   h.Interfaces["lo"].MACAddr,
+		Interface: "lo",
 	}
 
 	// DNS table
@@ -261,5 +261,6 @@ func (host Host) routeToInterface(dstIP string) Interface {
 	}
 
 	// Default gateway
+	debug(4, host.Hostname, "routeToInterface", "Route not found. Sending to default gateway")
 	return host.Interfaces["eth0"]
 }
