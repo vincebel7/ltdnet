@@ -133,11 +133,6 @@ func addRouter(routerHostname string, routerModel string) {
 		IPConfig: eth0IPConfig,
 	}
 
-	r.ARPTable["127.0.0.1"] = ARPEntry{
-		MACAddr:   r.Interfaces["lo"].MACAddr,
-		Interface: "lo",
-	}
-
 	// DNS table
 	r.DNSTable = make(map[string]DNSEntry)
 

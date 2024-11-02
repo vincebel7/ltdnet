@@ -96,11 +96,6 @@ func addHost(hostHostname string) {
 		IPConfig: eth0IPConfig,
 	}
 
-	h.ARPTable["127.0.0.1"] = ARPEntry{
-		MACAddr:   h.Interfaces["lo"].MACAddr,
-		Interface: "lo",
-	}
-
 	// DNS table
 	h.DNSTable = make(map[string]DNSEntry)
 
@@ -261,6 +256,6 @@ func (host Host) routeToInterface(dstIP string) Interface {
 	}
 
 	// Default gateway
-	debug(4, host.Hostname, "routeToInterface", "Route not found. Sending to default gateway")
+	debug(4, "routeToInterface", host.Hostname, "Route not found. Sending to default gateway")
 	return host.Interfaces["eth0"]
 }

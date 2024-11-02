@@ -51,7 +51,8 @@ func ping(srcID string, dst string, count int) {
 		dstIP = resolveHostname(dst, dnsTable)
 
 		if dstIP == "" {
-			debug(1, srcID, "ping", "[Error] Hostname could not be resolved")
+			debug(1, "ping", srcID, "[Error] Hostname could not be resolved")
+			actionsync[srcID] <- 1
 			return
 		}
 	}
@@ -579,6 +580,7 @@ func ipset(hostname string, ipaddr string) {
 // Run an ARP request, but synchronize with client
 func arpSynchronized(id string, targetIP string) {
 	dstMAC := ""
+
 	if snet.Router.ID == id {
 		dstMAC = routerDetermineDstMAC(snet.Router, targetIP, "eth0", false)
 	} else {
@@ -596,6 +598,10 @@ func arpSynchronized(id string, targetIP string) {
 func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool) string {
 	srcID := srcHost.ID
 	dstMAC := ""
+
+	if dstIP == "127.0.0.1" && iface == "lo" {
+		return srcHost.Interfaces["lo"].MACAddr
+	}
 
 	// Same subnet - ARP table, or ARP request.
 	if iphelper.IPInSameSubnet(srcHost.GetIP(iface), dstIP, srcHost.GetMask(iface)) {
@@ -646,6 +652,10 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 // A router determines the destination MAC to send to... Either by ARP, or reading ARP table
 func routerDetermineDstMAC(router Router, dstIP string, iface string, useTable bool) string {
 	dstMAC := ""
+
+	if dstIP == "127.0.0.1" && iface == "lo" {
+		return router.Interfaces["lo"].MACAddr
+	}
 
 	// Same subnet - ARP table, or ARP request.
 	netsizeInt, _ := strconv.Atoi(snet.Netsize)
