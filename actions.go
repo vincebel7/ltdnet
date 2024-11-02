@@ -17,7 +17,7 @@ import (
 	"github.com/vincebel7/ltdnet/iphelper"
 )
 
-func ping(srcID string, dstIP string, count int) {
+func ping(srcID string, dst string, count int) {
 	debug(4, "ping", srcID, "About to ping")
 
 	identifier := idgen_int(5)
@@ -27,6 +27,7 @@ func ping(srcID string, dstIP string, count int) {
 	dstMAC := ""
 	srcHostname := ""
 	srcHost := Host{}
+	dnsTable := make(map[string]DNSEntry)
 
 	sendCount := 0
 	recvCount := 0
@@ -37,6 +38,7 @@ func ping(srcID string, dstIP string, count int) {
 		srcIP = snet.Router.GetIP()
 		srcMAC = snet.Router.Interface.MACAddr
 		linkID = snet.Router.Interface.RemoteL1ID
+		dnsTable = snet.Router.DNSTable
 	} else {
 		for h := range snet.Hosts {
 			if snet.Hosts[h].ID == srcID {
@@ -45,7 +47,21 @@ func ping(srcID string, dstIP string, count int) {
 				srcIP = snet.Hosts[h].GetIP()
 				srcMAC = snet.Hosts[h].Interface.MACAddr
 				linkID = snet.Hosts[h].Interface.RemoteL1ID
+				dnsTable = snet.Hosts[h].DNSTable
 			}
+		}
+	}
+
+	// Hostname lookup, if needed
+	var dstIP string
+	if ip := net.ParseIP(dst); ip != nil {
+		dstIP = dst
+	} else {
+		dstIP = resolveHostname(dst, dnsTable)
+
+		if dstIP == "" {
+			debug(1, srcID, "ping", "[Error] Hostname could not be resolved")
+			return
 		}
 	}
 
