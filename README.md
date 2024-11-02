@@ -71,7 +71,7 @@ Builds executables for Linux and Windows
 What has been accomplished at each version
 
 ### v0.4.0 - November 2, 2024
-Layer 1 rework (interfaces), frame-sending function, bypasses for self-bound traffic
+Layer 1 rework (interfaces), host-level routing, static hostnames, bypasses for self-bound traffic
 
 ### v0.3.2 - November 1, 2024
 Bugfixes, rework local and remote ends of switchport links
