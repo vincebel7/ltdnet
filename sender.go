@@ -31,18 +31,17 @@ func sendFrame(frameBytes json.RawMessage, linkID string, srcID string) {
 }
 
 func isToSelf(frame Frame) bool {
-	// L2
+	// L2 (Reminder: ARPREQUEST is broadcast, not mirrored)
 	if frame.SrcMAC == frame.DstMAC {
 		return true
 	}
 
 	// L3 (optional)
-	/**
-	packet := readIPv4Packet(frame.Data)
+	if frame.EtherType == "0x0800" { // IPv4
+		packet := readIPv4Packet(frame.Data)
+		packetHeader := readIPv4PacketHeader(packet.Header)
+		return packetHeader.SrcIP == packetHeader.DstIP
+	}
 
-	if frame.Data()
-	packetHeader := readIPv4PacketHeader(packet.Header)
-	return packetHeader.SrcIP == packetHeader.DstIP
-	**/
 	return false
 }

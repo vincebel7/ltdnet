@@ -182,6 +182,12 @@ func arp_request(srcID string, targetIP string) string {
 		linkID = snet.Hosts[index].Interface.RemoteL1ID
 	}
 
+	// First, check if it is trying to ARP itself.
+	if targetIP == srcIP {
+		debug(4, "arp_request", srcID, "Destination IP is source IP! Canceling ARP request.")
+		return srcMAC
+	}
+
 	arpRequestMessage := ArpMessage{
 		HTYPE:     1,
 		PTYPE:     "0x800",
@@ -450,10 +456,10 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 			if snet.Router.IsAvailableAddress(dhcpRequestMessage.YIAddr) {
 				messageType = 5
 			} else {
-				debug(1, "dhcp_offer", snet.Router.ID, "Error 4: DHCP address requested is not available")
+				debug(1, "dhcp_offer", snet.Router.ID, "Error: DHCP address requested is not available")
 			}
 		} else {
-			debug(1, "dhcp_offer", snet.Router.ID, "Error 3: Empty DHCP request")
+			debug(1, "dhcp_offer", snet.Router.ID, "Error: Empty DHCP request")
 		}
 	}
 

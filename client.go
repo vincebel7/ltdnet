@@ -298,12 +298,12 @@ func actionsMenu() {
 			save()
 		} else {
 			fmt.Printf("Current debug level: %d\n", getDebug())
-			fmt.Println("\nAll levels:\n",
+			fmt.Println("\nAll levels (least to most verbose):\n",
 				"0 - No debugging\n",
 				"1 - Errors\n",
-				"2 - General network traffic\n",
-				"3 - All network traffic\n",
-				"4 - All sorts of garbage (development+learning)")
+				"2 - Network traffic (receive)\n",
+				"3 - Network traffic (send+receive) + Warnings\n",
+				"4 - Step-by-step device actions")
 		}
 
 	case "manual", "man":
