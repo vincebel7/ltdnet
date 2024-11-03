@@ -73,6 +73,11 @@ func addRouter(routerHostname string, routerModel string) {
 		return
 	}
 
+	if snet.Router.Hostname != "" {
+		fmt.Printf("Network already has a router, %s.\n", snet.Router.Hostname)
+		return
+	}
+
 	r := Router{}
 
 	dhcpPoolSize := 0

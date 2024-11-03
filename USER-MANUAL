@@ -1,6 +1,6 @@
 ===============
 ltdnet manual
-v0.4.0
+v0.4.1
 ===============
 
 Welcome to ltdnet! Using this program, you can simulate a LAN (Local Area Network) with virtual computers, switches, and routers. ltdnet features fictional device models, such as the ProBox, a state-of-the-art PC workstation, and the Bobcat 100, a sturdy small business router (with no recurring license fees!).
