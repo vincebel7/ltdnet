@@ -7,7 +7,7 @@ import (
 )
 
 func cleanTestSaves() {
-	dir := "saves/test_saves/"
+	dir := "../saves/test_saves/"
 	files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 	for _, file := range files {
 		os.Remove(file)
