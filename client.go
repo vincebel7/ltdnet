@@ -14,8 +14,12 @@ import (
 
 var currentVersion = "v0.4.0"
 
-func intro() {
+func printVersion() {
 	fmt.Println("ltdnet " + currentVersion)
+}
+
+func intro() {
+	printVersion()
 
 	if user_settings.Author == "" {
 		changeSettingsName()
@@ -309,6 +313,9 @@ func actionsMenu() {
 	case "manual", "man":
 		launchManual()
 
+	case "version", "ver":
+		printVersion()
+
 	case "exit", "quit", "q":
 		os.Exit(0)
 
@@ -328,6 +335,7 @@ func actionsMenu() {
 			"reload\t\t\tReloads the network file. May fix runtime bugs\n",
 			"debug <0-4>\t\tSets debug level. Default is 1\n",
 			"manual\t\t\tLaunches the user manual. Great for beginners!\n",
+			"version\t\t\tltdnet version info",
 			"exit\t\t\tExits the program",
 			//"netdump\t\tPrints loaded Network object (developer use)\n", HIDDEN
 		)
