@@ -48,7 +48,7 @@ func ping(srcID string, dst string, count int) {
 	if ip := net.ParseIP(dst); ip != nil {
 		dstIP = dst
 	} else {
-		dstIP = resolveHostname(dst, dnsTable)
+		dstIP = resolveHostname(srcID, dst, dnsTable)
 
 		if dstIP == "" {
 			debug(1, "ping", srcID, "[Error] Hostname could not be resolved")
@@ -539,9 +539,135 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	}
 }
 
-func ipset(hostname string, ipaddr string) {
-	prefixLength, _ := strconv.Atoi(snet.Netsize)
-	subnetMask := prefixLengthToSubnetMask(prefixLength)
+func dns_query(srcID string, hostname string, reqType uint16) {
+	srcIP := ""
+	dstMAC := ""
+	dstIP := ""
+	iface := Interface{}
+
+	if snet.Router.ID == srcID {
+		iface := snet.Router.Interfaces["eth0"]
+		srcIP = snet.Router.GetIP(iface.Name)
+		//dstIP := snet.Router.Interfaces["eth0"].IPConfig.DNSServer
+		dstIP := snet.Router.Interfaces["eth0"].IPConfig.IPAddress // temporary
+		dstMAC = routerDetermineDstMAC(snet.Router, dstIP.String(), iface.Name, true)
+	} else {
+		hostIndex := getHostIndexFromID(srcID)
+		host := snet.Hosts[hostIndex]
+		iface = host.Interfaces["eth0"]
+		srcIP = host.GetIP(iface.Name)
+		//dstIP := host.Interfaces["eth0"].IPConfig.DNSServer
+		dstIP := host.GetGateway(iface.Name) // temporary
+		dstMAC = hostDetermineDstMAC(host, dstIP, iface.Name, true)
+	}
+
+	srcMAC := iface.MACAddr
+
+	var dnsQueryMessage = DNSMessage{}
+	switch reqType {
+	case 'A':
+		dnsQuestionMessage := DNSQuestion{
+			QName:  hostname,
+			QType:  reqType,
+			QClass: 1,
+		}
+		dnsQuestions := make([]DNSQuestion, 1)
+		dnsQuestions[0] = dnsQuestionMessage
+
+		dnsQueryMessage = DNSMessage{
+			QR:        false, // false = query
+			Opcode:    0,
+			QDCount:   1,
+			Questions: dnsQuestions,
+		}
+
+	default:
+		debug(1, "dns_query", srcID, "[Error] DNS query type not implemented yet")
+		return
+	}
+
+	protocol := "UDP"
+	srcPort := ephemeralPortGen()
+	dnsQueryMessageBytes, _ := json.Marshal(dnsQueryMessage)
+	dnsQuerySegment := constructUDPSegment(srcPort, 53, dnsQueryMessageBytes)
+	dnsQueryIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsQuerySegment)
+	dnsQueryFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
+
+	sendFrame(dnsQueryFrame, iface, srcID)
+	debug(3, "dns_query", srcID, "DNS query sent - "+hostname)
+
+	sockets := socketMaps[srcID]
+	socketID := "udp_" + strconv.Itoa(srcPort)
+	sockets[socketID] = make(chan Frame)
+	socketMaps[srcID] = sockets // Write updated map back to the collection
+
+	select {
+	case dnsResponseFrame := <-sockets[socketID]:
+		dnsResponsePacket := readIPv4Packet(dnsResponseFrame.Data)
+		dnsResponseSegment := readUDPSegment(dnsResponsePacket.Data)
+		dnsResponseMessage := ReadDNSMessage(dnsResponseSegment.Data)
+
+		if dnsResponseMessage.Rcode == 2 {
+			debug(1, "ping", srcID, "[Error] DNS queries are not fully functional yet.")
+		} else {
+			debug(1, "ping", srcID, "[Error] Unimplemented DNS message type")
+		}
+	case <-time.After(time.Second * 4):
+		fmt.Printf("DNS request timed out.\n")
+	}
+}
+
+func dns_response(dnsQueryFrame Frame) {
+	debug(1, "dns_response", snet.Router.ID, "[Error] DNS server responses not implemented yet")
+
+	// De-encapsulate DNS Query
+	dnsQueryIPv4Packet := readIPv4Packet(dnsQueryFrame.Data)
+	dnsQueryIPv4PacketHeader := readIPv4PacketHeader(dnsQueryFrame.Data)
+	dnsQueryUDPSegment := readUDPSegment(dnsQueryIPv4Packet.Data)
+	dnsQueryMessage := ReadDNSMessage(dnsQueryUDPSegment.Data)
+
+	iface := snet.Router.Interfaces["eth0"]
+	srcIP := snet.Router.GetIP(iface.Name)
+	dstIP := dnsQueryIPv4PacketHeader.SrcIP
+	dstPort := dnsQueryUDPSegment.SrcPort
+	srcMAC := iface.MACAddr
+	dstMAC := dnsQueryFrame.SrcMAC
+
+	var dnsResponseMessage = DNSMessage{}
+	switch dnsQueryMessage.Questions[0].QType {
+	case 'A':
+		dnsAnswersMessage := DNSRecord{
+			Name:  dnsQueryMessage.Questions[0].QName,
+			Type:  dnsQueryMessage.Questions[0].QType,
+			Class: dnsQueryMessage.Questions[0].QClass,
+		}
+		dnsAnswers := make([]DNSRecord, 1)
+		dnsAnswers[0] = dnsAnswersMessage
+
+		dnsResponseMessage = DNSMessage{
+			QR:      true, // false = query
+			Opcode:  0,
+			ANCount: 0,
+			Rcode:   2, // Response code is 2 for SERVFAIL until server is implemented
+		}
+
+	default:
+		debug(1, "dns_query", snet.Router.ID, "[Warning] DNS query type not implemented yet - returning SERVFAIL message")
+		return
+	}
+
+	protocol := "UDP"
+	dnsResponseMessageBytes, _ := json.Marshal(dnsResponseMessage)
+	dnsResponseSegment := constructUDPSegment(53, dstPort, dnsResponseMessageBytes)
+	dnsResponseIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsResponseSegment)
+	dnsResponseFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsResponseIPv4Packet)
+
+	sendFrame(dnsResponseFrame, iface, snet.Router.ID)
+	debug(3, "dns_query", snet.Router.ID, "DNS response sent")
+
+}
+
+func ipset(hostname string, ipaddr string, subnetMask string) {
 	defaultGateway := snet.Router.GetIP("eth0")
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
@@ -687,7 +813,7 @@ func routerDetermineDstMAC(router Router, dstIP string, iface string, useTable b
 	return dstMAC
 }
 
-func resolveHostname(hostname string, dnsTable map[string]DNSEntry) string {
+func resolveHostname(srcID string, hostname string, dnsTable map[string]DNSEntry) string {
 	// Check local table
 	if entry, found := dnsTable[hostname]; found {
 		if entry.TTL == -1 || time.Since(entry.Timestamp).Seconds() < float64(entry.TTL) {
@@ -698,5 +824,9 @@ func resolveHostname(hostname string, dnsTable map[string]DNSEntry) string {
 	}
 
 	// If not found, initiate DNS request
+	dns_query(srcID, hostname, 'A')
+
+	// TODO: Add response to local cache
+
 	return ""
 }

@@ -196,12 +196,25 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 			}
 
+		case 6: // TCP
+			tcpSegment := readTCPSegment(packet.Data)
+
+			switch tcpSegment.DstPort {
+			case 23: // Telnet
+			case 80: // HTTP
+			}
+
 		case 17: // UDP
 			udpSegment := readUDPSegment(packet.Data)
 
 			switch udpSegment.DstPort {
 			case 53: // DNS
-				return
+				dnsMessage := ReadDNSMessage(json.RawMessage(udpSegment.Data))
+
+				if !dnsMessage.QR {
+					debug(2, "actionHandler", id, "DNS query received")
+					dns_response(frame)
+				}
 
 			case 67: // DHCP: Server-bound
 				if snet.Router.ID == id { // I am target
@@ -254,6 +267,12 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 						debug(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
 					}
 				}
+			default: // Ephemeral
+				portStr := strconv.Itoa(udpSegment.DstPort)
+				debug(2, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
+				sockets := socketMaps[id]
+				socketID := "udp_" + portStr
+				sockets[socketID] <- frame
 			}
 		}
 	}

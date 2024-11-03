@@ -103,11 +103,11 @@ func HostConn(device string, id string) {
 						if host.Interfaces["eth0"].RemoteL1ID == "" {
 							fmt.Println("Device is not connected. Please set an uplink")
 						} else {
-							if len(action) > 2 {
-								ipset(host.Hostname, action[2])
+							if len(action) > 3 {
+								ipset(host.Hostname, action[2], action[3])
 								save()
 							} else {
-								fmt.Println("Usage: ip set <ip_address>")
+								fmt.Println("Usage: ip set <ip_address> <subnet_mask>")
 							}
 						}
 					case "clear":
@@ -154,9 +154,8 @@ func HostConn(device string, id string) {
 
 			case "nslookup":
 				if len(action) > 1 {
-					address := resolveHostname(action[1], host.DNSTable)
-					fmt.Println("Name: " + action[1])
-					fmt.Println("Address: " + address + "\n")
+					go printResolveHostname(host.ID, action[1], host.DNSTable)
+					<-actionsync[id]
 
 				} else {
 					fmt.Println("Usage: nslookup <hostname>")

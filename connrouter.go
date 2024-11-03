@@ -78,11 +78,11 @@ func RouterConn(device string, id string) {
 						fmt.Println("Routing not implemented yet.")
 
 					case "set":
-						if len(action) > 2 {
-							ipset(snet.Router.Hostname, action[2])
+						if len(action) > 3 {
+							ipset(snet.Router.Hostname, action[2], action[3])
 							save()
 						} else {
-							fmt.Println("Usage: ipset <ip_address>")
+							fmt.Println("Usage: ipset <ip_address> <subnet_mask>")
 						}
 
 					case "clear":
@@ -130,9 +130,8 @@ func RouterConn(device string, id string) {
 
 			case "nslookup":
 				if len(action) > 1 {
-					address := resolveHostname(action[1], snet.Router.DNSTable)
-					fmt.Println("Name: " + action[1])
-					fmt.Println("Address: " + address + "\n")
+					go printResolveHostname(snet.Router.ID, action[1], snet.Router.DNSTable)
+					<-actionsync[id]
 
 				} else {
 					fmt.Println("Usage: nslookup <hostname>")

@@ -259,3 +259,11 @@ func (host Host) routeToInterface(dstIP string) Interface {
 	debug(4, "routeToInterface", host.Hostname, "Route not found. Sending to default gateway")
 	return host.Interfaces["eth0"]
 }
+
+func printResolveHostname(srcID string, hostname string, dnsTable map[string]DNSEntry) {
+	address := resolveHostname(srcID, hostname, dnsTable)
+	fmt.Println("Name: " + hostname)
+	fmt.Println("Address: " + address + "\n")
+
+	actionsync[srcID] <- 1
+}
