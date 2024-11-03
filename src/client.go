@@ -7,6 +7,7 @@ Purpose:	User menus and main program loop
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -275,7 +276,7 @@ func actionsMenu() {
 
 	case "show", "sh":
 		switch action_selection {
-		case "show network overview", "sh network overview":
+		case "show overview", "sh overview":
 			overview()
 
 		case "show diagram", "sh diagram":
@@ -286,7 +287,7 @@ func actionsMenu() {
 				show(action_selection[12:])
 			} else {
 				fmt.Println("",
-					"show network overview\n",
+					"show overview\n",
 					"show device <hostname>\n",
 					"show diagram",
 				)
@@ -345,6 +346,24 @@ func actionsMenu() {
 	}
 
 	achievementCheck()
+}
+
+func launchManual() {
+	file, err := os.Open("USER-MANUAL")
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
 }
 
 func main() {

@@ -115,13 +115,13 @@ func addRouter(routerHostname string, routerModel string) {
 		IPAddress:      net.ParseIP("127.0.0.1"),
 		SubnetMask:     "255.0.0.0",
 		DefaultGateway: nil,
-		DNSServer:      nil,
+		DNSServer:      net.ParseIP("127.0.0.1"),
 		ConfigType:     "static",
 	}
 	eth0IPConfig := IPConfig{
 		IPAddress:  gateway,
 		SubnetMask: prefixLengthToSubnetMask(netsizeInt),
-		DNSServer:  nil,
+		DNSServer:  gateway,
 		ConfigType: "",
 	}
 
@@ -248,11 +248,15 @@ func (router Router) routeToInterface(dstIP string) Interface {
 		devIP := router.GetIP(iface)
 		devMask := router.GetMask(iface)
 
+		fmt.Printf("testing to see if %s is in same subnet as %s", devIP, dstIP)
 		if iphelper.IPInSameSubnet(devIP, dstIP, devMask) {
+			fmt.Printf("Routing %s to interface %s\n", dstIP, router.Interfaces[iface].Name)
 			return router.Interfaces[iface]
 		}
 	}
 
 	// Default gateway
+	fmt.Println("Routing to interface %s", "eth0")
+
 	return router.Interfaces["eth0"]
 }

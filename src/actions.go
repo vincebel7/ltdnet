@@ -539,25 +539,25 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	}
 }
 
-func dns_query(srcID string, hostname string, reqType uint16) DNSRecord {
+func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 	srcIP := ""
 	dstMAC := ""
 	dstIP := ""
 	iface := Interface{}
 
 	if snet.Router.ID == srcID {
-		iface := snet.Router.Interfaces["eth0"]
+		iface = snet.Router.Interfaces["lo"]
 		srcIP = snet.Router.GetIP(iface.Name)
 		//dstIP := snet.Router.Interfaces["eth0"].IPConfig.DNSServer
-		dstIP := snet.Router.Interfaces["eth0"].IPConfig.IPAddress // temporary
-		dstMAC = routerDetermineDstMAC(snet.Router, dstIP.String(), iface.Name, true)
+		dstIP = snet.Router.Interfaces["lo"].IPConfig.DNSServer.String() // temporary
+		dstMAC = routerDetermineDstMAC(snet.Router, dstIP, iface.Name, true)
 	} else {
 		hostIndex := getHostIndexFromID(srcID)
 		host := snet.Hosts[hostIndex]
 		iface = host.Interfaces["eth0"]
 		srcIP = host.GetIP(iface.Name)
 		//dstIP := host.Interfaces["eth0"].IPConfig.DNSServer
-		dstIP := host.GetGateway(iface.Name) // temporary
+		dstIP = host.GetGateway(iface.Name) // temporary
 		dstMAC = hostDetermineDstMAC(host, dstIP, iface.Name, true)
 	}
 
@@ -583,7 +583,7 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSRecord {
 
 	default:
 		debug(1, "dns_query", srcID, "[Error] DNS query type not implemented yet")
-		return DNSRecord{}
+		return DNSMessage{}
 	}
 
 	protocol := "UDP"
@@ -593,6 +593,7 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSRecord {
 	dnsQueryIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsQuerySegment)
 	dnsQueryFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
 
+	fmt.Printf("About to send DNS query for %s, from source IP %s to DNS server %s", hostname, srcIP, dstIP)
 	sendFrame(dnsQueryFrame, iface, srcID)
 	debug(3, "dns_query", srcID, "DNS query sent - "+hostname)
 
@@ -615,13 +616,13 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSRecord {
 			fmt.Printf("server can't find %s: NXDOMAIN\n", hostname)
 
 		case 0:
-			return dnsResponseMessage.Answers[0]
+			return dnsResponseMessage
 		}
 
 	case <-time.After(time.Second * 4):
 		fmt.Printf("DNS request timed out.\n")
 	}
-	return DNSRecord{}
+	return DNSMessage{}
 }
 
 func dns_response(dnsQueryFrame Frame) {
@@ -631,9 +632,13 @@ func dns_response(dnsQueryFrame Frame) {
 	dnsQueryUDPSegment := readUDPSegment(dnsQueryIPv4Packet.Data)
 	dnsQueryMessage := ReadDNSMessage(dnsQueryUDPSegment.Data)
 
-	iface := snet.Router.Interfaces["eth0"]
-	srcIP := snet.Router.GetIP(iface.Name)
+	fmt.Println("$$$$$$$$$$$$$$$$")
+	fmt.Println(dnsQueryIPv4PacketHeader)
+	fmt.Println("$$$$$$$$$$$$$$$$")
 	dstIP := dnsQueryIPv4PacketHeader.SrcIP
+	fmt.Printf("~!!!!!!!!!!! %s !!!!!!!!!", dstIP)
+	iface := snet.Router.routeToInterface(dstIP)
+	srcIP := snet.Router.GetIP(iface.Name)
 	dstPort := dnsQueryUDPSegment.SrcPort
 	srcMAC := iface.MACAddr
 	dstMAC := dnsQueryFrame.SrcMAC
@@ -835,9 +840,16 @@ func resolveHostname(srcID string, hostname string, dnsTable map[string]DNSRecor
 	}
 
 	// If not found, initiate DNS request
-	resultRecord := dns_query(srcID, hostname, 'A')
+	resultMessage := dns_query(srcID, hostname, 'A')
 
 	// TODO: Add response to local cache
+	if resultMessage.Rcode == 0 {
+		if srcID == snet.Router.ID {
+			snet.Router.DNSTable[hostname] = resultMessage.Answers[0]
+		} else {
+			snet.Hosts[getHostIndexFromID(srcID)].DNSTable[hostname] = resultMessage.Answers[0]
+		}
+	}
 
-	return resultRecord
+	return resultMessage.Answers[0]
 }

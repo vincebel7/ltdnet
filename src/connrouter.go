@@ -81,9 +81,11 @@ func RouterConn(device string, id string) {
 						} else {
 							fmt.Println("Usage: dnsserver add <hostname> <ip_address>")
 						}
+						save()
 
 					case "remove":
 						fmt.Println("DNS record removing not implemented yet")
+						save()
 
 					default:
 						printDNSServerHelp()
