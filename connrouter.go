@@ -14,7 +14,11 @@ import (
 
 func controlRouter(hostname string) {
 	fmt.Printf("Attempting to control router %s...\n", hostname)
-	RouterConn("router", snet.Router.ID)
+	if snet.Router.Hostname == hostname {
+		RouterConn("router", snet.Router.ID)
+		return
+	}
+	fmt.Println("Router not found")
 }
 
 func RouterConn(device string, id string) {
