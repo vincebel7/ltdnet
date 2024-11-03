@@ -5,7 +5,7 @@ mkdir -p bin
 
 # Build for Linux
 echo "Building ltdnet for Linux..."
-GOOS=linux GOARCH=amd64 go build -o bin/ltdnet-linux-v0_4_0
+GOOS=linux GOARCH=amd64 go build -o bin/ltdnet-linux-v0_4_0 ./src
 if [ $? -eq 0 ]; then
     echo "Linux build successful: bin/ltdnet-linux-v0_4_0"
 else
@@ -15,7 +15,7 @@ fi
 
 # Build for Windows
 echo "Building ltdnet for Windows..."
-GOOS=windows GOARCH=amd64 go build -o bin/ltdnet-win-v0_4_0.exe
+GOOS=windows GOARCH=amd64 go build -o bin/ltdnet-win-v0_4_0.exe ./src
 if [ $? -eq 0 ]; then
 	echo "Windows build successful: bin/ltdnet-win-v0_4_0.exe"
 else

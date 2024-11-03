@@ -59,6 +59,9 @@ func RouterConn(device string, id string) {
 			case "dhcpserver":
 				displayDHCPServer()
 
+			case "dnsserver":
+				//dnsServerMenu()
+
 			case "ip":
 				printIPHelp := func() {
 					fmt.Println("",
