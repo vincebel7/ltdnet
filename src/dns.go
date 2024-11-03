@@ -23,20 +23,20 @@ func (dnsServer *DNSServer) dnsServerMenu() {
 	fmt.Printf("\tA Record count: %d\n\n", aRecordCount)
 }
 
-func (dnsServer *DNSServer) aRecordLookup(hostname string) string {
+func (dnsServer *DNSServer) aRecordLookup(hostname string) DNSRecord {
 	for record := range dnsServer.Records {
 		if dnsServer.Records[record].Name == hostname {
-			return dnsServer.Records[record].RData
+			return dnsServer.Records[record]
 		}
 	}
 
-	return ""
+	return DNSRecord{}
 }
 
 func (dnsServer *DNSServer) addDNSRecordToServer(recordType uint16, hostname string, address string) {
 	switch recordType {
 	case 'A':
-		if dnsServer.aRecordLookup(hostname) != "" {
+		if dnsServer.aRecordLookup(hostname).Name != "" {
 			fmt.Print("Record already exists. are you sure you want to overwrite? [y/n]: ")
 			scanner.Scan()
 			confirmation := scanner.Text()
