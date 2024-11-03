@@ -24,7 +24,8 @@ type Router struct {
 	VSwitch    Switch               `json:"vswitchid"` // Virtual built-in switch to router
 	DHCPPool   DHCPPool             `json:"dhcp_pool"` // Instance of DHCPPool
 	ARPTable   map[string]ARPEntry  `json:"arptable"`
-	DNSTable   map[string]DNSEntry  `json:"dnstable"`
+	DNSTable   map[string]DNSEntry  `json:"dnstable"`  // Local DNS table
+	DNSServer  DNSServer            `json:"dnsserver"` // DNS server hosted on the router (optional)
 	Interfaces map[string]Interface `json:"interfaces"`
 }
 

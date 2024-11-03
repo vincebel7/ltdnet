@@ -57,10 +57,40 @@ func RouterConn(device string, id string) {
 				}
 
 			case "dhcpserver":
-				displayDHCPServer()
+				if len(action) > 1 {
+					switch action[1] {
+					default:
+					}
+				} else {
+					displayDHCPServer()
+				}
 
 			case "dnsserver":
-				//dnsServerMenu()
+				printDNSServerHelp := func() {
+					fmt.Println("",
+						"dnsserver\t\t\tShow status of DNS server\n",
+						"dnsserver add\t\t\tAdd DNS record to server\n",
+						"dnsserver remove\t\tRemove DNS record from server",
+					)
+				}
+				if len(action) > 1 {
+					switch action[1] {
+					case "add":
+						if len(action) > 3 {
+							snet.Router.DNSServer.addDNSRecordToServer('A', action[2], action[3])
+						} else {
+							fmt.Println("Usage: dnsserver add <hostname> <ip_address>")
+						}
+
+					case "remove":
+						fmt.Println("DNS record removing not implemented yet")
+
+					default:
+						printDNSServerHelp()
+					}
+				} else {
+					snet.Router.DNSServer.dnsServerMenu()
+				}
 
 			case "ip":
 				printIPHelp := func() {
@@ -150,7 +180,8 @@ func RouterConn(device string, id string) {
 			case "help", "?":
 				fmt.Println("",
 					"ping <dst_ip> [seconds]\tPings an IP address\n",
-					"dhcpserver\t\t\tDisplays DHCP server and DHCP pool settings\n",
+					"dhcpserver\t\t\tDisplays DHCP server and settings\n",
+					"dnsserver\t\t\tDisplays DNS server and settings\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
 					"nslookup\t\t\tPerform a DNS lookup\n",
