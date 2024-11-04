@@ -248,15 +248,11 @@ func (router Router) routeToInterface(dstIP string) Interface {
 		devIP := router.GetIP(iface)
 		devMask := router.GetMask(iface)
 
-		fmt.Printf("testing to see if %s is in same subnet as %s", devIP, dstIP)
 		if iphelper.IPInSameSubnet(devIP, dstIP, devMask) {
-			fmt.Printf("Routing %s to interface %s\n", dstIP, router.Interfaces[iface].Name)
 			return router.Interfaces[iface]
 		}
 	}
 
 	// Default gateway
-	fmt.Println("Routing to interface %s", "eth0")
-
 	return router.Interfaces["eth0"]
 }

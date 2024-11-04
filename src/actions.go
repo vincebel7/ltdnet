@@ -593,7 +593,6 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 	dnsQueryIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsQuerySegment)
 	dnsQueryFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
 
-	fmt.Printf("About to send DNS query for %s, from source IP %s to DNS server %s", hostname, srcIP, dstIP)
 	sendFrame(dnsQueryFrame, iface, srcID)
 	debug(3, "dns_query", srcID, "DNS query sent - "+hostname)
 
@@ -629,15 +628,11 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 func dns_response(dnsQueryFrame Frame) {
 	// De-encapsulate DNS Query
 	dnsQueryIPv4Packet := readIPv4Packet(dnsQueryFrame.Data)
-	dnsQueryIPv4PacketHeader := readIPv4PacketHeader(dnsQueryFrame.Data)
+	dnsQueryIPv4PacketHeader := readIPv4PacketHeader(dnsQueryIPv4Packet.Header)
 	dnsQueryUDPSegment := readUDPSegment(dnsQueryIPv4Packet.Data)
 	dnsQueryMessage := ReadDNSMessage(dnsQueryUDPSegment.Data)
 
-	fmt.Println("$$$$$$$$$$$$$$$$")
-	fmt.Println(dnsQueryIPv4PacketHeader)
-	fmt.Println("$$$$$$$$$$$$$$$$")
 	dstIP := dnsQueryIPv4PacketHeader.SrcIP
-	fmt.Printf("~!!!!!!!!!!! %s !!!!!!!!!", dstIP)
 	iface := snet.Router.routeToInterface(dstIP)
 	srcIP := snet.Router.GetIP(iface.Name)
 	dstPort := dnsQueryUDPSegment.SrcPort

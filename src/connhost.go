@@ -159,6 +159,7 @@ func HostConn(device string, id string) {
 				if len(action) > 1 {
 					go printResolveHostname(host.ID, action[1], host.DNSTable)
 					<-actionsync[id]
+					save()
 
 				} else {
 					fmt.Println("Usage: nslookup <hostname>")

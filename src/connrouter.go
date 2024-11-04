@@ -174,6 +174,7 @@ func RouterConn(device string, id string) {
 				if len(action) > 1 {
 					go printResolveHostname(snet.Router.ID, action[1], snet.Router.DNSTable)
 					<-actionsync[id]
+					save()
 
 				} else {
 					fmt.Println("Usage: nslookup <hostname>")
