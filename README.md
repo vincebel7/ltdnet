@@ -70,7 +70,7 @@ Builds executables for Linux and Windows
 ## Version History
 What has been accomplished at each version
 
-### v0.5.0 - ? 2024
+### v0.5.0 - November 3, 2024
 DNS lookups, router has DNS server
 
 ### v0.4.0 - November 2, 2024
