@@ -78,6 +78,9 @@ func HostConn(device string, id string) {
 					save()
 				}
 
+			case "hosts":
+				displayDNSTable(host.DNSTable)
+
 			case "ip":
 				printIPHelp := func() {
 					fmt.Println("",
@@ -168,6 +171,7 @@ func HostConn(device string, id string) {
 				fmt.Println("",
 					"ping\t\t\t\tPings an IP address\n",
 					"dhcp\t\t\t\tGets IP configuration via DHCP\n",
+					"hosts\t\t\t\tDisplays local host entries (from DNS)\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
 					"nslookup\t\t\tPerform a DNS lookup\n",

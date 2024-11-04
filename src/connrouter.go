@@ -94,6 +94,9 @@ func RouterConn(device string, id string) {
 					snet.Router.DNSServer.dnsServerMenu()
 				}
 
+			case "hosts":
+				displayDNSTable(snet.Router.DNSTable)
+
 			case "ip":
 				printIPHelp := func() {
 					fmt.Println("",
@@ -184,6 +187,7 @@ func RouterConn(device string, id string) {
 					"ping <dst_ip> [seconds]\tPings an IP address\n",
 					"dhcpserver\t\t\tDisplays DHCP server and settings\n",
 					"dnsserver\t\t\tDisplays DNS server and settings\n",
+					"hosts\t\t\t\tDisplays local host entries (from DNS)\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
 					"nslookup\t\t\tPerform a DNS lookup\n",
