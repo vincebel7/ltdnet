@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-var currentVersion = "v0.4.1"
+var currentVersion = "v0.5.0"
 
 func printVersion() {
 	fmt.Println("ltdnet " + currentVersion)
