@@ -23,7 +23,7 @@ Next, create a host:
 `add host host1`
 
 You can now look at your network by running a show command. The most comprehensive of these is:
-`show network overview`
+`show overview`
 
 Once you have created a host, you can "plug in" the host to the router by *linking* them.
 `link host host1 router1`
@@ -69,6 +69,9 @@ Builds executables for Linux and Windows
 
 ## Version History
 What has been accomplished at each version
+
+### v0.5.0 - November 3, 2024
+DNS lookups, router has DNS server
 
 ### v0.4.0 - November 2, 2024
 Layer 1 rework (interfaces), host-level routing, static hostnames, bypasses for self-bound traffic

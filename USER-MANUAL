@@ -1,6 +1,6 @@
 ===============
 ltdnet manual
-v0.4.0
+v0.5.0
 ===============
 
 Welcome to ltdnet! Using this program, you can simulate a LAN (Local Area Network) with virtual computers, switches, and routers. ltdnet features fictional device models, such as the ProBox, a state-of-the-art PC workstation, and the Bobcat 100, a sturdy small business router (with no recurring license fees!).
@@ -23,7 +23,7 @@ In ltdnet, all devices must connect to a router (this will change in future rele
 
 Now you can verify the state of your network with:
 
-> show network overview
+> show overview
 
 This is a handy command to view all the devices which exist in your network, their IP addresses, and where they're connected. If you're having trouble visualizing how everything connects together, try the diagram feature (known to be buggy when unlinking devices, and on larger networks):
 
@@ -53,7 +53,7 @@ In networking, routers are devices that route between two networks. In ltdnet, r
 
 Your first router, the Bobcat 100, is a 2-in-1 device: a little home router with a built-in switch. In ltdnet, this is known as a *virtual switch*. 
 
-You might notice with the "show network overview" command that your host1 now uplinks to router1, but technically it's connected to the built-in virtual switch, shown in parentheses to the right. It might look something like (V-2f109f30). You can control this switch like any other switch, such as:
+You might notice with the "show overview" command that your host1 now uplinks to router1, but technically it's connected to the built-in virtual switch, shown in parentheses to the right. It might look something like (V-2f109f30). You can control this switch like any other switch, such as:
 
 > control switch V-2f109f30
 

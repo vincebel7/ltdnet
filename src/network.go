@@ -98,7 +98,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 	if saveType == "user" {
 		filename = "saves/user_saves/" + netname + ".json"
 	} else if saveType == "test" {
-		filename = "saves/test_saves/" + netname + ".json"
+		filename = "../saves/test_saves/" + netname + ".json"
 	}
 
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
@@ -171,7 +171,7 @@ func loadNetwork(netname string, saveType string) {
 	if saveType == "user" {
 		filename = "saves/user_saves/" + netname + ".json"
 	} else if saveType == "test" {
-		filename = "saves/test_saves/" + netname + ".json"
+		filename = "../saves/test_saves/" + netname + ".json"
 	}
 	f, err := os.Open(filename)
 	if err != nil {

@@ -50,6 +50,11 @@ func macgen() string {
 	return mac
 }
 
+func ephemeralPortGen() int {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return r.Intn(65535-1024) + 1024
+}
+
 func getDeviceType(id string) string {
 	if snet.Router.ID == id {
 		return "router"

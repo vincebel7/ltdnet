@@ -26,7 +26,7 @@ func ping(srcID string, dst string, count int) {
 	dstMAC := ""
 	srcHostname := ""
 	srcHost := Host{}
-	dnsTable := make(map[string]DNSEntry)
+	dnsTable := make(map[string]DNSRecord)
 
 	sendCount := 0
 	recvCount := 0
@@ -48,7 +48,7 @@ func ping(srcID string, dst string, count int) {
 	if ip := net.ParseIP(dst); ip != nil {
 		dstIP = dst
 	} else {
-		dstIP = resolveHostname(dst, dnsTable)
+		dstIP = resolveHostname(srcID, dst, dnsTable).RData
 
 		if dstIP == "" {
 			debug(1, "ping", srcID, "[Error] Hostname could not be resolved")
@@ -106,7 +106,7 @@ func ping(srcID string, dst string, count int) {
 
 		debug(4, "ping", srcID, "Awaiting ping send")
 		sendFrame(frameBytes, iface, srcID)
-		debug(2, "ping", srcID, "Ping sent")
+		debug(3, "ping", srcID, "Ping request sent")
 
 		sendCount++
 
@@ -189,7 +189,7 @@ func pong(srcID string, frame Frame) {
 
 	debug(4, "pong", srcID, "Awaiting pong send")
 	sendFrame(frameBytes, iface, srcID)
-	debug(2, "pong", srcID, "Pong sent")
+	debug(3, "pong", srcID, "Ping reply sent")
 }
 
 func arp_request(srcID string, targetIP string) string {
@@ -233,7 +233,7 @@ func arp_request(srcID string, targetIP string) string {
 
 	// Send frame and wait for ARPREPLY
 	sendFrame(arpRequestFrameBytes, iface, srcID)
-	debug(2, "arp_request", srcID, "ARPREQUEST sent")
+	debug(3, "arp_request", srcID, "ARPREQUEST sent")
 
 	sockets := socketMaps[srcID]
 	socketID := "arp_" + string(targetIP)
@@ -291,7 +291,7 @@ func arp_reply(id string, arpRequestFrame Frame) {
 
 	// Send frame
 	sendFrame(arpReplyFrameBytes, iface, srcID)
-	debug(2, "arp_reply", srcID, "ARPREPLY sent")
+	debug(3, "arp_reply", srcID, "ARPREPLY sent")
 }
 
 func dhcp_discover(host Host) {
@@ -334,7 +334,7 @@ func dhcp_discover(host Host) {
 	// Send DHCPDISCOVER, await DHCPOFFER
 	//need to give it to uplink
 	sendFrame(frameData, iface, srcID)
-	debug(2, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
+	debug(3, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
 	sockets := socketMaps[srcID]
 	socketID := "udp_" + strconv.Itoa(68)
@@ -382,7 +382,7 @@ func dhcp_discover(host Host) {
 
 		// Send DHCPREQUEST, await DHCPACK
 		sendFrame(dhcpRequestFrame, iface, srcID)
-		debug(2, "dhcp_discover", srcID, "DHCPREQUEST sent")
+		debug(3, "dhcp_discover", srcID, "DHCPREQUEST sent")
 		dhcpAckFrame := <-sockets[socketID]
 
 		// De-encapsulate DHCPACK
@@ -391,7 +391,7 @@ func dhcp_discover(host Host) {
 		dhcpAckMessage := ReadDHCPMessage(dhcpAckUDPSegment.Data)
 
 		if int(dhcpAckMessage.Options[53][0]) == 5 {
-			debug(2, "dhcp_discover", srcID, "DHCPACK received - "+dhcpAckMessage.YIAddr.String())
+			debug(3, "dhcp_discover", srcID, "DHCPACK assigned a lease - "+dhcpAckMessage.YIAddr.String())
 
 			assignedAddress := dhcpAckMessage.YIAddr
 			defaultGateway := net.IP(dhcpAckMessage.Options[3]).To4()
@@ -462,7 +462,7 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 
 	// Send DHCPOFFER, await DHCPREQUEST
 	sendFrame(dhcpOfferFrame, iface, snet.Router.ID)
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
+	debug(3, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
 }
 
 func dhcp_ack(dhcpRequestFrame Frame) {
@@ -527,7 +527,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 
 	// Send DHCPACK
 	sendFrame(dhcpAckFrame, iface, snet.Router.ID)
-	debug(2, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
+	debug(3, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
 
 	// Setting leasee's MAC in pool (new)
 	pool := snet.Router.GetDHCPPoolAddresses()
@@ -539,9 +539,147 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	}
 }
 
-func ipset(hostname string, ipaddr string) {
-	prefixLength, _ := strconv.Atoi(snet.Netsize)
-	subnetMask := prefixLengthToSubnetMask(prefixLength)
+func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
+	srcIP := ""
+	dstMAC := ""
+	dstIP := ""
+	iface := Interface{}
+
+	if snet.Router.ID == srcID {
+		iface = snet.Router.Interfaces["lo"]
+		srcIP = snet.Router.GetIP(iface.Name)
+		//dstIP := snet.Router.Interfaces["eth0"].IPConfig.DNSServer
+		dstIP = snet.Router.Interfaces["lo"].IPConfig.DNSServer.String() // temporary
+		dstMAC = routerDetermineDstMAC(snet.Router, dstIP, iface.Name, true)
+	} else {
+		hostIndex := getHostIndexFromID(srcID)
+		host := snet.Hosts[hostIndex]
+		iface = host.Interfaces["eth0"]
+		srcIP = host.GetIP(iface.Name)
+		//dstIP := host.Interfaces["eth0"].IPConfig.DNSServer
+		dstIP = host.GetGateway(iface.Name) // temporary
+		dstMAC = hostDetermineDstMAC(host, dstIP, iface.Name, true)
+	}
+
+	srcMAC := iface.MACAddr
+
+	var dnsQueryMessage = DNSMessage{}
+	switch reqType {
+	case 'A':
+		dnsQuestionMessage := DNSQuestion{
+			QName:  hostname,
+			QType:  reqType,
+			QClass: 1,
+		}
+		dnsQuestions := make([]DNSQuestion, 1)
+		dnsQuestions[0] = dnsQuestionMessage
+
+		dnsQueryMessage = DNSMessage{
+			QR:        false, // false = query
+			Opcode:    0,
+			QDCount:   1,
+			Questions: dnsQuestions,
+		}
+
+	default:
+		debug(1, "dns_query", srcID, "[Error] DNS query type not implemented yet")
+		return DNSMessage{}
+	}
+
+	protocol := "UDP"
+	srcPort := ephemeralPortGen()
+	dnsQueryMessageBytes, _ := json.Marshal(dnsQueryMessage)
+	dnsQuerySegment := constructUDPSegment(srcPort, 53, dnsQueryMessageBytes)
+	dnsQueryIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsQuerySegment)
+	dnsQueryFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
+
+	sendFrame(dnsQueryFrame, iface, srcID)
+	debug(3, "dns_query", srcID, "DNS query sent - "+hostname)
+
+	sockets := socketMaps[srcID]
+	socketID := "udp_" + strconv.Itoa(srcPort)
+	sockets[socketID] = make(chan Frame)
+	socketMaps[srcID] = sockets // Write updated map back to the collection
+
+	select {
+	case dnsResponseFrame := <-sockets[socketID]:
+		dnsResponsePacket := readIPv4Packet(dnsResponseFrame.Data)
+		dnsResponseSegment := readUDPSegment(dnsResponsePacket.Data)
+		dnsResponseMessage := ReadDNSMessage(dnsResponseSegment.Data)
+
+		switch dnsResponseMessage.Rcode {
+		case 2:
+			fmt.Printf("server can't find %s: SERVFAIL\n", hostname)
+
+		case 3:
+			fmt.Printf("server can't find %s: NXDOMAIN\n", hostname)
+
+		case 0:
+			achievementTester(MY_NAME)
+			return dnsResponseMessage
+		}
+
+	case <-time.After(time.Second * 4):
+		fmt.Printf("DNS request timed out.\n")
+	}
+	return DNSMessage{}
+}
+
+func dns_response(dnsQueryFrame Frame) {
+	// De-encapsulate DNS Query
+	dnsQueryIPv4Packet := readIPv4Packet(dnsQueryFrame.Data)
+	dnsQueryIPv4PacketHeader := readIPv4PacketHeader(dnsQueryIPv4Packet.Header)
+	dnsQueryUDPSegment := readUDPSegment(dnsQueryIPv4Packet.Data)
+	dnsQueryMessage := ReadDNSMessage(dnsQueryUDPSegment.Data)
+
+	dstIP := dnsQueryIPv4PacketHeader.SrcIP
+	iface := snet.Router.routeToInterface(dstIP)
+	srcIP := snet.Router.GetIP(iface.Name)
+	dstPort := dnsQueryUDPSegment.SrcPort
+	srcMAC := iface.MACAddr
+	dstMAC := dnsQueryFrame.SrcMAC
+
+	var dnsResponseMessage = DNSMessage{}
+	switch dnsQueryMessage.Questions[0].QType {
+	case 'A':
+		dnsResponseMessage = DNSMessage{
+			QR:     true, // false = query
+			Opcode: 0,
+			Rcode:  2,
+		}
+
+		dnsAnswerRecord := snet.Router.DNSServer.aRecordLookup(dnsQueryMessage.Questions[0].QName)
+
+		if dnsAnswerRecord.Name != "" {
+			dnsResponseMessage.Rcode = 0
+			dnsResponseMessage.ANCount = 1
+
+			dnsAnswers := make([]DNSRecord, 1)
+			dnsAnswers[0] = dnsAnswerRecord
+
+			dnsResponseMessage.Answers = dnsAnswers
+		} else {
+			dnsResponseMessage.Rcode = 3
+			dnsResponseMessage.ANCount = 0
+		}
+
+	default:
+		debug(1, "dns_query", snet.Router.ID, "[Warning] DNS query type not implemented yet - returning SERVFAIL message")
+		return
+	}
+
+	protocol := "UDP"
+	dnsResponseMessageBytes, _ := json.Marshal(dnsResponseMessage)
+	dnsResponseSegment := constructUDPSegment(53, dstPort, dnsResponseMessageBytes)
+	dnsResponseIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsResponseSegment)
+	dnsResponseFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsResponseIPv4Packet)
+
+	sendFrame(dnsResponseFrame, iface, snet.Router.ID)
+	debug(3, "dns_query", snet.Router.ID, "DNS response sent")
+
+}
+
+func ipset(hostname string, ipaddr string, subnetMask string) {
 	defaultGateway := snet.Router.GetIP("eth0")
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
@@ -687,16 +825,27 @@ func routerDetermineDstMAC(router Router, dstIP string, iface string, useTable b
 	return dstMAC
 }
 
-func resolveHostname(hostname string, dnsTable map[string]DNSEntry) string {
+func resolveHostname(srcID string, hostname string, dnsTable map[string]DNSRecord) DNSRecord {
 	// Check local table
 	if entry, found := dnsTable[hostname]; found {
-		if entry.TTL == -1 || time.Since(entry.Timestamp).Seconds() < float64(entry.TTL) {
-			return entry.IPAddress
+		if entry.TTL == 65535 {
+			return entry
 		} else {
-			delete(dnsTable, hostname)
+			delete(dnsTable, hostname) // Warning: This does not get written back.
 		}
 	}
 
 	// If not found, initiate DNS request
-	return ""
+	resultMessage := dns_query(srcID, hostname, 'A')
+
+	// TODO: Add response to local cache
+	if resultMessage.Rcode == 0 {
+		if srcID == snet.Router.ID {
+			snet.Router.DNSTable[hostname] = resultMessage.Answers[0]
+		} else {
+			snet.Hosts[getHostIndexFromID(srcID)].DNSTable[hostname] = resultMessage.Answers[0]
+		}
+	}
+
+	return resultMessage.Answers[0]
 }

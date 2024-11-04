@@ -20,7 +20,7 @@ type Host struct {
 	Model      string               `json:"model"`
 	Hostname   string               `json:"hostname"`
 	ARPTable   map[string]ARPEntry  `json:"arptable"`
-	DNSTable   map[string]DNSEntry  `json:"dnstable"`
+	DNSTable   map[string]DNSRecord `json:"dnstable"`
 	Interfaces map[string]Interface `json:"interfaces"`
 }
 
@@ -29,13 +29,6 @@ type ARPEntry struct {
 	ExpireTime time.Time `json:"expireTime"`
 	Interface  string    `json:"interface"`
 	State      string    `json:"state"`
-}
-
-type DNSEntry struct {
-	IPAddress  string    // Resolved IP address
-	TTL        int       // Time-to-live in seconds, for cache expiration
-	RecordType string    // Type of DNS record ("A", "AAAA")
-	Timestamp  time.Time // Time the entry was created, for tracking TTL expiration
 }
 
 // Populate fields specific to the Probox 1
@@ -97,19 +90,21 @@ func addHost(hostHostname string) {
 	}
 
 	// DNS table
-	h.DNSTable = make(map[string]DNSEntry)
+	h.DNSTable = make(map[string]DNSRecord)
 
-	h.DNSTable[h.Hostname] = DNSEntry{
-		IPAddress:  "127.0.0.1",
-		TTL:        -1,
-		RecordType: "A",
-		Timestamp:  time.Time{},
+	h.DNSTable[h.Hostname] = DNSRecord{
+		Name:  h.Hostname,
+		Type:  'A',
+		Class: 0,
+		TTL:   65535,
+		RData: "127.0.0.1",
 	}
-	h.DNSTable["localhost"] = DNSEntry{
-		IPAddress:  "127.0.0.1",
-		TTL:        -1,
-		RecordType: "A",
-		Timestamp:  time.Time{},
+	h.DNSTable["localhost"] = DNSRecord{
+		Name:  "localhost",
+		Type:  'A',
+		Class: 0,
+		TTL:   65535,
+		RData: "127.0.0.1",
 	}
 
 	snet.Hosts = append(snet.Hosts, h)
@@ -258,4 +253,12 @@ func (host Host) routeToInterface(dstIP string) Interface {
 	// Default gateway
 	debug(4, "routeToInterface", host.Hostname, "Route not found. Sending to default gateway")
 	return host.Interfaces["eth0"]
+}
+
+func printResolveHostname(srcID string, hostname string, dnsTable map[string]DNSRecord) {
+	dnsRecord := resolveHostname(srcID, hostname, dnsTable)
+	fmt.Println("Name: " + hostname)
+	fmt.Println("Address: " + dnsRecord.RData + "\n")
+
+	actionsync[srcID] <- 1
 }

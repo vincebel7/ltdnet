@@ -28,13 +28,57 @@ type DHCPMessage struct {
 	Options map[byte][]byte // DHCP options
 }
 
+type DNSMessage struct {
+	ID         uint16        `json:"id"`         // Unique identifier for the DNS transaction
+	QR         bool          `json:"qr"`         // Query (0) or Response (1) flag
+	Opcode     uint8         `json:"opcode"`     // Type of query (standard = 0, inverse = 1, status = 2)
+	AA         bool          `json:"aa"`         // Authoritative Answer flag
+	TC         bool          `json:"tc"`         // Truncation flag
+	RD         bool          `json:"rd"`         // Recursion Desired flag
+	RA         bool          `json:"ra"`         // Recursion Available flag
+	Z          uint8         `json:"z"`          // Reserved, must be 0
+	Rcode      uint8         `json:"rcode"`      // Response code
+	QDCount    uint16        `json:"qd_count"`   // Number of questions
+	ANCount    uint16        `json:"an_count"`   // Number of answer records
+	NSCount    uint16        `json:"ns_count"`   // Number of authority records
+	ARCount    uint16        `json:"ar_count"`   // Number of additional records
+	Questions  []DNSQuestion `json:"questions"`  // Question section
+	Answers    []DNSRecord   `json:"answers"`    // Answer section
+	Authority  []DNSRecord   `json:"authority"`  // Authority section
+	Additional []DNSRecord   `json:"additional"` // Additional section
+}
+
 /** Datagram Structs - L4 **/
 type UDPSegment struct {
-	SrcPort  int             `json:"src_port"`
-	DstPort  int             `json:"dst_port"`
-	Length   string          `json:"length"`
-	Checksum string          `json:"checksum"`
-	Data     json.RawMessage `json:"data"`
+	SrcPort  int             `json:"src_port"` // Source port
+	DstPort  int             `json:"dst_port"` // Destination port
+	Length   string          `json:"length"`   // Payload length
+	Checksum string          `json:"checksum"` // Checksum for error-checking
+	Data     json.RawMessage `json:"data"`     // Payload data
+}
+
+type TCPSegment struct {
+	SrcPort    int             `json:"src_port"`    // Source port
+	DstPort    int             `json:"dst_port"`    // Destination port
+	SeqNumber  int             `json:"seq_number"`  // Sequence number
+	AckNumber  int             `json:"ack_number"`  // Acknowledgment number
+	Offset     int             `json:"offset"`      // Data offset (header length)
+	Reserved   int             `json:"reserved"`    // Reserved bits for future use
+	Flags      TCPFlags        `json:"flags"`       // Flags for control information
+	WindowSize int             `json:"window_size"` // Window size for flow control
+	Checksum   string          `json:"checksum"`    // Checksum for error-checking
+	UrgentPtr  int             `json:"urgent_ptr"`  // Urgent pointer for urgent data
+	Data       json.RawMessage `json:"data"`        // Payload data
+}
+
+// TCPFlags struct for control flags in the TCP header
+type TCPFlags struct {
+	URG bool `json:"urg"` // Urgent pointer field significant
+	ACK bool `json:"ack"` // Acknowledgment field significant
+	PSH bool `json:"psh"` // Push function
+	RST bool `json:"rst"` // Reset the connection
+	SYN bool `json:"syn"` // Synchronize sequence numbers
+	FIN bool `json:"fin"` // No more data from sender
 }
 
 /** Datagram Structs - L3 **/
@@ -169,6 +213,18 @@ func ReadDHCPMessage(rawDHCPMessage json.RawMessage) DHCPMessage {
 	return dhcpMessage
 }
 
+// Turns DNSMessage into an accessible object
+func ReadDNSMessage(rawDNSMessage json.RawMessage) DNSMessage {
+	var dnsMessage DNSMessage
+	err := json.Unmarshal(rawDNSMessage, &dnsMessage)
+	if err != nil {
+		fmt.Println("[DNS] Error unmarshalling JSON:", err)
+		return DNSMessage{}
+	}
+
+	return dnsMessage
+}
+
 // Turns segment into an accessible object
 func readUDPSegment(rawUDPSegment json.RawMessage) UDPSegment {
 	var segment UDPSegment
@@ -176,6 +232,17 @@ func readUDPSegment(rawUDPSegment json.RawMessage) UDPSegment {
 	if err != nil {
 		fmt.Println("[UDP] Error unmarshalling JSON:", err)
 		return UDPSegment{}
+	}
+
+	return segment
+}
+
+func readTCPSegment(rawTCPSegment json.RawMessage) TCPSegment {
+	var segment TCPSegment
+	err := json.Unmarshal(rawTCPSegment, &segment)
+	if err != nil {
+		fmt.Println("[TCP] Error unmarshalling JSON:", err)
+		return TCPSegment{}
 	}
 
 	return segment

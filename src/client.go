@@ -7,15 +7,20 @@ Purpose:	User menus and main program loop
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
 )
 
-var currentVersion = "v0.4.0"
+var currentVersion = "v0.5.0"
+
+func printVersion() {
+	fmt.Println("ltdnet " + currentVersion)
+}
 
 func intro() {
-	fmt.Println("ltdnet " + currentVersion)
+	printVersion()
 
 	if user_settings.Author == "" {
 		changeSettingsName()
@@ -210,7 +215,7 @@ func actionsMenu() {
 			fmt.Println(" Usage: unlink host <hostname>")
 		}
 
-	case "control":
+	case "control", "c":
 		if actionword2 != "" {
 			switch actionword2 {
 			case "host":
@@ -271,7 +276,7 @@ func actionsMenu() {
 
 	case "show", "sh":
 		switch action_selection {
-		case "show network overview", "sh network overview":
+		case "show overview", "sh overview":
 			overview()
 
 		case "show diagram", "sh diagram":
@@ -281,8 +286,8 @@ func actionsMenu() {
 			if len(action_selection) > 12 { // show device
 				show(action_selection[12:])
 			} else {
-				fmt.Println(
-					"show network overview\n",
+				fmt.Println("",
+					"show overview\n",
 					"show device <hostname>\n",
 					"show diagram",
 				)
@@ -309,6 +314,9 @@ func actionsMenu() {
 	case "manual", "man":
 		launchManual()
 
+	case "version", "ver":
+		printVersion()
+
 	case "exit", "quit", "q":
 		os.Exit(0)
 
@@ -328,6 +336,7 @@ func actionsMenu() {
 			"reload\t\t\tReloads the network file. May fix runtime bugs\n",
 			"debug <0-4>\t\tSets debug level. Default is 1\n",
 			"manual\t\t\tLaunches the user manual. Great for beginners!\n",
+			"version\t\t\tltdnet version info",
 			"exit\t\t\tExits the program",
 			//"netdump\t\tPrints loaded Network object (developer use)\n", HIDDEN
 		)
@@ -337,6 +346,24 @@ func actionsMenu() {
 	}
 
 	achievementCheck()
+}
+
+func launchManual() {
+	file, err := os.Open("USER-MANUAL")
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
 }
 
 func main() {

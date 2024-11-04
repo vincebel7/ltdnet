@@ -1,1 +1,1 @@
-go run .
+go run ./src

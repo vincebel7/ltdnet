@@ -12,7 +12,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/vincebel7/ltdnet/iphelper"
 )
@@ -24,7 +23,8 @@ type Router struct {
 	VSwitch    Switch               `json:"vswitchid"` // Virtual built-in switch to router
 	DHCPPool   DHCPPool             `json:"dhcp_pool"` // Instance of DHCPPool
 	ARPTable   map[string]ARPEntry  `json:"arptable"`
-	DNSTable   map[string]DNSEntry  `json:"dnstable"`
+	DNSTable   map[string]DNSRecord `json:"dnstable"`  // Local DNS table
+	DNSServer  DNSServer            `json:"dnsserver"` // DNS server hosted on the router (optional)
 	Interfaces map[string]Interface `json:"interfaces"`
 }
 
@@ -73,6 +73,11 @@ func addRouter(routerHostname string, routerModel string) {
 		return
 	}
 
+	if snet.Router.Hostname != "" {
+		fmt.Printf("Network already has a router, %s.\n", snet.Router.Hostname)
+		return
+	}
+
 	r := Router{}
 
 	dhcpPoolSize := 0
@@ -110,13 +115,13 @@ func addRouter(routerHostname string, routerModel string) {
 		IPAddress:      net.ParseIP("127.0.0.1"),
 		SubnetMask:     "255.0.0.0",
 		DefaultGateway: nil,
-		DNSServer:      nil,
+		DNSServer:      net.ParseIP("127.0.0.1"),
 		ConfigType:     "static",
 	}
 	eth0IPConfig := IPConfig{
 		IPAddress:  gateway,
 		SubnetMask: prefixLengthToSubnetMask(netsizeInt),
-		DNSServer:  nil,
+		DNSServer:  gateway,
 		ConfigType: "",
 	}
 
@@ -134,19 +139,21 @@ func addRouter(routerHostname string, routerModel string) {
 	}
 
 	// DNS table
-	r.DNSTable = make(map[string]DNSEntry)
+	r.DNSTable = make(map[string]DNSRecord)
 
-	r.DNSTable[r.Hostname] = DNSEntry{
-		IPAddress:  "127.0.0.1",
-		TTL:        -1,
-		RecordType: "A",
-		Timestamp:  time.Time{},
+	r.DNSTable[r.Hostname] = DNSRecord{
+		Name:  r.Hostname,
+		Type:  'A',
+		Class: 0,
+		TTL:   65535,
+		RData: "127.0.0.1",
 	}
-	r.DNSTable["localhost"] = DNSEntry{
-		IPAddress:  "127.0.0.1",
-		TTL:        -1,
-		RecordType: "A",
-		Timestamp:  time.Time{},
+	r.DNSTable["localhost"] = DNSRecord{
+		Name:  "localhost",
+		Type:  'A',
+		Class: 0,
+		TTL:   65535,
+		RData: "127.0.0.1",
 	}
 
 	network_portion := strings.TrimSuffix(r.GetIP("eth0"), "1")

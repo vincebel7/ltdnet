@@ -30,12 +30,14 @@ var ROUTINE_BUSINESS = 1
 var UNITED_PINGDOM = 2
 var ARP_HOT = 3
 var SNIFF_FRAMES = 4
+var TEN_HOSTS = 5
+var MY_NAME = 6
 
 func buildAchievementCatalog() {
 	achievement := Achievement{
 		ID:          ROUTINE_BUSINESS,
 		Name:        "Route-ine Business",
-		Description: "Add a router to your network.",
+		Description: "Add a router to your network",
 		Hint:        "Have you tried the 'add router' command?",
 	}
 	AchievementCatalog[ROUTINE_BUSINESS] = achievement
@@ -63,6 +65,22 @@ func buildAchievementCatalog() {
 		Hint:        "Every host has a loopback interface with an address of 127.0.0.1. Try pinging it.",
 	}
 	AchievementCatalog[SNIFF_FRAMES] = achievement
+
+	achievement = Achievement{
+		ID:          TEN_HOSTS,
+		Name:        "Room For Ten",
+		Description: "Have ten hosts on your network",
+		Hint:        "The hosts don't need to be linked...",
+	}
+	AchievementCatalog[TEN_HOSTS] = achievement
+
+	achievement = Achievement{
+		ID:          MY_NAME,
+		Name:        "My Name Is",
+		Description: "Get a host record from a DNS server",
+		Hint:        "nslookup is a utility to retrieve records from a DNS server.",
+	}
+	AchievementCatalog[MY_NAME] = achievement
 }
 
 func displayAchievements() {
@@ -127,7 +145,7 @@ func achievementCheck() {
 	}
 
 	// Test state-based Achievements
-	//achievementTester()
+	achievementTester(5)
 }
 
 // Kicks off tests for incomplete Achievements
@@ -146,34 +164,53 @@ func achievementTester(achievementID int) {
 			achievement3Test()
 		case 4:
 			achievement4Test()
+		case 5:
+			achievement5Test()
+		case 6:
+			achievement6Test()
 		}
 	}
 }
 
-// Achievement 1: Create a router
+// Achievement 1: Create a router (action-based)
 func achievement1Test() {
 	// If this function is called, the achievement is already complete (action-based)
 	achievement := AchievementCatalog[ROUTINE_BUSINESS]
 	achievementAward(achievement)
 }
 
-// Achievement 2: Successful ping
+// Achievement 2: Successful ping (action-based)
 func achievement2Test() {
 	// If this function is called, the achievement is already complete (action-based)
 	achievement := AchievementCatalog[UNITED_PINGDOM]
 	achievementAward(achievement)
 }
 
-// Achievement 3: Successful manual ARP request
+// Achievement 3: Successful manual ARP request (action-based)
 func achievement3Test() {
 	// If this function is called, the achievement is already complete (action-based)
 	achievement := AchievementCatalog[ARP_HOT]
 	achievementAward(achievement)
 }
 
-// Achievement 4: Successful manual ARP request
+// Achievement 4: Ping loopback (action-based)
 func achievement4Test() {
 	// If this function is called, the achievement is already complete (action-based)
 	achievement := AchievementCatalog[SNIFF_FRAMES]
+	achievementAward(achievement)
+}
+
+// Achievement 5: Have ten hosts on your network (state-based)
+func achievement5Test() {
+	if len(snet.Hosts) >= 10 {
+		achievement := AchievementCatalog[TEN_HOSTS]
+		achievementAward(achievement)
+	}
+}
+
+// Achievement 6: Get DNS record (action-based)
+func achievement6Test() {
+	// If this function is called, the achievement is already complete (action-based)
+	achievement := AchievementCatalog[MY_NAME]
 	achievementAward(achievement)
 }

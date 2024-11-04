@@ -14,7 +14,11 @@ import (
 
 func controlRouter(hostname string) {
 	fmt.Printf("Attempting to control router %s...\n", hostname)
-	RouterConn("router", snet.Router.ID)
+	if snet.Router.Hostname == hostname {
+		RouterConn("router", snet.Router.ID)
+		return
+	}
+	fmt.Println("Router not found")
 }
 
 func RouterConn(device string, id string) {
@@ -53,7 +57,45 @@ func RouterConn(device string, id string) {
 				}
 
 			case "dhcpserver":
-				displayDHCPServer()
+				if len(action) > 1 {
+					switch action[1] {
+					default:
+					}
+				} else {
+					displayDHCPServer()
+				}
+
+			case "dnsserver":
+				printDNSServerHelp := func() {
+					fmt.Println("",
+						"dnsserver\t\t\tShow status of DNS server\n",
+						"dnsserver add\t\t\tAdd DNS record to server\n",
+						"dnsserver remove\t\tRemove DNS record from server",
+					)
+				}
+				if len(action) > 1 {
+					switch action[1] {
+					case "add":
+						if len(action) > 3 {
+							snet.Router.DNSServer.addDNSRecordToServer('A', action[2], action[3])
+						} else {
+							fmt.Println("Usage: dnsserver add <hostname> <ip_address>")
+						}
+						save()
+
+					case "remove":
+						fmt.Println("DNS record removing not implemented yet")
+						save()
+
+					default:
+						printDNSServerHelp()
+					}
+				} else {
+					snet.Router.DNSServer.dnsServerMenu()
+				}
+
+			case "hosts":
+				displayDNSTable(snet.Router.DNSTable)
 
 			case "ip":
 				printIPHelp := func() {
@@ -78,11 +120,11 @@ func RouterConn(device string, id string) {
 						fmt.Println("Routing not implemented yet.")
 
 					case "set":
-						if len(action) > 2 {
-							ipset(snet.Router.Hostname, action[2])
+						if len(action) > 3 {
+							ipset(snet.Router.Hostname, action[2], action[3])
 							save()
 						} else {
-							fmt.Println("Usage: ipset <ip_address>")
+							fmt.Println("Usage: ipset <ip_address> <subnet_mask>")
 						}
 
 					case "clear":
@@ -130,9 +172,9 @@ func RouterConn(device string, id string) {
 
 			case "nslookup":
 				if len(action) > 1 {
-					address := resolveHostname(action[1], snet.Router.DNSTable)
-					fmt.Println("Name: " + action[1])
-					fmt.Println("Address: " + address + "\n")
+					go printResolveHostname(snet.Router.ID, action[1], snet.Router.DNSTable)
+					<-actionsync[id]
+					save()
 
 				} else {
 					fmt.Println("Usage: nslookup <hostname>")
@@ -144,7 +186,9 @@ func RouterConn(device string, id string) {
 			case "help", "?":
 				fmt.Println("",
 					"ping <dst_ip> [seconds]\tPings an IP address\n",
-					"dhcpserver\t\t\tDisplays DHCP server and DHCP pool settings\n",
+					"dhcpserver\t\t\tDisplays DHCP server and settings\n",
+					"dnsserver\t\t\tDisplays DNS server and settings\n",
+					"hosts\t\t\t\tDisplays local host entries (from DNS)\n",
 					"ip\t\t\t\tManage IP addressing\n",
 					"arp\t\t\t\tShow and manage the ARP table\n",
 					"nslookup\t\t\tPerform a DNS lookup\n",
