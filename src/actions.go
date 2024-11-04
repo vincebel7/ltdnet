@@ -616,6 +616,7 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 			fmt.Printf("server can't find %s: NXDOMAIN\n", hostname)
 
 		case 0:
+			achievementTester(MY_NAME)
 			return dnsResponseMessage
 		}
 

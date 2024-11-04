@@ -31,6 +31,7 @@ var UNITED_PINGDOM = 2
 var ARP_HOT = 3
 var SNIFF_FRAMES = 4
 var TEN_HOSTS = 5
+var MY_NAME = 6
 
 func buildAchievementCatalog() {
 	achievement := Achievement{
@@ -72,6 +73,14 @@ func buildAchievementCatalog() {
 		Hint:        "The hosts don't need to be linked...",
 	}
 	AchievementCatalog[TEN_HOSTS] = achievement
+
+	achievement = Achievement{
+		ID:          MY_NAME,
+		Name:        "My Name Is",
+		Description: "Get a host record from a DNS server",
+		Hint:        "nslookup is a utility to retrieve records from a DNS server.",
+	}
+	AchievementCatalog[MY_NAME] = achievement
 }
 
 func displayAchievements() {
@@ -157,6 +166,8 @@ func achievementTester(achievementID int) {
 			achievement4Test()
 		case 5:
 			achievement5Test()
+		case 6:
+			achievement6Test()
 		}
 	}
 }
@@ -195,4 +206,11 @@ func achievement5Test() {
 		achievement := AchievementCatalog[TEN_HOSTS]
 		achievementAward(achievement)
 	}
+}
+
+// Achievement 6: Get DNS record (action-based)
+func achievement6Test() {
+	// If this function is called, the achievement is already complete (action-based)
+	achievement := AchievementCatalog[MY_NAME]
+	achievementAward(achievement)
 }
