@@ -26,10 +26,39 @@ type Settings struct {
 var user_settings Settings
 
 func loadUserSettings() {
-	filename := "saves/user_settings.json"
+	filename := "ltdnet_saves/user_settings.json"
 
-	// Check if file exists
-	_, err := os.Stat(filename)
+	// Check if file / directory exists
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		return
+	}
+
+	savesDir := filepath.Join(homeDir, "ltdnet_saves")
+	userSavesDir := filepath.Join(savesDir, "user_saves")
+	settingsFile := filepath.Join(savesDir, "user_settings.json")
+
+	// Check if the saves directory exists, and create it if not
+	if _, err := os.Stat(savesDir); os.IsNotExist(err) {
+		err := os.MkdirAll(savesDir, 0755)
+		if err != nil {
+			fmt.Printf("[Error] Error creating directory: %v\n", err)
+			return
+		}
+
+		if _, err = os.Stat(userSavesDir); os.IsNotExist(err) {
+			err := os.MkdirAll(userSavesDir, 0755)
+			if err != nil {
+				fmt.Printf("[Error] Error creating directory: %v\n", err)
+				return
+			}
+
+			fmt.Println("Created saves directory at:", savesDir)
+		}
+	}
+
+	_, err = os.Stat(settingsFile)
 	if os.IsNotExist(err) {
 		// File doesn't exist, create it
 		os.Create(filename)
@@ -73,7 +102,7 @@ func saveUserSettings() {
 		log.Println(err)
 	}
 	//Write to file
-	filename := "saves/user_settings.json"
+	filename := "ltdnet_saves/user_settings.json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)
@@ -99,7 +128,7 @@ func resetAchievements() {
 }
 
 func resetProgramSettings() {
-	os.Remove("saves/user_settings.json")
+	os.Remove("ltdnet_saves/user_settings.json")
 	fmt.Println("[Notice] User preferences have been reset")
 	fmt.Println("")
 	loadUserSettings()
@@ -107,7 +136,7 @@ func resetProgramSettings() {
 }
 
 func wipeSaves() {
-	dir := "saves/user_saves"
+	dir := "ltdnet_saves/user_saves"
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
