@@ -43,7 +43,7 @@ func newNetworkPrompt() {
 		netname = scanner.Text()
 
 		// Check if file already exists
-		filename := "saves/user_saves/" + netname + ".json"
+		filename := "ltdnet_saves/user_saves/" + netname + ".json"
 		if _, err := os.Stat(filename); err == nil {
 			// File exists
 			fmt.Println("\nError: A network with this name already exists!")
@@ -96,9 +96,9 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 	// Determine the file path
 	filename := ""
 	if saveType == "user" {
-		filename = "saves/user_saves/" + netname + ".json"
+		filename = "ltdnet_saves/user_saves/" + netname + ".json"
 	} else if saveType == "test" {
-		filename = "../saves/test_saves/" + netname + ".json"
+		filename = "../ltdnet_saves/test_saves/" + netname + ".json"
 	}
 
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
@@ -116,7 +116,7 @@ func selectNetwork() {
 	fmt.Println("\nPlease select a saved network")
 
 	//display files
-	searchDir := "saves/user_saves/"
+	searchDir := "ltdnet_saves/user_saves/"
 	fileList := []string{}
 	err := filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
 		fileList = append(fileList, path)
@@ -129,7 +129,7 @@ func selectNetwork() {
 	i := 1
 	option_map := make(map[int]string)
 	for _, file := range fileList {
-		file = file[17:] //strip "saves/user_saves/"
+		file = file[24:] //strip "ltdnet_saves/user_saves/"
 		if (file != ".keep") && (file != "") {
 			fmt.Printf(" %d) %s\n", i, file)
 
@@ -169,9 +169,9 @@ func loadNetwork(netname string, saveType string) {
 	//open file
 	filename := ""
 	if saveType == "user" {
-		filename = "saves/user_saves/" + netname + ".json"
+		filename = "ltdnet_saves/user_saves/" + netname + ".json"
 	} else if saveType == "test" {
-		filename = "../saves/test_saves/" + netname + ".json"
+		filename = "../ltdnet_saves/test_saves/" + netname + ".json"
 	}
 	f, err := os.Open(filename)
 	if err != nil {
@@ -231,7 +231,7 @@ func save() {
 		log.Println(err)
 	}
 	//Write to file
-	filename := "saves/user_saves/" + snet.Name + ".json"
+	filename := "ltdnet_saves/user_saves/" + snet.Name + ".json"
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)

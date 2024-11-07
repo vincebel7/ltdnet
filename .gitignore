@@ -1,3 +1,3 @@
-saves/user_saves/*.json
-saves/user_settings.json
+ltdnet_saves/
+ltdnet_saves/
 bin/

@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/chzyer/readline"
 )
 
-var currentVersion = "v0.5.0"
+var currentVersion = "v0.5.1"
 
 func printVersion() {
 	fmt.Println("ltdnet " + currentVersion)
@@ -103,249 +105,248 @@ func preferencesMenu() {
 }
 
 func actionsMenu() {
-	fmt.Print("> ")
-	scanner.Scan()
-	action_selection := scanner.Text()
-	actionword1 := ""
-	actionword2 := ""
-	actionword3 := ""
-	actionword4 := ""
-	if action_selection != "" {
-		actionword0 := strings.Fields(action_selection)
-		if len(actionword0) > 0 {
-			actionword1 = actionword0[0]
-		}
-
-		if len(actionword0) > 1 {
-			actionword2 = actionword0[1]
-
-			if len(actionword0) > 2 {
-				actionword3 = actionword0[2]
-
-				if len(actionword0) > 3 {
-					actionword4 = actionword0[3]
-				}
-			}
-		}
+	// Set up readline for actionsMenu
+	rl, err := readline.New("> ")
+	if err != nil {
+		fmt.Printf("Error setting up readline: %v\n", err)
+		return
 	}
-	switch actionword1 {
-	case "":
+	defer rl.Close()
 
-	case "add":
-		if actionword3 != "" {
-			switch actionword2 {
-			case "router":
-				if actionword4 == "" {
-					actionword4 = "Bobcat"
+	for {
+		line, err := rl.Readline()
+		if err != nil { // Exit on Ctrl+D or any read error
+			fmt.Println("\nExiting...")
+			break
+		}
+
+		commandString := strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Split the input into action words
+		commandSplit := strings.Fields(line)
+
+		switch commandSplit[0] {
+		case "":
+
+		case "add":
+			if commandSplit[2] != "" {
+				switch commandSplit[1] {
+				case "router":
+					if commandSplit[3] == "" {
+						commandSplit[3] = "Bobcat"
+					}
+					addRouter(commandSplit[2], commandSplit[3])
+					save()
+
+				case "switch":
+					addSwitch(commandSplit[2])
+					save()
+
+				case "host":
+					addHost(commandSplit[2])
+					save()
+
+				default:
+					fmt.Println(" Usage: add <host|switch|router> <hostname>")
 				}
-				addRouter(actionword3, actionword4)
-				save()
-
-			case "switch":
-				addSwitch(actionword3)
-				save()
-
-			case "host":
-				addHost(actionword3)
-				save()
-
-			default:
+			} else {
 				fmt.Println(" Usage: add <host|switch|router> <hostname>")
 			}
-		} else {
-			fmt.Println(" Usage: add <host|switch|router> <hostname>")
-		}
 
-	case "del", "delete":
-		switch actionword2 {
-		case "router":
-			fmt.Printf("\nAre you sure you want do delete router %s? [y/N]: ", actionword3)
-			scanner.Scan()
-			confirmation := scanner.Text()
-			confirmation = strings.ToUpper(confirmation)
-			if confirmation == "Y" {
-				delRouter() // Only one router per network currently
-				save()
-			}
-
-		case "switch":
-			if actionword3 != "" {
-				fmt.Printf("\nAre you sure you want do delete switch %s? [y/N]: ", actionword3)
+		case "del", "delete":
+			switch commandSplit[1] {
+			case "router":
+				fmt.Printf("\nAre you sure you want do delete router %s? [y/N]: ", commandSplit[2])
 				scanner.Scan()
 				confirmation := scanner.Text()
 				confirmation = strings.ToUpper(confirmation)
 				if confirmation == "Y" {
-					delSwitch(actionword3)
+					delRouter() // Only one router per network currently
 					save()
 				}
-			}
-
-		case "host":
-			if actionword3 != "" {
-				fmt.Printf("\nAre you sure you want do delete host %s? [y/N]: ", actionword3)
-				scanner.Scan()
-				confirmation := scanner.Text()
-				confirmation = strings.ToUpper(confirmation)
-				if confirmation == "Y" {
-					delHost(actionword3)
-					save()
-				}
-			}
-
-		default:
-			fmt.Println(" Usage: del <host|switch|router> <hostname>")
-		}
-
-	case "link":
-		if (actionword2 == "host") && (actionword3 != "") && (actionword4 != "") {
-			linkHostTo(actionword3, actionword4)
-			save()
-		} else if (actionword2 == "switch") && (actionword3 != "") && (actionword4 != "") {
-			linkSwitchTo(actionword3, actionword4)
-			save()
-		} else {
-			fmt.Println(" Usage: link <host|switch> <hostname> <router_hostname>")
-		}
-
-	case "unlink":
-		if (actionword2 == "host") && (actionword3 != "") {
-			unlinkHost(actionword3)
-			save()
-		} else {
-			fmt.Println(" Usage: unlink host <hostname>")
-		}
-
-	case "control", "c":
-		if actionword2 != "" {
-			switch actionword2 {
-			case "host":
-				controlHost(actionword3)
-				save()
 
 			case "switch":
-				controlSwitch(actionword3)
-				save()
+				if commandSplit[2] != "" {
+					fmt.Printf("\nAre you sure you want do delete switch %s? [y/N]: ", commandSplit[2])
+					scanner.Scan()
+					confirmation := scanner.Text()
+					confirmation = strings.ToUpper(confirmation)
+					if confirmation == "Y" {
+						delSwitch(commandSplit[2])
+						save()
+					}
+				}
 
-			case "router":
-				controlRouter(actionword3)
-				save()
+			case "host":
+				if commandSplit[2] != "" {
+					fmt.Printf("\nAre you sure you want do delete host %s? [y/N]: ", commandSplit[2])
+					scanner.Scan()
+					confirmation := scanner.Text()
+					confirmation = strings.ToUpper(confirmation)
+					if confirmation == "Y" {
+						delHost(commandSplit[2])
+						save()
+					}
+				}
 
 			default:
-				fmt.Println(" Usage: control <host|switch|router> <hostname>")
+				fmt.Println(" Usage: del <host|switch|router> <hostname>")
 			}
-		} else {
-			fmt.Println(" Usage: control <host|switch|router> <hostname>")
-		}
 
-	case "achievements":
-		printAchievementsHelp := func() {
-			fmt.Println("",
-				"achievements show\tShow your Achievements\n",
-				"achievements info <#>\tGet information about an Achievement\n",
-				"achievements explain\tLearn about ltdnet's Achievements system",
-			)
-		}
-		switch action_selection {
-		case "achievements", "achievements help", "achievements ?":
-			printAchievementsHelp()
-		case "achievements show":
-			displayAchievements()
-		case "achievements info":
+		case "link":
+			if (commandSplit[1] == "host") && (commandSplit[2] != "") && (commandSplit[3] != "") {
+				linkHostTo(commandSplit[2], commandSplit[3])
+				save()
+			} else if (commandSplit[1] == "switch") && (commandSplit[2] != "") && (commandSplit[3] != "") {
+				linkSwitchTo(commandSplit[2], commandSplit[3])
+				save()
+			} else {
+				fmt.Println(" Usage: link <host|switch> <hostname> <router_hostname>")
+			}
 
-			fmt.Println("Not implemented yet")
-		case "achievements explain":
-			printAchievementsExplanation()
-		default:
-			if actionword2 == "info" {
-				if actionword3 != "" {
-					//achieveNum, _ := strconv.Atoi(actionword3)
-					printAchievementInfo(actionword3)
-				} else {
-					fmt.Println("usage: achievements info <#>")
+		case "unlink":
+			if (commandSplit[1] == "host") && (commandSplit[2] != "") {
+				unlinkHost(commandSplit[2])
+				save()
+			} else {
+				fmt.Println(" Usage: unlink host <hostname>")
+			}
+
+		case "control", "c":
+			if commandSplit[1] != "" {
+				switch commandSplit[1] {
+				case "host":
+					controlHost(commandSplit[2])
+					save()
+
+				case "switch":
+					controlSwitch(commandSplit[2])
+					save()
+
+				case "router":
+					controlRouter(commandSplit[2])
+					save()
+
+				default:
+					fmt.Println(" Usage: control <host|switch|router> <hostname>")
 				}
 			} else {
-				fmt.Println(" Invalid command. Type 'achievements ?' for a list of commands.")
+				fmt.Println(" Usage: control <host|switch|router> <hostname>")
 			}
-		}
 
-	case "save":
-		save()
-
-	case "reload":
-		loadNetwork(snet.Name, "user")
-
-	case "show", "sh":
-		switch action_selection {
-		case "show overview", "sh overview":
-			overview()
-
-		case "show diagram", "sh diagram":
-			drawDiagram(snet.Router.ID)
-
-		default:
-			if len(action_selection) > 12 { // show device
-				show(action_selection[12:])
-			} else {
+		case "achievements":
+			printAchievementsHelp := func() {
 				fmt.Println("",
-					"show overview\n",
-					"show device <hostname>\n",
-					"show diagram",
+					"achievements show\tShow your Achievements\n",
+					"achievements info <#>\tGet information about an Achievement\n",
+					"achievements explain\tLearn about ltdnet's Achievements system",
 				)
 			}
-		}
+			switch commandString {
+			case "achievements", "achievements help", "achievements ?":
+				printAchievementsHelp()
+			case "achievements show":
+				displayAchievements()
+			case "achievements info":
 
-	case "netdump":
-		fmt.Println(snet, "")
+				fmt.Println("Not implemented yet")
+			case "achievements explain":
+				printAchievementsExplanation()
+			default:
+				if commandSplit[1] == "info" {
+					if commandSplit[2] != "" {
+						//achieveNum, _ := strconv.Atoi(actionword3)
+						printAchievementInfo(commandSplit[2])
+					} else {
+						fmt.Println("usage: achievements info <#>")
+					}
+				} else {
+					fmt.Println(" Invalid command. Type 'achievements ?' for a list of commands.")
+				}
+			}
 
-	case "debug":
-		if actionword2 != "" {
-			setDebug(actionword2)
+		case "save":
 			save()
-		} else {
-			fmt.Printf("Current debug level: %d\n", getDebug())
-			fmt.Println("\nAll levels (least to most verbose):\n",
-				"0 - No debugging\n",
-				"1 - Errors\n",
-				"2 - Network traffic (receive)\n",
-				"3 - Network traffic (send+receive) + Warnings\n",
-				"4 - Step-by-step device actions")
+
+		case "reload":
+			loadNetwork(snet.Name, "user")
+
+		case "show", "sh":
+			switch commandString {
+			case "show overview", "sh overview":
+				overview()
+
+			case "show diagram", "sh diagram":
+				drawDiagram(snet.Router.ID)
+
+			default:
+				if len(commandString) > 12 { // show device
+					show(commandString[12:])
+				} else {
+					fmt.Println("",
+						"show overview\n",
+						"show device <hostname>\n",
+						"show diagram",
+					)
+				}
+			}
+
+		case "netdump":
+			fmt.Println(snet, "")
+
+		case "debug":
+			if commandSplit[1] != "" {
+				setDebug(commandSplit[1])
+				save()
+			} else {
+				fmt.Printf("Current debug level: %d\n", getDebug())
+				fmt.Println("\nAll levels (least to most verbose):\n",
+					"0 - No debugging\n",
+					"1 - Errors\n",
+					"2 - Network traffic (receive)\n",
+					"3 - Network traffic (send+receive) + Warnings\n",
+					"4 - Step-by-step device actions")
+			}
+
+		case "manual", "man":
+			launchManual()
+
+		case "version", "ver":
+			printVersion()
+
+		case "exit", "quit", "q":
+			os.Exit(0)
+
+		case "help", "?":
+			fmt.Println(
+				"NETWORK COMMANDS:\n",
+				"show <args>\t\tDisplays information\n",
+				"add <args>\t\tAdds device to network\n",
+				"del <args>\t\tRemoves device from network\n",
+				"link <args>\t\tLinks two devices\n",
+				"unlink <args>\t\tUnlinks two devices\n",
+				"control <args>\t\tLogs in as device\n",
+
+				"\nSYSTEM COMMANDS:\n",
+				"achievements <action>\tView user achievements\n",
+				"save\t\t\tManually saves network changes\n",
+				"reload\t\t\tReloads the network file. May fix runtime bugs\n",
+				"debug <0-4>\t\tSets debug level. Default is 1\n",
+				"manual\t\t\tLaunches the user manual. Great for beginners!\n",
+				"version\t\tltdnet version info\n",
+				"exit\t\t\tExits the program",
+				//"netdump\t\tPrints loaded Network object (developer use)\n", HIDDEN
+			)
+
+		default:
+			fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}
 
-	case "manual", "man":
-		launchManual()
-
-	case "version", "ver":
-		printVersion()
-
-	case "exit", "quit", "q":
-		os.Exit(0)
-
-	case "help", "?":
-		fmt.Println(
-			"NETWORK COMMANDS:\n",
-			"show <args>\t\tDisplays information\n",
-			"add <args>\t\tAdds device to network\n",
-			"del <args>\t\tRemoves device from network\n",
-			"link <args>\t\tLinks two devices\n",
-			"unlink <args>\t\tUnlinks two devices\n",
-			"control <args>\t\tLogs in as device\n",
-
-			"\nSYSTEM COMMANDS:\n",
-			"achievements <action>\tView user achievements\n",
-			"save\t\t\tManually saves network changes\n",
-			"reload\t\t\tReloads the network file. May fix runtime bugs\n",
-			"debug <0-4>\t\tSets debug level. Default is 1\n",
-			"manual\t\t\tLaunches the user manual. Great for beginners!\n",
-			"version\t\t\tltdnet version info",
-			"exit\t\t\tExits the program",
-			//"netdump\t\tPrints loaded Network object (developer use)\n", HIDDEN
-		)
-
-	default:
-		fmt.Println(" Invalid command. Type 'help' for a list of commands.")
+		achievementCheck()
 	}
-
-	achievementCheck()
 }
 
 func launchManual() {
@@ -388,7 +389,5 @@ func main() {
 
 	fmt.Println("\nltdnetOS:")
 
-	for {
-		actionsMenu()
-	}
+	actionsMenu()
 }

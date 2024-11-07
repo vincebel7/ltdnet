@@ -70,6 +70,9 @@ Builds executables for Linux and Windows
 ## Version History
 What has been accomplished at each version
 
+### v0.5.1 - November 7, 2024
+Generate saves directory for binary running, implement shell command history with up+down arrows
+
 ### v0.5.0 - November 3, 2024
 DNS lookups, router has DNS server
 

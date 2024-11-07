@@ -9,6 +9,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 func controlSwitch(hostname string) {
@@ -31,84 +33,95 @@ func controlSwitch(hostname string) {
 func SwitchConn(id string) {
 	sw := Switch{}
 
+	for i := range snet.Switches {
+		if snet.Switches[i].ID == id {
+			sw = snet.Switches[i]
+		}
+	}
+	if snet.Router.VSwitch.ID == id {
+		sw = snet.Router.VSwitch
+	}
+	if sw.ID == "" {
+		fmt.Println("Error: ID cannot be located. Please try again")
+		return
+	}
+
 	//interface
 	fmt.Printf("\n")
 	action_selection := ""
+
+	// Set up readline for actionsMenu
+	rl, err := readline.New(sw.Hostname + "> ")
+	if err != nil {
+		fmt.Printf("Error setting up readline: %v\n", err)
+		return
+	}
+	defer rl.Close()
+
 	for strings.ToUpper(action_selection) != "EXIT" {
-		for i := range snet.Switches {
-			if snet.Switches[i].ID == id {
-				sw = snet.Switches[i]
-			}
-		}
-		if snet.Router.VSwitch.ID == id {
-			sw = snet.Router.VSwitch
-		}
-		if sw.ID == "" {
-			fmt.Println("Error: ID cannot be located. Please try again")
-			return
+		line, err := rl.Readline()
+		if err != nil { // Exit on Ctrl+D or any read error
+			fmt.Println("\nExiting...")
+			break
 		}
 
-		fmt.Printf("%s> ", sw.Hostname)
-		scanner.Scan()
-		action_selection := scanner.Text()
-		actionword1 := ""
-		if action_selection != "" {
-			action := strings.Fields(action_selection)
-			if len(action) > 0 {
-				actionword1 = action[0]
-			}
+		if line == "" {
+			continue
+		}
 
-			switch actionword1 {
-			case "":
+		// Split the input into action words
+		commandSplit := strings.Fields(line)
 
-			case "ping":
-				fmt.Println("Not yet implemented on switches")
+		switch commandSplit[0] {
+		case "":
 
-			case "ip":
-				fmt.Println("Not yet implemented on switches")
+		case "ping":
+			fmt.Println("Not yet implemented on switches")
 
-			case "arp":
-				fmt.Println("Not yet implemented on switches")
-				//displayARPTable(sw.ID)
+		case "ip":
+			fmt.Println("Not yet implemented on switches")
 
-			case "mac":
-				if len(action) > 1 {
-					switch action[1] {
-					case "clear":
-						if snet.Router.VSwitch.ID == id {
-							snet.Router.VSwitch.MACTable = make(map[string]MACEntry)
-						} else {
-							snet.Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]MACEntry)
-						}
-						fmt.Println("MAC table cleared")
+		case "arp":
+			fmt.Println("Not yet implemented on switches")
+			//displayARPTable(sw.ID)
 
-					case "help", "?":
-						fmt.Println("",
-							"mac\t\t\tShows the device's MAC table (MAC address : Interface)\n",
-							"mac clear\t\tClears the device's MAC table",
-						)
-
-					default:
-						fmt.Println(" Invalid command. Type '?' for a list of commands.")
+		case "mac":
+			if len(commandSplit) > 1 {
+				switch commandSplit[1] {
+				case "clear":
+					if snet.Router.VSwitch.ID == id {
+						snet.Router.VSwitch.MACTable = make(map[string]MACEntry)
+					} else {
+						snet.Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]MACEntry)
 					}
-				} else {
-					displayMACTable(sw.ID)
+					fmt.Println("MAC table cleared")
+
+				case "help", "?":
+					fmt.Println("",
+						"mac\t\t\tShows the device's MAC table (MAC address : Interface)\n",
+						"mac clear\t\tClears the device's MAC table",
+					)
+
+				default:
+					fmt.Println(" Invalid command. Type '?' for a list of commands.")
 				}
-
-			case "exit", "quit", "q":
-				return
-
-			case "help", "?":
-				fmt.Println("",
-					//"ping <dst_ip> [seconds]\tPings an IP address\n",
-					//"ip\t\t\t\tManage IP addressing\n",
-					//"arp\t\t\t\tShow and manage the ARP table\n",
-					"mac\t\t\t\tShow and manage the MAC address table\n",
-					"exit\t\t\t\tReturns to main menu",
-				)
-			default:
-				fmt.Println(" Invalid command. Type 'help' for a list of commands.")
+			} else {
+				displayMACTable(sw.ID)
 			}
+
+		case "exit", "quit", "q":
+			return
+
+		case "help", "?":
+			fmt.Println("",
+				//"ping <dst_ip> [seconds]\tPings an IP address\n",
+				//"ip\t\t\t\tManage IP addressing\n",
+				//"arp\t\t\t\tShow and manage the ARP table\n",
+				"mac\t\t\t\tShow and manage the MAC address table\n",
+				"exit\t\t\t\tReturns to main menu",
+			)
+		default:
+			fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}
 	}
 }
