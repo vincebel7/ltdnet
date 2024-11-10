@@ -26,8 +26,6 @@ type Settings struct {
 var user_settings Settings
 
 func loadUserSettings() {
-	filename := "ltdnet_saves/user_settings.json"
-
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -61,7 +59,7 @@ func loadUserSettings() {
 	_, err = os.Stat(settingsFile)
 	if os.IsNotExist(err) {
 		// File doesn't exist, create it
-		os.Create(filename)
+		os.Create(settingsFile)
 
 		settings := Settings{
 			ID:             idgen(8),
@@ -72,16 +70,16 @@ func loadUserSettings() {
 		user_settings = settings
 		saveUserSettings()
 	}
-	f, err := os.Open(filename)
+	f, err := os.Open(settingsFile)
 	if err != nil {
-		fmt.Printf("[Error] File not found: %s", filename)
+		fmt.Printf("[Error] File not found: %s", settingsFile)
 	}
 
 	b1 := make([]byte, 1000000) //TODO: secure this
 	n1, err := f.Read(b1)
 
 	if err != nil {
-		fmt.Printf("[Error] File not found: %s", filename)
+		fmt.Printf("[Error] File not found: %s", settingsFile)
 	}
 
 	//unmarshal
@@ -97,18 +95,27 @@ func loadUserSettings() {
 }
 
 func saveUserSettings() {
+	// Check if file / directory exists
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		return
+	}
+
+	savesDir := filepath.Join(homeDir, "ltdnet_saves")
+	settingsFile := filepath.Join(savesDir, "user_settings.json")
+
 	marshString, err := json.Marshal(user_settings)
 	if err != nil {
 		log.Println(err)
 	}
 	//Write to file
-	filename := "ltdnet_saves/user_settings.json"
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
+	f, err := os.OpenFile(settingsFile, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Fatal(err)
 	}
 	f.Write(marshString)
-	os.Truncate(filename, int64(len(marshString)))
+	os.Truncate(settingsFile, int64(len(marshString)))
 }
 
 func changeSettingsName() {
@@ -128,7 +135,17 @@ func resetAchievements() {
 }
 
 func resetProgramSettings() {
-	os.Remove("ltdnet_saves/user_settings.json")
+	// Check if file / directory exists
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		return
+	}
+
+	savesDir := filepath.Join(homeDir, "ltdnet_saves")
+	settingsFile := filepath.Join(savesDir, "user_settings.json")
+
+	os.Remove(settingsFile)
 	fmt.Println("[Notice] User preferences have been reset")
 	fmt.Println("")
 	loadUserSettings()
@@ -136,8 +153,16 @@ func resetProgramSettings() {
 }
 
 func wipeSaves() {
-	dir := "ltdnet_saves/user_saves"
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	// Check if file / directory exists
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		return
+	}
+
+	savesDir := filepath.Join(homeDir, "ltdnet_saves")
+
+	err = filepath.Walk(savesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

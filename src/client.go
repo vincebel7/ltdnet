@@ -15,7 +15,7 @@ import (
 	"github.com/chzyer/readline"
 )
 
-var currentVersion = "v0.5.1"
+var currentVersion = "v0.5.2"
 
 func printVersion() {
 	fmt.Println("ltdnet " + currentVersion)
