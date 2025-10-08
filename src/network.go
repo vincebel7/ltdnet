@@ -49,7 +49,7 @@ func newNetworkPrompt() {
 			return
 		}
 
-		savesDir := filepath.Join(homeDir, "ltdnet_saves/")
+		savesDir := filepath.Join(homeDir, "ltdnet_saves/user/")
 		saveFile := filepath.Join(savesDir, netname+".json")
 
 		if _, err := os.Stat(saveFile); err == nil {
@@ -112,9 +112,9 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 	// Determine the file path
 	saveFile := ""
 	if saveType == "user" {
-		saveFile = filepath.Join(savesDir, "/user_saves/", netname+".json")
+		saveFile = filepath.Join(savesDir, "/user/", netname+".json")
 	} else if saveType == "test" {
-		saveFile = filepath.Join(savesDir, "/test_saves/", netname+".json")
+		saveFile = filepath.Join(savesDir, "/test/", netname+".json")
 	}
 
 	f, err := os.OpenFile(saveFile, os.O_CREATE|os.O_RDWR, 0660)
@@ -139,8 +139,7 @@ func selectNetwork() {
 		fmt.Printf("[Error] Error finding home directory: %v\n", err)
 		return
 	}
-
-	savesDir := filepath.Join(homeDir, "ltdnet_saves/")
+	savesDir := filepath.Join(homeDir, "ltdnet_saves/user/")
 
 	fileList := []string{}
 	err = filepath.Walk(savesDir, func(path string, f os.FileInfo, err error) error {
@@ -154,15 +153,16 @@ func selectNetwork() {
 	i := 1
 	option_map := make(map[int]string)
 	for _, file := range fileList {
-		file = file[24:] //strip "ltdnet_saves/user_saves/" TODO
-		if (file != ".keep") && (file != "") {
-			fmt.Printf(" %d) %s\n", i, file)
-
-			//map i to file somehow for select
-			option_map[i] = file
-
-			i = i + 1
+		relFile := strings.TrimPrefix(file, savesDir)
+		baseFile := filepath.Base(relFile)
+		// Skip directories and empty/base "." entries
+		info, err := os.Stat(file)
+		if err != nil || info.IsDir() || baseFile == "." || baseFile == "" || baseFile == ".keep" {
+			continue
 		}
+		fmt.Printf(" %d) %s\n", i, baseFile)
+		option_map[i] = baseFile
+		i = i + 1
 	}
 
 	if i == 1 {
@@ -202,9 +202,9 @@ func loadNetwork(netname string, saveType string) {
 	//open file
 	filename := ""
 	if saveType == "user" {
-		filename = savesDir + netname + ".json"
+		filename = filepath.Join(savesDir, "user/"+netname+".json")
 	} else if saveType == "test" {
-		filename = savesDir + netname + ".json"
+		filename = filepath.Join(savesDir, "test/"+netname+".json")
 	}
 	f, err := os.Open(filename)
 	if err != nil {
@@ -270,7 +270,7 @@ func save() {
 		return
 	}
 
-	savesDir := filepath.Join(homeDir, "ltdnet_saves/")
+	savesDir := filepath.Join(homeDir, "ltdnet_saves/user/")
 	saveFile := filepath.Join(savesDir, snet.Name+".json")
 
 	f, err := os.OpenFile(saveFile, os.O_CREATE|os.O_RDWR, 0660)

@@ -70,6 +70,9 @@ Builds executables for Linux and Windows
 ## Version History
 What has been accomplished at each version
 
+### v0.5.2 - October 8, 2025
+Fix bug with save directories
+
 ### v0.5.1 - November 7, 2024
 Generate saves directory for binary running, implement shell command history with up+down arrows
 

@@ -34,7 +34,7 @@ func loadUserSettings() {
 	}
 
 	savesDir := filepath.Join(homeDir, "ltdnet_saves")
-	userSavesDir := filepath.Join(savesDir, "user_saves")
+	userSavesDir := filepath.Join(savesDir, "user")
 	settingsFile := filepath.Join(savesDir, "user_settings.json")
 
 	// Check if the saves directory exists, and create it if not
@@ -119,6 +119,16 @@ func saveUserSettings() {
 }
 
 func changeSettingsName() {
+	// Ensure save directories exist
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		savesDir := filepath.Join(homeDir, "ltdnet_saves")
+		userSavesDir := filepath.Join(savesDir, "user")
+		testSavesDir := filepath.Join(savesDir, "test")
+		os.MkdirAll(userSavesDir, 0755)
+		os.MkdirAll(testSavesDir, 0755)
+	}
+
 	fmt.Print("\nPlease enter your name: ")
 	scanner.Scan()
 	username := scanner.Text()
