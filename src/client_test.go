@@ -7,7 +7,7 @@ import (
 )
 
 func cleanTestSaves() {
-	dir := "../ltdnet_saves/test_saves/"
+	dir := "../ltdnet_saves/test/"
 	files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 	for _, file := range files {
 		os.Remove(file)
@@ -15,6 +15,14 @@ func cleanTestSaves() {
 }
 
 func TestNetworkSetup(t *testing.T) {
+	// Ensure directory structure exists
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		savesDir := filepath.Join(homeDir, "ltdnet_saves")
+		testSavesDir := filepath.Join(savesDir, "test")
+		os.MkdirAll(testSavesDir, 0755)
+	}
+
 	// Setup
 	testnetName := "testnet-" + idgen(8)
 	newNetwork(testnetName, "24", "test")

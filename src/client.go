@@ -15,7 +15,7 @@ import (
 	"github.com/chzyer/readline"
 )
 
-var currentVersion = "v0.5.1"
+var currentVersion = "v0.5.2"
 
 func printVersion() {
 	fmt.Println("ltdnet " + currentVersion)
@@ -125,30 +125,32 @@ func actionsMenu() {
 			continue
 		}
 
-		// Split the input into action words
+		// Split the input into action words, and safely parse arguments
 		commandSplit := strings.Fields(line)
+		cmd := safeArg(commandSplit, 0)
+		arg1 := safeArg(commandSplit, 1)
+		arg2 := safeArg(commandSplit, 2)
+		arg3 := safeArg(commandSplit, 3)
 
-		switch commandSplit[0] {
+		switch cmd {
 		case "":
 
 		case "add":
-			if commandSplit[2] != "" {
-				switch commandSplit[1] {
+			if arg2 != "" {
+				switch arg1 {
 				case "router":
-					if commandSplit[3] == "" {
-						commandSplit[3] = "Bobcat"
+					model := "Bobcat"
+					if arg3 != "" {
+						model = arg3
 					}
-					addRouter(commandSplit[2], commandSplit[3])
+					addRouter(arg2, model)
 					save()
-
 				case "switch":
-					addSwitch(commandSplit[2])
+					addSwitch(arg2)
 					save()
-
 				case "host":
-					addHost(commandSplit[2])
+					addHost(arg2)
 					save()
-
 				default:
 					fmt.Println(" Usage: add <host|switch|router> <hostname>")
 				}
@@ -157,9 +159,9 @@ func actionsMenu() {
 			}
 
 		case "del", "delete":
-			switch commandSplit[1] {
+			switch arg1 {
 			case "router":
-				fmt.Printf("\nAre you sure you want do delete router %s? [y/N]: ", commandSplit[2])
+				fmt.Printf("\nAre you sure you want do delete router %s? [y/N]: ", arg2)
 				scanner.Scan()
 				confirmation := scanner.Text()
 				confirmation = strings.ToUpper(confirmation)
@@ -169,25 +171,25 @@ func actionsMenu() {
 				}
 
 			case "switch":
-				if commandSplit[2] != "" {
-					fmt.Printf("\nAre you sure you want do delete switch %s? [y/N]: ", commandSplit[2])
+				if arg2 != "" {
+					fmt.Printf("\nAre you sure you want do delete switch %s? [y/N]: ", arg2)
 					scanner.Scan()
 					confirmation := scanner.Text()
 					confirmation = strings.ToUpper(confirmation)
 					if confirmation == "Y" {
-						delSwitch(commandSplit[2])
+						delSwitch(arg2)
 						save()
 					}
 				}
 
 			case "host":
-				if commandSplit[2] != "" {
-					fmt.Printf("\nAre you sure you want do delete host %s? [y/N]: ", commandSplit[2])
+				if arg2 != "" {
+					fmt.Printf("\nAre you sure you want do delete host %s? [y/N]: ", arg2)
 					scanner.Scan()
 					confirmation := scanner.Text()
 					confirmation = strings.ToUpper(confirmation)
 					if confirmation == "Y" {
-						delHost(commandSplit[2])
+						delHost(arg2)
 						save()
 					}
 				}
@@ -197,37 +199,37 @@ func actionsMenu() {
 			}
 
 		case "link":
-			if (commandSplit[1] == "host") && (commandSplit[2] != "") && (commandSplit[3] != "") {
-				linkHostTo(commandSplit[2], commandSplit[3])
+			if (arg1 == "host") && (arg2 != "") && (arg3 != "") {
+				linkHostTo(arg2, arg3)
 				save()
-			} else if (commandSplit[1] == "switch") && (commandSplit[2] != "") && (commandSplit[3] != "") {
-				linkSwitchTo(commandSplit[2], commandSplit[3])
+			} else if (arg1 == "switch") && (arg2 != "") && (arg3 != "") {
+				linkSwitchTo(arg2, arg3)
 				save()
 			} else {
 				fmt.Println(" Usage: link <host|switch> <hostname> <router_hostname>")
 			}
 
 		case "unlink":
-			if (commandSplit[1] == "host") && (commandSplit[2] != "") {
-				unlinkHost(commandSplit[2])
+			if (arg1 == "host") && (arg2 != "") {
+				unlinkHost(arg2)
 				save()
 			} else {
 				fmt.Println(" Usage: unlink host <hostname>")
 			}
 
 		case "control", "c":
-			if commandSplit[1] != "" {
-				switch commandSplit[1] {
+			if arg1 != "" {
+				switch arg1 {
 				case "host":
-					controlHost(commandSplit[2])
+					controlHost(arg2)
 					save()
 
 				case "switch":
-					controlSwitch(commandSplit[2])
+					controlSwitch(arg2)
 					save()
 
 				case "router":
-					controlRouter(commandSplit[2])
+					controlRouter(arg2)
 					save()
 
 				default:
@@ -256,10 +258,9 @@ func actionsMenu() {
 			case "achievements explain":
 				printAchievementsExplanation()
 			default:
-				if commandSplit[1] == "info" {
-					if commandSplit[2] != "" {
-						//achieveNum, _ := strconv.Atoi(actionword3)
-						printAchievementInfo(commandSplit[2])
+				if arg1 == "info" {
+					if arg2 != "" {
+						printAchievementInfo(arg2)
 					} else {
 						fmt.Println("usage: achievements info <#>")
 					}
@@ -298,8 +299,8 @@ func actionsMenu() {
 			fmt.Println(snet, "")
 
 		case "debug":
-			if commandSplit[1] != "" {
-				setDebug(commandSplit[1])
+			if arg1 != "" {
+				setDebug(arg1)
 				save()
 			} else {
 				fmt.Printf("Current debug level: %d\n", getDebug())
@@ -365,6 +366,14 @@ func launchManual() {
 		fmt.Println("Error reading file:", err)
 		return
 	}
+}
+
+// returns the argument at idx or an empty string if out of range
+func safeArg(args []string, idx int) string {
+	if len(args) > idx {
+		return args[idx]
+	}
+	return ""
 }
 
 func main() {
