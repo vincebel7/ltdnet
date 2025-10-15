@@ -16,8 +16,8 @@ import (
 
 func controlRouter(hostname string) {
 	fmt.Printf("Attempting to control router %s...\n", hostname)
-	if snet.Router.Hostname == hostname {
-		RouterConn("router", snet.Router.ID)
+	if Net().Router.Hostname == hostname {
+		RouterConn("router", Net().Router.ID)
 		return
 	}
 	fmt.Println("Router not found")
@@ -29,7 +29,7 @@ func RouterConn(device string, id string) {
 	action_selection := ""
 
 	// Set up readline for actionsMenu
-	rl, err := readline.New(snet.Router.Hostname + "> ")
+	rl, err := readline.New(Net().Router.Hostname + "> ")
 	if err != nil {
 		fmt.Printf("Error setting up readline: %v\n", err)
 		return
@@ -54,15 +54,15 @@ func RouterConn(device string, id string) {
 		case "":
 
 		case "ping":
-			if (snet.Router.GetIP("eth0") == "0.0.0.0") || (snet.Router.GetIP("eth0") == "") {
+			if (Net().Router.GetIP("eth0") == "0.0.0.0") || (Net().Router.GetIP("eth0") == "") {
 				fmt.Println("Device does not have IP configuration. Please statically assign an IP configuration")
 			} else {
 				if len(commandSplit) > 1 {
 					if len(commandSplit) > 2 { //if seconds is specified
 						seconds, _ := strconv.Atoi(commandSplit[2])
-						go ping(snet.Router.ID, commandSplit[1], seconds)
+						go ping(Net().Router.ID, commandSplit[1], seconds)
 					} else {
-						go ping(snet.Router.ID, commandSplit[1], 4)
+						go ping(Net().Router.ID, commandSplit[1], 4)
 					}
 					<-actionsync[id]
 				} else {
@@ -91,7 +91,7 @@ func RouterConn(device string, id string) {
 				switch commandSplit[1] {
 				case "add":
 					if len(commandSplit) > 3 {
-						snet.Router.DNSServer.addDNSRecordToServer('A', commandSplit[2], commandSplit[3])
+						Net().Router.DNSServer.addDNSRecordToServer('A', commandSplit[2], commandSplit[3])
 					} else {
 						fmt.Println("Usage: dnsserver add <hostname> <ip_address>")
 					}
@@ -105,11 +105,11 @@ func RouterConn(device string, id string) {
 					printDNSServerHelp()
 				}
 			} else {
-				snet.Router.DNSServer.dnsServerMenu()
+				Net().Router.DNSServer.dnsServerMenu()
 			}
 
 		case "hosts":
-			displayDNSTable(snet.Router.DNSTable)
+			displayDNSTable(Net().Router.DNSTable)
 
 		case "ip":
 			printIPHelp := func() {
@@ -124,10 +124,10 @@ func RouterConn(device string, id string) {
 			if len(commandSplit) > 1 {
 				switch commandSplit[1] {
 				case "a", "addr", "address":
-					for iface := range snet.Router.Interfaces {
-						fmt.Printf("Interface %s\n", snet.Router.Interfaces[iface].Name)
-						fmt.Printf("\tIPv4 address: %s\n", snet.Router.GetIP(iface))
-						fmt.Printf("\tSubnet mask: %s\n\n", snet.Router.GetMask(iface))
+					for iface := range Net().Router.Interfaces {
+						fmt.Printf("Interface %s\n", Net().Router.Interfaces[iface].Name)
+						fmt.Printf("\tIPv4 address: %s\n", Net().Router.GetIP(iface))
+						fmt.Printf("\tSubnet mask: %s\n\n", Net().Router.GetMask(iface))
 					}
 
 				case "route":
@@ -135,14 +135,14 @@ func RouterConn(device string, id string) {
 
 				case "set":
 					if len(commandSplit) > 3 {
-						ipset(snet.Router.Hostname, commandSplit[2], commandSplit[3])
+						ipset(Net().Router.Hostname, commandSplit[2], commandSplit[3])
 						save()
 					} else {
 						fmt.Println("Usage: ipset <ip_address> <subnet_mask>")
 					}
 
 				case "clear":
-					ipclear(snet.Router.GetIP("eth0"))
+					ipclear(Net().Router.GetIP("eth0"))
 					save()
 
 				case "help", "?":
@@ -167,7 +167,7 @@ func RouterConn(device string, id string) {
 					}
 
 				case "clear":
-					snet.Router.ARPTable = make(map[string]ARPEntry)
+					Net().Router.ARPTable = make(map[string]ARPEntry)
 					fmt.Println("ARP table cleared")
 
 				case "help", "?":
@@ -181,12 +181,12 @@ func RouterConn(device string, id string) {
 					fmt.Println(" Invalid command. Type '?' for a list of commands.")
 				}
 			} else {
-				displayARPTable(snet.Router.ID)
+				displayARPTable(Net().Router.ID)
 			}
 
 		case "nslookup":
 			if len(commandSplit) > 1 {
-				go printResolveHostname(snet.Router.ID, commandSplit[1], snet.Router.DNSTable)
+				go printResolveHostname(Net().Router.ID, commandSplit[1], Net().Router.DNSTable)
 				<-actionsync[id]
 				save()
 
@@ -215,20 +215,20 @@ func RouterConn(device string, id string) {
 }
 
 func displayDHCPServer() {
-	pool := snet.Router.GetDHCPPoolAddresses()
-	leaseCount := len(snet.Router.DHCPPool.DHCPPoolLeases)
+	pool := Net().Router.GetDHCPPoolAddresses()
+	leaseCount := len(Net().Router.DHCPPool.DHCPPoolLeases)
 	poolCount := len(pool)
 
 	fmt.Printf("DHCP Server:\n")
-	fmt.Printf("\tPool range:\t\t%s\n", snet.Router.DHCPPool.DHCPPoolStart.String()+" - "+snet.Router.DHCPPool.DHCPPoolEnd.String())
+	fmt.Printf("\tPool range:\t\t%s\n", Net().Router.DHCPPool.DHCPPoolStart.String()+" - "+Net().Router.DHCPPool.DHCPPoolEnd.String())
 	fmt.Printf("\tPool utilization:\t%d/%d (%.2f%% full)\n", leaseCount, poolCount, float64(leaseCount)/float64(poolCount)*100)
-	fmt.Printf("\tNext available address:\t%s\n", snet.Router.NextFreePoolAddress())
+	fmt.Printf("\tNext available address:\t%s\n", Net().Router.NextFreePoolAddress())
 	fmt.Printf("\nActive leases:\n")
 
 	for i := range pool {
 		addr := pool[i].String()
-		if snet.Router.DHCPPool.DHCPPoolLeases[addr] != "" {
-			fmt.Printf("\t%s - %s\n", addr, snet.Router.DHCPPool.DHCPPoolLeases[addr])
+		if Net().Router.DHCPPool.DHCPPoolLeases[addr] != "" {
+			fmt.Printf("\t%s - %s\n", addr, Net().Router.DHCPPool.DHCPPoolLeases[addr])
 		}
 	}
 }

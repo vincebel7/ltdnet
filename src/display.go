@@ -17,14 +17,14 @@ func drawDiagram(rootID string) {
 	drawDiagramAction(rootID, "")
 
 	//Unlinked switches
-	for i := range snet.Switches {
-		drawDiagramAction(snet.Switches[i].ID, "switch")
+	for i := range Net().Switches {
+		drawDiagramAction(Net().Switches[i].ID, "switch")
 	}
 
 	// Unlinked hosts
-	for i := range snet.Hosts {
-		if snet.Hosts[i].Interfaces["eth0"].RemoteL1ID == "" {
-			drawHost(snet.Hosts[i].ID)
+	for i := range Net().Hosts {
+		if Net().Hosts[i].Interfaces["eth0"].RemoteL1ID == "" {
+			drawHost(Net().Hosts[i].ID)
 		}
 	}
 }
@@ -33,22 +33,22 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 	// Identify device info about rootID
 	rootHostname := ""
 	//rootIndex := -1
-	if rootID == snet.Router.ID {
-		rootHostname = snet.Router.Hostname
+	if rootID == Net().Router.ID {
+		rootHostname = Net().Router.Hostname
 		rootType = "router"
 	}
 
 	if rootType == "switch" {
-		for i := range snet.Switches {
-			if rootID == snet.Switches[i].ID {
-				rootHostname = snet.Switches[i].Hostname
+		for i := range Net().Switches {
+			if rootID == Net().Switches[i].ID {
+				rootHostname = Net().Switches[i].Hostname
 				rootType = "switch"
 				//rootIndex = i
-				drawSwitch(snet.Switches[i].ID)
+				drawSwitch(Net().Switches[i].ID)
 
-				for j := range snet.Switches[i].PortLinksRemote {
-					if snet.Switches[i].PortLinksRemote[j] != "" {
-						drawConnectedHost(snet.Switches[i].PortLinksRemote[j], j, snet.Switches[i])
+				for j := range Net().Switches[i].PortLinksRemote {
+					if Net().Switches[i].PortLinksRemote[j] != "" {
+						drawConnectedHost(Net().Switches[i].PortLinksRemote[j], j, Net().Switches[i])
 					}
 				}
 			}
@@ -57,9 +57,9 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 	}
 
 	if rootType == "" {
-		for i := range snet.Hosts {
-			if rootID == snet.Hosts[i].ID {
-				rootHostname = snet.Hosts[i].Hostname
+		for i := range Net().Hosts {
+			if rootID == Net().Hosts[i].ID {
+				rootHostname = Net().Hosts[i].Hostname
 				rootType = "host"
 				//rootIndex = i
 			}
@@ -72,17 +72,17 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 			drawRouter()
 		}
 
-		for i := range snet.Router.VSwitch.PortLinksRemote {
-			if snet.Router.VSwitch.PortLinksRemote[i] != "" && i != 0 {
+		for i := range Net().Router.VSwitch.PortLinksRemote {
+			if Net().Router.VSwitch.PortLinksRemote[i] != "" && i != 0 {
 
 				hostID := ""
-				for h := range snet.Hosts {
-					if snet.Hosts[h].Interfaces["eth0"].L1ID == snet.Router.VSwitch.PortLinksRemote[i] {
-						hostID = snet.Hosts[h].ID
+				for h := range Net().Hosts {
+					if Net().Hosts[h].Interfaces["eth0"].L1ID == Net().Router.VSwitch.PortLinksRemote[i] {
+						hostID = Net().Hosts[h].ID
 					}
 				}
 
-				drawConnectedHost(hostID, i, snet.Router.VSwitch)
+				drawConnectedHost(hostID, i, Net().Router.VSwitch)
 			}
 		}
 	}
@@ -95,21 +95,21 @@ func drawDiagramAction(rootID string, rootType string) { // TODO make recursive 
 }
 
 func drawRouter() {
-	space1 := 13 - len(snet.Router.Hostname)
-	space2 := 14 - len(snet.Router.GetIP("eth0"))
-	space3 := 16 - len(snet.Router.Model)
+	space1 := 13 - len(Net().Router.Hostname)
+	space2 := 14 - len(Net().Router.GetIP("eth0"))
+	space3 := 16 - len(Net().Router.Model)
 
 	fmt.Println("|------------------------|")
 	fmt.Println("|         Router         |")
-	fmt.Printf("| Hostname: %s", snet.Router.Hostname)
+	fmt.Printf("| Hostname: %s", Net().Router.Hostname)
 	for i := 0; i < space1; i++ {
 		fmt.Printf(" ")
 	}
-	fmt.Printf("|\n| Gateway: %s", snet.Router.GetIP("eth0"))
+	fmt.Printf("|\n| Gateway: %s", Net().Router.GetIP("eth0"))
 	for i := 0; i < space2; i++ {
 		fmt.Printf(" ")
 	}
-	fmt.Printf("|\n| Model: %s", snet.Router.Model)
+	fmt.Printf("|\n| Model: %s", Net().Router.Model)
 	for i := 0; i < space3; i++ {
 		fmt.Printf(" ")
 	}
@@ -117,7 +117,7 @@ func drawRouter() {
 }
 
 func drawSwitch(id string) {
-	sw := snet.Switches[getSwitchIndexFromID(id)]
+	sw := Net().Switches[getSwitchIndexFromID(id)]
 
 	connectedPorts := 0
 	for i := range sw.PortLinksRemote {
@@ -158,7 +158,7 @@ func drawSwitch(id string) {
 }
 
 func drawHost(id string) {
-	h := snet.Hosts[getHostIndexFromID(id)]
+	h := Net().Hosts[getHostIndexFromID(id)]
 
 	space1 := 13 - len(h.Hostname)
 	space2 := 14 - len(h.GetIP("eth0"))
@@ -186,7 +186,7 @@ func drawHost(id string) {
 }
 
 func drawConnectedHost(id string, iter int, sw Switch) {
-	h := snet.Hosts[getHostIndexFromID(id)]
+	h := Net().Hosts[getHostIndexFromID(id)]
 
 	space1 := 13 - len(h.Hostname)
 	space2 := 14 - len(h.GetIP("eth0"))
@@ -226,43 +226,43 @@ func drawConnectedHost(id string, iter int, sw Switch) {
 /* DISPLAYING */
 
 func overview() {
-	fmt.Printf("Network name:\t\t%s\n", snet.Name)
-	fmt.Printf("Network ID:\t\t%s\n", snet.ID)
-	fmt.Printf("Network size:\t\t/%s\n", snet.Netsize)
+	fmt.Printf("Network name:\t\t%s\n", Net().Name)
+	fmt.Printf("Network ID:\t\t%s\n", Net().ID)
+	fmt.Printf("Network size:\t\t/%s\n", Net().Netsize)
 
 	// router
 	routerCount := 1
-	show(snet.Router.Hostname)
+	show(Net().Router.Hostname)
 
 	//switches
 	switchCount := 0
-	for i := 0; i < len(snet.Switches); i++ {
-		fmt.Printf("\nSwitch %v\n", snet.Switches[i].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Switches[i].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[i].Model)
+	for i := 0; i < len(Net().Switches); i++ {
+		fmt.Printf("\nSwitch %v\n", Net().Switches[i].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", Net().Switches[i].ID)
+		fmt.Printf("\tModel:\t\t%s\n", Net().Switches[i].Model)
 		switchCount = i + 1
 	}
 
 	//hosts
 	hostCount := 0
-	for i := 0; i < len(snet.Hosts); i++ {
-		fmt.Printf("\nHost %v\n", snet.Hosts[i].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[i].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[i].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[i].Interfaces["eth0"].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[i].GetIP("eth0"))
-		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[i].GetGateway("eth0"))
-		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[i].GetMask("eth0"))
+	for i := 0; i < len(Net().Hosts); i++ {
+		fmt.Printf("\nHost %v\n", Net().Hosts[i].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", Net().Hosts[i].ID)
+		fmt.Printf("\tModel:\t\t%s\n", Net().Hosts[i].Model)
+		fmt.Printf("\tMAC:\t\t%s\n", Net().Hosts[i].Interfaces["eth0"].MACAddr)
+		fmt.Printf("\tIP Address:\t%s\n", Net().Hosts[i].GetIP("eth0"))
+		fmt.Printf("\tDef. Gateway:\t%s\n", Net().Hosts[i].GetGateway("eth0"))
+		fmt.Printf("\tSubnet Mask:\t%s\n", Net().Hosts[i].GetMask("eth0"))
 		uplinkHostname := ""
 		//Router
-		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[i].Interfaces["eth0"].RemoteL1ID) {
-			uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
+		if isSwitchportID(Net().Router.VSwitch, Net().Hosts[i].Interfaces["eth0"].RemoteL1ID) {
+			uplinkHostname = Net().Router.Hostname + " (" + Net().Router.VSwitch.Hostname + ")"
 		}
 
 		//Switches
-		for j := range snet.Switches {
-			if isSwitchportID(snet.Switches[j], snet.Hosts[i].Interfaces["eth0"].RemoteL1ID) {
-				uplinkHostname = snet.Switches[j].Hostname
+		for j := range Net().Switches {
+			if isSwitchportID(Net().Switches[j], Net().Hosts[i].Interfaces["eth0"].RemoteL1ID) {
+				uplinkHostname = Net().Switches[j].Hostname
 			}
 		}
 		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
@@ -275,25 +275,25 @@ func overview() {
 func show(hostname string) {
 	device_type := "host"
 	id := -1
-	if snet.Router.Hostname == hostname {
+	if Net().Router.Hostname == hostname {
 		device_type = "router"
 		id = 0
 	}
 
-	if snet.Router.VSwitch.Hostname == hostname {
+	if Net().Router.VSwitch.Hostname == hostname {
 		device_type = "vswitch"
 		id = 0
 	}
 
-	for i := range snet.Hosts {
-		if snet.Hosts[i].Hostname == hostname {
+	for i := range Net().Hosts {
+		if Net().Hosts[i].Hostname == hostname {
 			device_type = "host"
 			id = i
 		}
 	}
 
-	for i := range snet.Switches {
-		if snet.Switches[i].Hostname == hostname {
+	for i := range Net().Switches {
+		if Net().Switches[i].Hostname == hostname {
 			device_type = "switch"
 			id = i
 		}
@@ -305,53 +305,53 @@ func show(hostname string) {
 	}
 
 	if device_type == "host" {
-		fmt.Printf("\nHost %v\n", snet.Hosts[id].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Hosts[id].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Hosts[id].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Hosts[id].Interfaces["eth0"].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", snet.Hosts[id].GetIP("eth0"))
-		fmt.Printf("\tDef. Gateway:\t%s\n", snet.Hosts[id].GetGateway("eth0"))
-		fmt.Printf("\tSubnet Mask:\t%s\n", snet.Hosts[id].GetMask("eth0"))
+		fmt.Printf("\nHost %v\n", Net().Hosts[id].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", Net().Hosts[id].ID)
+		fmt.Printf("\tModel:\t\t%s\n", Net().Hosts[id].Model)
+		fmt.Printf("\tMAC:\t\t%s\n", Net().Hosts[id].Interfaces["eth0"].MACAddr)
+		fmt.Printf("\tIP Address:\t%s\n", Net().Hosts[id].GetIP("eth0"))
+		fmt.Printf("\tDef. Gateway:\t%s\n", Net().Hosts[id].GetGateway("eth0"))
+		fmt.Printf("\tSubnet Mask:\t%s\n", Net().Hosts[id].GetMask("eth0"))
 		uplinkHostname := ""
 
 		//Router
-		if isSwitchportID(snet.Router.VSwitch, snet.Hosts[id].Interfaces["eth0"].RemoteL1ID) {
-			uplinkHostname = snet.Router.Hostname + " (" + snet.Router.VSwitch.Hostname + ")"
+		if isSwitchportID(Net().Router.VSwitch, Net().Hosts[id].Interfaces["eth0"].RemoteL1ID) {
+			uplinkHostname = Net().Router.Hostname + " (" + Net().Router.VSwitch.Hostname + ")"
 		}
 		//Switches
-		for j := range snet.Switches {
-			if isSwitchportID(snet.Switches[j], snet.Hosts[id].Interfaces["eth0"].RemoteL1ID) {
-				uplinkHostname = snet.Switches[j].Hostname
+		for j := range Net().Switches {
+			if isSwitchportID(Net().Switches[j], Net().Hosts[id].Interfaces["eth0"].RemoteL1ID) {
+				uplinkHostname = Net().Switches[j].Hostname
 			}
 		}
 
 		fmt.Printf("\tUplink to:\t%s\n\n", uplinkHostname)
 	} else if device_type == "switch" {
-		fmt.Printf("\nSwitch %s\n", snet.Switches[id].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Switches[id].ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Switches[id].Model)
+		fmt.Printf("\nSwitch %s\n", Net().Switches[id].Hostname)
+		fmt.Printf("\tID:\t\t%s\n", Net().Switches[id].ID)
+		fmt.Printf("\tModel:\t\t%s\n", Net().Switches[id].Model)
 	} else if device_type == "vswitch" {
-		fmt.Printf("\nSwitch %s\n", snet.Router.VSwitch.Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Router.VSwitch.ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Router.VSwitch.Model)
+		fmt.Printf("\nSwitch %s\n", Net().Router.VSwitch.Hostname)
+		fmt.Printf("\tID:\t\t%s\n", Net().Router.VSwitch.ID)
+		fmt.Printf("\tModel:\t\t%s\n", Net().Router.VSwitch.Model)
 	} else if device_type == "router" {
-		fmt.Printf("\nRouter %s\n", snet.Router.Hostname)
-		fmt.Printf("\tID:\t\t%s\n", snet.Router.ID)
-		fmt.Printf("\tModel:\t\t%s\n", snet.Router.Model)
-		fmt.Printf("\tMAC:\t\t%s\n", snet.Router.Interfaces["eth0"].MACAddr)
-		fmt.Printf("\tGateway:\t%s\n", snet.Router.GetIP("eth0"))
-		fmt.Printf("\tDHCP pool:\t%d addresses\n", len(snet.Router.GetDHCPPoolAddresses()))
-		fmt.Printf("\tVSwitch ID: \t%s\n", snet.Router.VSwitch.ID)
+		fmt.Printf("\nRouter %s\n", Net().Router.Hostname)
+		fmt.Printf("\tID:\t\t%s\n", Net().Router.ID)
+		fmt.Printf("\tModel:\t\t%s\n", Net().Router.Model)
+		fmt.Printf("\tMAC:\t\t%s\n", Net().Router.Interfaces["eth0"].MACAddr)
+		fmt.Printf("\tGateway:\t%s\n", Net().Router.GetIP("eth0"))
+		fmt.Printf("\tDHCP pool:\t%d addresses\n", len(Net().Router.GetDHCPPoolAddresses()))
+		fmt.Printf("\tVSwitch ID: \t%s\n", Net().Router.VSwitch.ID)
 	}
 }
 
 func displayARPTable(deviceID string) {
 	var ARPTable map[string]ARPEntry
 
-	if snet.Router.ID == deviceID {
-		ARPTable = snet.Router.ARPTable
+	if Net().Router.ID == deviceID {
+		ARPTable = Net().Router.ARPTable
 	} else {
-		ARPTable = snet.Hosts[getHostIndexFromID(deviceID)].ARPTable
+		ARPTable = Net().Hosts[getHostIndexFromID(deviceID)].ARPTable
 	}
 
 	fmt.Printf("ARP Table:\n")
@@ -366,10 +366,10 @@ func displayARPTable(deviceID string) {
 func displayMACTable(deviceID string) {
 	var MACTable map[string]MACEntry
 
-	if snet.Router.VSwitch.ID == deviceID {
-		MACTable = snet.Router.VSwitch.MACTable
+	if Net().Router.VSwitch.ID == deviceID {
+		MACTable = Net().Router.VSwitch.MACTable
 	} else {
-		MACTable = snet.Switches[getSwitchIndexFromID(deviceID)].MACTable
+		MACTable = Net().Switches[getSwitchIndexFromID(deviceID)].MACTable
 	}
 
 	fmt.Printf("MAC Table:\n")

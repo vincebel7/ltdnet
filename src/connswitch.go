@@ -15,15 +15,15 @@ import (
 
 func controlSwitch(hostname string) {
 	fmt.Printf("Attempting to control switch %s...\n", hostname)
-	for i := range snet.Switches {
-		if snet.Switches[i].Hostname == hostname {
-			SwitchConn(snet.Switches[i].ID)
+	for i := range Net().Switches {
+		if Net().Switches[i].Hostname == hostname {
+			SwitchConn(Net().Switches[i].ID)
 			return
 		}
 	}
 
-	if snet.Router.VSwitch.Hostname == hostname {
-		SwitchConn(snet.Router.VSwitch.ID)
+	if Net().Router.VSwitch.Hostname == hostname {
+		SwitchConn(Net().Router.VSwitch.ID)
 		return
 	}
 
@@ -33,13 +33,13 @@ func controlSwitch(hostname string) {
 func SwitchConn(id string) {
 	sw := Switch{}
 
-	for i := range snet.Switches {
-		if snet.Switches[i].ID == id {
-			sw = snet.Switches[i]
+	for i := range Net().Switches {
+		if Net().Switches[i].ID == id {
+			sw = Net().Switches[i]
 		}
 	}
-	if snet.Router.VSwitch.ID == id {
-		sw = snet.Router.VSwitch
+	if Net().Router.VSwitch.ID == id {
+		sw = Net().Router.VSwitch
 	}
 	if sw.ID == "" {
 		fmt.Println("Error: ID cannot be located. Please try again")
@@ -89,10 +89,10 @@ func SwitchConn(id string) {
 			if len(commandSplit) > 1 {
 				switch commandSplit[1] {
 				case "clear":
-					if snet.Router.VSwitch.ID == id {
-						snet.Router.VSwitch.MACTable = make(map[string]MACEntry)
+					if Net().Router.VSwitch.ID == id {
+						Net().Router.VSwitch.MACTable = make(map[string]MACEntry)
 					} else {
-						snet.Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]MACEntry)
+						Net().Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]MACEntry)
 					}
 					fmt.Println("MAC table cleared")
 

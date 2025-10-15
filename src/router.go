@@ -73,8 +73,8 @@ func addRouter(routerHostname string, routerModel string) {
 		return
 	}
 
-	if snet.Router.Hostname != "" {
-		fmt.Printf("Network already has a router, %s.\n", snet.Router.Hostname)
+	if Net().Router.Hostname != "" {
+		fmt.Printf("Network already has a router, %s.\n", Net().Router.Hostname)
 		return
 	}
 
@@ -94,11 +94,11 @@ func addRouter(routerHostname string, routerModel string) {
 	}
 
 	var gateway net.IP
-	if snet.Netsize == "8" {
+	if Net().Netsize == "8" {
 		gateway = net.ParseIP("10.0.0.1")
-	} else if snet.Netsize == "16" {
+	} else if Net().Netsize == "16" {
 		gateway = net.ParseIP("172.16.0.1")
-	} else if snet.Netsize == "24" {
+	} else if Net().Netsize == "24" {
 		gateway = net.ParseIP("192.168.0.1")
 	}
 
@@ -106,7 +106,7 @@ func addRouter(routerHostname string, routerModel string) {
 	r.Hostname = routerHostname
 	r.ARPTable = make(map[string]ARPEntry)
 
-	netsizeInt, _ := strconv.Atoi(snet.Netsize)
+	netsizeInt, _ := strconv.Atoi(Net().Netsize)
 
 	// Interfaces
 	r.Interfaces = make(map[string]Interface)
@@ -164,20 +164,20 @@ func addRouter(routerHostname string, routerModel string) {
 	end_ip := end_iph.IncreaseIPByConstant(dhcpPoolSize)
 	r.DHCPPool = NewDHCPPool(start_ip, end_ip)
 
-	snet.Router = r
+	Net().Router = r
 
-	assignSwitchport(snet.Router.VSwitch, snet.Router.Interfaces["eth0"].L1ID)
+	assignSwitchport(Net().Router.VSwitch, Net().Router.Interfaces["eth0"].L1ID)
 
-	iface := snet.Router.Interfaces["eth0"]
-	iface.RemoteL1ID = snet.Router.VSwitch.PortLinksLocal[0]
-	snet.Router.Interfaces["eth0"] = iface
+	iface := Net().Router.Interfaces["eth0"]
+	iface.RemoteL1ID = Net().Router.VSwitch.PortLinksLocal[0]
+	Net().Router.Interfaces["eth0"] = iface
 
 	generateRouterChannels()
 	go listenRouterChannel("lo")
 	go listenRouterChannel("eth0")
 
-	for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-		go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortLinksLocal[i])
+	for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
+		go listenSwitchportChannel(Net().Router.VSwitch.ID, Net().Router.VSwitch.PortLinksLocal[i])
 	}
 	achievementTester(ROUTINE_BUSINESS)
 }
@@ -192,7 +192,7 @@ func delRouter() {
 	r.DHCPPool = NewDHCPPool(net.ParseIP("0.0.0.0"), net.ParseIP("0.0.0.0"))
 	r.VSwitch = addVirtualSwitch(0)
 
-	snet.Router = r
+	Net().Router = r
 	fmt.Printf("\nRouter deleted\n")
 }
 

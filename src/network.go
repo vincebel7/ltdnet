@@ -29,9 +29,14 @@ type Network struct {
 	ProgramVer string   `json:"program_ver"`
 }
 
-var snet Network //selected network, essentially the loaded save file
+// var snet Network //selected network, essentially the loaded save file
 var listenSync = make(chan string)
 var scanner = bufio.NewScanner(os.Stdin)
+
+// Helper to assign whole network atomically
+func setNetwork(n Network) {
+	*Net() = n
+}
 
 func newNetworkPrompt() {
 	fmt.Println("Creating a new network")
@@ -92,7 +97,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 		ID:         netid,
 		Name:       netname,
 		Netsize:    networkPrefix,
-		ProgramVer: currentVersion,
+		ProgramVer: ProgramVersion,
 		DebugLevel: 1,
 	}
 
@@ -227,7 +232,7 @@ func loadNetwork(netname string, saveType string) {
 
 	// Version check
 	migrate := false
-	if net.ProgramVer != currentVersion {
+	if net.ProgramVer != ProgramVersion {
 		fmt.Print("The selected save file was created in an older version. Attempt migrating? [y/N]: ")
 
 		scanner.Scan()
@@ -236,7 +241,7 @@ func loadNetwork(netname string, saveType string) {
 		switch migrateSelection {
 		case "Y", "YES":
 			// "Migrate". Will make this more intelligent eventually
-			net.ProgramVer = currentVersion
+			net.ProgramVer = ProgramVersion
 			migrate = true
 		default:
 			startMenu()
@@ -248,18 +253,18 @@ func loadNetwork(netname string, saveType string) {
 	net.ClearMACTables()
 
 	//save global
-	snet = net
+	setNetwork(net)
 
 	// Save successful version migration
 	if migrate {
 		save()
 	}
 
-	fmt.Printf("Loaded \"%s\"\n", snet.Name)
+	fmt.Printf("Loaded %q\n", Net().Name)
 }
 
 func save() {
-	marshString, err := json.Marshal(snet)
+	marshString, err := json.Marshal(Net())
 	if err != nil {
 		log.Println(err)
 	}
@@ -271,7 +276,7 @@ func save() {
 	}
 
 	savesDir := filepath.Join(homeDir, "ltdnet_saves/user/")
-	saveFile := filepath.Join(savesDir, snet.Name+".json")
+	saveFile := filepath.Join(savesDir, Net().Name+".json")
 
 	f, err := os.OpenFile(saveFile, os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {

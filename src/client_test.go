@@ -33,7 +33,7 @@ func TestNetworkSetup(t *testing.T) {
 	// Test 1: Add router
 	addRouter("r1", "Bobcat")
 
-	if snet.Router.GetIP("eth0") != "192.168.0.1" {
+	if Net().Router.GetIP("eth0") != "192.168.0.1" {
 		t.Errorf("Router not (properly) created")
 	}
 
@@ -43,7 +43,7 @@ func TestNetworkSetup(t *testing.T) {
 	addHost("h3")
 	addHost("h4")
 
-	if snet.Hosts[0].Model != "ProBox 1" {
+	if Net().Hosts[0].Model != "ProBox 1" {
 		t.Errorf("Host not (properly) created")
 	}
 
@@ -52,26 +52,26 @@ func TestNetworkSetup(t *testing.T) {
 	linkHostTo("h2", "r1")
 	linkHostTo("h3", "r1")
 
-	if (snet.Hosts[0].Interfaces["eth0"].RemoteL1ID == "") || (snet.Router.VSwitch.PortLinksRemote[1] == "") {
+	if (Net().Hosts[0].Interfaces["eth0"].RemoteL1ID == "") || (Net().Router.VSwitch.PortLinksRemote[1] == "") {
 		t.Errorf("Host not (properly) linked")
 	}
 
 	// Test 4: DHCP
-	go dhcp_discover(snet.Hosts[0])
-	<-actionsync[snet.Hosts[0].ID]
-	if snet.Hosts[0].GetIP("eth0") != "192.168.0.2" {
+	go dhcp_discover(Net().Hosts[0])
+	<-actionsync[Net().Hosts[0].ID]
+	if Net().Hosts[0].GetIP("eth0") != "192.168.0.2" {
 		t.Errorf("DHCP failed for host")
 	}
 
-	go dhcp_discover(snet.Hosts[1])
-	<-actionsync[snet.Hosts[1].ID]
-	if snet.Hosts[1].GetIP("eth0") != "192.168.0.3" {
+	go dhcp_discover(Net().Hosts[1])
+	<-actionsync[Net().Hosts[1].ID]
+	if Net().Hosts[1].GetIP("eth0") != "192.168.0.3" {
 		t.Errorf("DHCP failed for host")
 	}
 
-	go dhcp_discover(snet.Hosts[2])
-	<-actionsync[snet.Hosts[2].ID]
-	if snet.Hosts[2].GetIP("eth0") != "192.168.0.4" {
+	go dhcp_discover(Net().Hosts[2])
+	<-actionsync[Net().Hosts[2].ID]
+	if Net().Hosts[2].GetIP("eth0") != "192.168.0.4" {
 		t.Errorf("DHCP failed for host")
 	}
 
@@ -79,14 +79,14 @@ func TestNetworkSetup(t *testing.T) {
 	delHost("h2")
 
 	// Test 5: Pinging
-	go ping(snet.Hosts[0].ID, "192.168.0.4", 1)
-	lossCount := <-actionsync[snet.Hosts[0].ID]
+	go ping(Net().Hosts[0].ID, "192.168.0.4", 1)
+	lossCount := <-actionsync[Net().Hosts[0].ID]
 	if lossCount != 0 {
 		t.Errorf("Ping from h1 to h3 failed")
 	}
 
-	go ping(snet.Hosts[0].ID, "192.168.0.2", 1)
-	lossCount = <-actionsync[snet.Hosts[0].ID]
+	go ping(Net().Hosts[0].ID, "192.168.0.2", 1)
+	lossCount = <-actionsync[Net().Hosts[0].ID]
 	if lossCount != 0 {
 		t.Errorf("Ping from h1 to h1 failed")
 	}

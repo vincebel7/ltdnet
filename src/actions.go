@@ -33,12 +33,12 @@ func ping(srcID string, dst string, count int) {
 	lossCount := 0
 
 	// Get DNS table
-	if snet.Router.ID == srcID {
-		dnsTable = snet.Router.DNSTable
+	if Net().Router.ID == srcID {
+		dnsTable = Net().Router.DNSTable
 	} else {
-		for h := range snet.Hosts {
-			if snet.Hosts[h].ID == srcID {
-				dnsTable = snet.Hosts[h].DNSTable
+		for h := range Net().Hosts {
+			if Net().Hosts[h].ID == srcID {
+				dnsTable = Net().Hosts[h].DNSTable
 			}
 		}
 	}
@@ -58,15 +58,15 @@ func ping(srcID string, dst string, count int) {
 	}
 
 	iface := Interface{}
-	if snet.Router.ID == srcID {
-		iface = snet.Router.routeToInterface(dstIP)
-		srcHostname = snet.Router.Hostname
+	if Net().Router.ID == srcID {
+		iface = Net().Router.routeToInterface(dstIP)
+		srcHostname = Net().Router.Hostname
 	} else {
-		for h := range snet.Hosts {
-			if snet.Hosts[h].ID == srcID {
-				iface = snet.Hosts[h].routeToInterface(dstIP)
-				srcHost = snet.Hosts[h]
-				srcHostname = snet.Router.Hostname
+		for h := range Net().Hosts {
+			if Net().Hosts[h].ID == srcID {
+				iface = Net().Hosts[h].routeToInterface(dstIP)
+				srcHost = Net().Hosts[h]
+				srcHostname = Net().Router.Hostname
 			}
 		}
 	}
@@ -78,8 +78,8 @@ func ping(srcID string, dst string, count int) {
 
 	for i := 0; i < count; i++ {
 		// Get destination MAC address
-		if snet.Router.ID == srcID {
-			dstMAC = routerDetermineDstMAC(snet.Router, dstIP, iface.Name, true)
+		if Net().Router.ID == srcID {
+			dstMAC = routerDetermineDstMAC(Net().Router, dstIP, iface.Name, true)
 		} else {
 			dstMAC = hostDetermineDstMAC(srcHost, dstIP, iface.Name, true)
 		}
@@ -110,10 +110,9 @@ func ping(srcID string, dst string, count int) {
 
 		sendCount++
 
-		sockets := socketMaps[srcID]
+		sockets := EngineInstance().Sockets[srcID]
 		socketID := "icmp_" + strconv.Itoa(identifier)
 		sockets[socketID] = make(chan Frame)
-		socketMaps[srcID] = sockets // Write updated map back to the collection
 
 		debug(4, "ping", srcID, "Awaiting ping reply on "+srcID)
 		select {
@@ -163,13 +162,13 @@ func pong(srcID string, frame Frame) {
 	dstMAC := ""
 
 	iface := Interface{}
-	if snet.Router.ID == srcID {
-		iface = snet.Router.routeToInterface(dstIP)
-		dstMAC = routerDetermineDstMAC(snet.Router, dstIP, iface.Name, true)
+	if Net().Router.ID == srcID {
+		iface = Net().Router.routeToInterface(dstIP)
+		dstMAC = routerDetermineDstMAC(Net().Router, dstIP, iface.Name, true)
 	} else {
 		index := getHostIndexFromID(srcID)
-		iface = snet.Hosts[index].routeToInterface(dstIP)
-		dstMAC = hostDetermineDstMAC(snet.Hosts[index], dstIP, iface.Name, true)
+		iface = Net().Hosts[index].routeToInterface(dstIP)
+		dstMAC = hostDetermineDstMAC(Net().Hosts[index], dstIP, iface.Name, true)
 	}
 
 	srcIP = iface.IPConfig.IPAddress.String()
@@ -201,11 +200,11 @@ func arp_request(srcID string, targetIP string) string {
 	dstMAC := "ff:ff:ff:ff:ff:ff"
 
 	iface := Interface{}
-	if srcID == snet.Router.ID {
-		iface = snet.Router.Interfaces["eth0"]
+	if srcID == Net().Router.ID {
+		iface = Net().Router.Interfaces["eth0"]
 	} else {
 		index := getHostIndexFromID(srcID)
-		iface = snet.Hosts[index].Interfaces["eth0"]
+		iface = Net().Hosts[index].Interfaces["eth0"]
 	}
 
 	srcIP = iface.IPConfig.IPAddress.String()
@@ -235,10 +234,9 @@ func arp_request(srcID string, targetIP string) string {
 	sendFrame(arpRequestFrameBytes, iface, srcID)
 	debug(3, "arp_request", srcID, "ARPREQUEST sent")
 
-	sockets := socketMaps[srcID]
+	sockets := EngineInstance().Sockets[srcID]
 	socketID := "arp_" + string(targetIP)
 	sockets[socketID] = make(chan Frame)
-	socketMaps[srcID] = sockets // Write updated map back to the collection
 
 	select {
 	case arpReplyFrameBytes := <-sockets[socketID]:
@@ -263,13 +261,13 @@ func arp_reply(id string, arpRequestFrame Frame) {
 
 	// Network listener decided to reply to this request - no checking needed.
 	iface := Interface{}
-	if id == snet.Router.ID {
-		iface = snet.Router.Interfaces["eth0"]
-		srcID = snet.Router.ID
+	if id == Net().Router.ID {
+		iface = Net().Router.Interfaces["eth0"]
+		srcID = Net().Router.ID
 	} else {
 		index := getHostIndexFromID(id)
-		iface = snet.Hosts[index].Interfaces["eth0"]
-		srcID = snet.Hosts[index].ID
+		iface = Net().Hosts[index].Interfaces["eth0"]
+		srcID = Net().Hosts[index].ID
 	}
 
 	srcIP = iface.IPConfig.IPAddress.String()
@@ -336,10 +334,9 @@ func dhcp_discover(host Host) {
 	sendFrame(frameData, iface, srcID)
 	debug(3, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
-	sockets := socketMaps[srcID]
+	sockets := EngineInstance().Sockets[srcID]
 	socketID := "udp_" + strconv.Itoa(68)
 	sockets[socketID] = make(chan Frame)
-	socketMaps[srcID] = sockets // Write updated map back to the collection
 	dhcpOfferFrame := <-sockets[socketID]
 
 	// De-encapsulate DHCPOFFER
@@ -413,16 +410,16 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	dhcpDiscoverUDPSegment := readUDPSegment(dhcpDiscoverIPv4Packet.Data)
 	dhcpDiscoverMessage := ReadDHCPMessage(dhcpDiscoverUDPSegment.Data)
 
-	iface := snet.Router.Interfaces["eth0"]
-	srcIP := snet.Router.GetIP(iface.Name)
+	iface := Net().Router.Interfaces["eth0"]
+	srcIP := Net().Router.GetIP(iface.Name)
 	dstIP := "255.255.255.255"
 	srcMAC := iface.MACAddr
 	dstMAC := dhcpDiscoverFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
 
 	// Find open address
-	addr_to_give := snet.Router.NextFreePoolAddress()
-	gateway := snet.Router.GetIP(iface.Name)
-	netSize, _ := strconv.Atoi(snet.Netsize)
+	addr_to_give := Net().Router.NextFreePoolAddress()
+	gateway := Net().Router.GetIP(iface.Name)
+	netSize, _ := strconv.Atoi(Net().Netsize)
 	subnetmask := prefixLengthToSubnetMask(netSize)
 
 	messageType := 6
@@ -461,8 +458,8 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	dhcpOfferFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpOfferPacket)
 
 	// Send DHCPOFFER, await DHCPREQUEST
-	sendFrame(dhcpOfferFrame, iface, snet.Router.ID)
-	debug(3, "dhcp_offer", snet.Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
+	sendFrame(dhcpOfferFrame, iface, Net().Router.ID)
+	debug(3, "dhcp_offer", Net().Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
 }
 
 func dhcp_ack(dhcpRequestFrame Frame) {
@@ -472,8 +469,8 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	dhcpRequestUDPSegment := readUDPSegment(dhcpRequestIPv4Packet.Data)
 	dhcpRequestMessage := ReadDHCPMessage(dhcpRequestUDPSegment.Data)
 
-	iface := snet.Router.Interfaces["eth0"]
-	srcIP := snet.Router.GetIP(iface.Name)
+	iface := Net().Router.Interfaces["eth0"]
+	srcIP := Net().Router.GetIP(iface.Name)
 	dstIP := dhcpRequestIPv4PacketHeader.SrcIP
 	srcMAC := iface.MACAddr
 	dstMAC := dhcpRequestFrame.SrcMAC // This usage of SrcMAC is according to DHCP protocol.
@@ -481,18 +478,18 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	messageType := 6
 	if dhcpRequestUDPSegment.Data != nil {
 		if int(dhcpRequestMessage.Options[53][0]) == 3 { // 3 = DHCPREQUEST
-			if snet.Router.IsAvailableAddress(dhcpRequestMessage.YIAddr) {
+			if Net().Router.IsAvailableAddress(dhcpRequestMessage.YIAddr) {
 				messageType = 5
 			} else {
-				debug(1, "dhcp_offer", snet.Router.ID, "Error: DHCP address requested is not available")
+				debug(1, "dhcp_offer", Net().Router.ID, "Error: DHCP address requested is not available")
 			}
 		} else {
-			debug(1, "dhcp_offer", snet.Router.ID, "Error: Empty DHCP request")
+			debug(1, "dhcp_offer", Net().Router.ID, "Error: Empty DHCP request")
 		}
 	}
 
-	gateway := snet.Router.GetIP(iface.Name)
-	netSize, _ := strconv.Atoi(snet.Netsize)
+	gateway := Net().Router.GetIP(iface.Name)
+	netSize, _ := strconv.Atoi(Net().Netsize)
 	subnetmask := prefixLengthToSubnetMask(netSize)
 
 	// Construct DHCPACK
@@ -526,15 +523,15 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	dhcpAckFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpAckIPv4Packet)
 
 	// Send DHCPACK
-	sendFrame(dhcpAckFrame, iface, snet.Router.ID)
-	debug(3, "dhcp_offer", snet.Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
+	sendFrame(dhcpAckFrame, iface, Net().Router.ID)
+	debug(3, "dhcp_offer", Net().Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
 
 	// Setting leasee's MAC in pool (new)
-	pool := snet.Router.GetDHCPPoolAddresses()
+	pool := Net().Router.GetDHCPPoolAddresses()
 	for k := range pool {
 		if pool[k].Equal(dhcpAckMessage.YIAddr) {
-			debug(4, "dhcp_offer", snet.Router.ID, "Assigning and removing address "+dhcpAckMessage.YIAddr.String()+" from pool")
-			snet.Router.DHCPPool.DHCPPoolLeases[dhcpAckMessage.YIAddr.String()] = dhcpAckMessage.CHAddr
+			debug(4, "dhcp_offer", Net().Router.ID, "Assigning and removing address "+dhcpAckMessage.YIAddr.String()+" from pool")
+			Net().Router.DHCPPool.DHCPPoolLeases[dhcpAckMessage.YIAddr.String()] = dhcpAckMessage.CHAddr
 		}
 	}
 }
@@ -545,15 +542,15 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 	dstIP := ""
 	iface := Interface{}
 
-	if snet.Router.ID == srcID {
-		iface = snet.Router.Interfaces["lo"]
-		srcIP = snet.Router.GetIP(iface.Name)
-		//dstIP := snet.Router.Interfaces["eth0"].IPConfig.DNSServer
-		dstIP = snet.Router.Interfaces["lo"].IPConfig.DNSServer.String() // temporary
-		dstMAC = routerDetermineDstMAC(snet.Router, dstIP, iface.Name, true)
+	if Net().Router.ID == srcID {
+		iface = Net().Router.Interfaces["lo"]
+		srcIP = Net().Router.GetIP(iface.Name)
+		//dstIP := Net().Router.Interfaces["eth0"].IPConfig.DNSServer
+		dstIP = Net().Router.Interfaces["lo"].IPConfig.DNSServer.String() // temporary
+		dstMAC = routerDetermineDstMAC(Net().Router, dstIP, iface.Name, true)
 	} else {
 		hostIndex := getHostIndexFromID(srcID)
-		host := snet.Hosts[hostIndex]
+		host := Net().Hosts[hostIndex]
 		iface = host.Interfaces["eth0"]
 		srcIP = host.GetIP(iface.Name)
 		//dstIP := host.Interfaces["eth0"].IPConfig.DNSServer
@@ -596,10 +593,9 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 	sendFrame(dnsQueryFrame, iface, srcID)
 	debug(3, "dns_query", srcID, "DNS query sent - "+hostname)
 
-	sockets := socketMaps[srcID]
+	sockets := EngineInstance().Sockets[srcID]
 	socketID := "udp_" + strconv.Itoa(srcPort)
 	sockets[socketID] = make(chan Frame)
-	socketMaps[srcID] = sockets // Write updated map back to the collection
 
 	select {
 	case dnsResponseFrame := <-sockets[socketID]:
@@ -633,8 +629,8 @@ func dns_response(dnsQueryFrame Frame) {
 	dnsQueryMessage := ReadDNSMessage(dnsQueryUDPSegment.Data)
 
 	dstIP := dnsQueryIPv4PacketHeader.SrcIP
-	iface := snet.Router.routeToInterface(dstIP)
-	srcIP := snet.Router.GetIP(iface.Name)
+	iface := Net().Router.routeToInterface(dstIP)
+	srcIP := Net().Router.GetIP(iface.Name)
 	dstPort := dnsQueryUDPSegment.SrcPort
 	srcMAC := iface.MACAddr
 	dstMAC := dnsQueryFrame.SrcMAC
@@ -648,7 +644,7 @@ func dns_response(dnsQueryFrame Frame) {
 			Rcode:  2,
 		}
 
-		dnsAnswerRecord := snet.Router.DNSServer.aRecordLookup(dnsQueryMessage.Questions[0].QName)
+		dnsAnswerRecord := Net().Router.DNSServer.aRecordLookup(dnsQueryMessage.Questions[0].QName)
 
 		if dnsAnswerRecord.Name != "" {
 			dnsResponseMessage.Rcode = 0
@@ -664,7 +660,7 @@ func dns_response(dnsQueryFrame Frame) {
 		}
 
 	default:
-		debug(1, "dns_query", snet.Router.ID, "[Warning] DNS query type not implemented yet - returning SERVFAIL message")
+		debug(1, "dns_query", Net().Router.ID, "[Warning] DNS query type not implemented yet - returning SERVFAIL message")
 		return
 	}
 
@@ -674,13 +670,13 @@ func dns_response(dnsQueryFrame Frame) {
 	dnsResponseIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsResponseSegment)
 	dnsResponseFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsResponseIPv4Packet)
 
-	sendFrame(dnsResponseFrame, iface, snet.Router.ID)
-	debug(3, "dns_query", snet.Router.ID, "DNS response sent")
+	sendFrame(dnsResponseFrame, iface, Net().Router.ID)
+	debug(3, "dns_query", Net().Router.ID, "DNS response sent")
 
 }
 
 func ipset(hostname string, ipaddr string, subnetMask string) {
-	defaultGateway := snet.Router.GetIP("eth0")
+	defaultGateway := Net().Router.GetIP("eth0")
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
 	fmt.Print("\nIs this correct? [Y/n]: ")
@@ -700,15 +696,15 @@ func ipset(hostname string, ipaddr string, subnetMask string) {
 	}
 
 	//update info
-	for h := range snet.Hosts {
-		if snet.Hosts[h].Hostname == hostname {
-			iface := snet.Hosts[h].Interfaces["eth0"]
+	for h := range Net().Hosts {
+		if Net().Hosts[h].Hostname == hostname {
+			iface := Net().Hosts[h].Interfaces["eth0"]
 
 			iface.IPConfig.IPAddress = net.ParseIP(ipaddr)
 			iface.IPConfig.SubnetMask = subnetMask
 			iface.IPConfig.DefaultGateway = net.ParseIP(defaultGateway)
 
-			snet.Hosts[h].Interfaces["eth0"] = iface
+			Net().Hosts[h].Interfaces["eth0"] = iface
 
 			fmt.Println("Network configuration updated")
 		}
@@ -719,10 +715,10 @@ func ipset(hostname string, ipaddr string, subnetMask string) {
 func arpSynchronized(id string, targetIP string) {
 	dstMAC := ""
 
-	if snet.Router.ID == id {
-		dstMAC = routerDetermineDstMAC(snet.Router, targetIP, "eth0", false)
+	if Net().Router.ID == id {
+		dstMAC = routerDetermineDstMAC(Net().Router, targetIP, "eth0", false)
 	} else {
-		dstMAC = hostDetermineDstMAC(snet.Hosts[getHostIndexFromID(id)], targetIP, "eth0", false)
+		dstMAC = hostDetermineDstMAC(Net().Hosts[getHostIndexFromID(id)], targetIP, "eth0", false)
 	}
 
 	if dstMAC != "" {
@@ -746,8 +742,8 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 		debug(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
 
 		// Check ARP table
-		if useTable && snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr != "" {
-			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr
+		if useTable && Net().Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr != "" {
+			dstMAC = Net().Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr
 		} else {
 			// ARP request
 			dstMAC = arp_request(srcID, dstIP)
@@ -756,9 +752,9 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 			} else {
 				arpEntry := ARPEntry{
 					MACAddr:   dstMAC,
-					Interface: snet.Hosts[getHostIndexFromID(srcID)].Interfaces[iface].RemoteL1ID,
+					Interface: Net().Hosts[getHostIndexFromID(srcID)].Interfaces[iface].RemoteL1ID,
 				}
-				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = arpEntry // Add to ARP table
+				Net().Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP] = arpEntry // Add to ARP table
 			}
 		}
 
@@ -767,8 +763,8 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 		gateway := srcHost.GetGateway(iface)
 
 		// Check ARP table
-		if snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr != "" {
-			dstMAC = snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr
+		if Net().Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr != "" {
+			dstMAC = Net().Hosts[getHostIndexFromID(srcID)].ARPTable[gateway].MACAddr
 		} else {
 			// ARP request
 			dstMAC = arp_request(srcID, gateway)
@@ -777,9 +773,9 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 			} else {
 				arpEntry := ARPEntry{
 					MACAddr:   dstMAC,
-					Interface: snet.Hosts[getHostIndexFromID(srcID)].Interfaces[iface].RemoteL1ID,
+					Interface: Net().Hosts[getHostIndexFromID(srcID)].Interfaces[iface].RemoteL1ID,
 				}
-				snet.Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = arpEntry // Add to ARP table
+				Net().Hosts[getHostIndexFromID(srcID)].ARPTable[gateway] = arpEntry // Add to ARP table
 			}
 		}
 	}
@@ -796,14 +792,14 @@ func routerDetermineDstMAC(router Router, dstIP string, iface string, useTable b
 	}
 
 	// Same subnet - ARP table, or ARP request.
-	netsizeInt, _ := strconv.Atoi(snet.Netsize)
+	netsizeInt, _ := strconv.Atoi(Net().Netsize)
 	subnetMask := prefixLengthToSubnetMask(netsizeInt)
 	if iphelper.IPInSameSubnet(router.GetIP(iface), dstIP, subnetMask) {
 		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
 
 		// Check ARP table
-		if useTable && snet.Router.ARPTable[dstIP].MACAddr != "" {
-			dstMAC = snet.Router.ARPTable[dstIP].MACAddr
+		if useTable && Net().Router.ARPTable[dstIP].MACAddr != "" {
+			dstMAC = Net().Router.ARPTable[dstIP].MACAddr
 		} else {
 			// ARP request
 			dstMAC = arp_request(router.ID, dstIP)
@@ -814,7 +810,7 @@ func routerDetermineDstMAC(router Router, dstIP string, iface string, useTable b
 					MACAddr:   dstMAC,
 					Interface: router.Interfaces[iface].RemoteL1ID,
 				}
-				snet.Router.ARPTable[dstIP] = arpEntry // Add to ARP table
+				Net().Router.ARPTable[dstIP] = arpEntry // Add to ARP table
 			}
 		}
 
@@ -840,10 +836,10 @@ func resolveHostname(srcID string, hostname string, dnsTable map[string]DNSRecor
 
 	// TODO: Add response to local cache
 	if resultMessage.Rcode == 0 {
-		if srcID == snet.Router.ID {
-			snet.Router.DNSTable[hostname] = resultMessage.Answers[0]
+		if srcID == Net().Router.ID {
+			Net().Router.DNSTable[hostname] = resultMessage.Answers[0]
 		} else {
-			snet.Hosts[getHostIndexFromID(srcID)].DNSTable[hostname] = resultMessage.Answers[0]
+			Net().Hosts[getHostIndexFromID(srcID)].DNSTable[hostname] = resultMessage.Answers[0]
 		}
 	}
 

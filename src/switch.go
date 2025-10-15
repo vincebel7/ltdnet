@@ -69,12 +69,12 @@ func addSwitch(switchHostname string) {
 	}
 
 	s.MACTable = make(map[string]MACEntry)
-	snet.Switches = append(snet.Switches, s)
+	Net().Switches = append(Net().Switches, s)
 
 	generateSwitchChannels(getSwitchIndexFromID(s.ID))
 	for j := 0; j < getActivePorts(s); j++ {
-		channels[s.PortLinksLocal[j]] = make(chan json.RawMessage)
-		socketMaps[s.PortLinksLocal[j]] = make(map[string]chan Frame)
+		EngineInstance().Channels[s.PortLinksLocal[j]] = make(chan json.RawMessage)
+		EngineInstance().Sockets[s.PortLinksLocal[j]] = make(map[string]chan Frame)
 		actionsync[s.PortLinksLocal[j]] = make(chan int)
 
 		go listenSwitchportChannel(s.ID, s.PortLinksLocal[j])
@@ -107,17 +107,17 @@ func delSwitch(hostname string) {
 	//TODO For all linked devices, unlink. then delete
 	hostname = strings.ToUpper(hostname)
 	//search for switch
-	for i := range snet.Switches {
-		if strings.ToUpper(snet.Switches[i].Hostname) == hostname {
+	for i := range Net().Switches {
+		if strings.ToUpper(Net().Switches[i].Hostname) == hostname {
 			// Unlink all devices connected to this switch
-			for j := range snet.Switches[i].PortLinksLocal {
-				if snet.Switches[i].PortLinksRemote[j] != "" {
+			for j := range Net().Switches[i].PortLinksLocal {
+				if Net().Switches[i].PortLinksRemote[j] != "" {
 					// Unlink if host
-					for h := range snet.Hosts {
-						if snet.Hosts[h].Interfaces["eth0"].RemoteL1ID == snet.Switches[i].PortLinksLocal[j] {
-							iface := snet.Hosts[h].Interfaces["eth0"]
+					for h := range Net().Hosts {
+						if Net().Hosts[h].Interfaces["eth0"].RemoteL1ID == Net().Switches[i].PortLinksLocal[j] {
+							iface := Net().Hosts[h].Interfaces["eth0"]
 							iface.RemoteL1ID = ""
-							snet.Hosts[h].Interfaces["eth0"] = iface
+							Net().Hosts[h].Interfaces["eth0"] = iface
 						}
 					}
 
@@ -125,7 +125,7 @@ func delSwitch(hostname string) {
 				}
 			}
 
-			snet.Switches = removeSwitchFromSlice(snet.Switches, i)
+			Net().Switches = removeSwitchFromSlice(Net().Switches, i)
 			fmt.Printf("\nSwitch deleted\n")
 			return
 		}
@@ -138,51 +138,51 @@ func linkSwitchTo(localDevice string, remoteDevice string) {
 	remoteDevice = strings.ToUpper(remoteDevice)
 
 	//Make sure there's enough ports - if uplink device is a router
-	if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
-		if getActivePorts(snet.Router.VSwitch) >= snet.Router.VSwitch.Maxports {
-			fmt.Printf("No available ports - %s only has %d ports\n", snet.Router.Model, snet.Router.VSwitch.Maxports)
+	if remoteDevice == strings.ToUpper(Net().Router.Hostname) {
+		if getActivePorts(Net().Router.VSwitch) >= Net().Router.VSwitch.Maxports {
+			fmt.Printf("No available ports - %s only has %d ports\n", Net().Router.Model, Net().Router.VSwitch.Maxports)
 			return
 		}
 	}
 
 	//Make sure there's enough ports - if uplink device is a switch
-	for s := range snet.Switches {
-		if remoteDevice == strings.ToUpper(snet.Switches[s].Hostname) {
-			if getActivePorts(snet.Switches[s]) >= snet.Switches[s].Maxports {
-				fmt.Printf("No available ports - %s only has %d ports\n", snet.Switches[s].Model, snet.Switches[s].Maxports)
+	for s := range Net().Switches {
+		if remoteDevice == strings.ToUpper(Net().Switches[s].Hostname) {
+			if getActivePorts(Net().Switches[s]) >= Net().Switches[s].Maxports {
+				fmt.Printf("No available ports - %s only has %d ports\n", Net().Switches[s].Model, Net().Switches[s].Maxports)
 				return
 			}
 		}
 	}
 
 	//find switch with that hostname
-	for i := range snet.Switches {
-		if strings.ToUpper(snet.Switches[i].Hostname) == localDevice {
+	for i := range Net().Switches {
+		if strings.ToUpper(Net().Switches[i].Hostname) == localDevice {
 			uplinkID := ""
 			//Remote device on new link is the Router
-			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
+			if remoteDevice == strings.ToUpper(Net().Router.Hostname) {
 				//find next free port
-				for k := range snet.Router.VSwitch.PortLinksLocal {
-					if (snet.Router.VSwitch.PortLinksRemote[k] == "") && (uplinkID == "") {
-						uplinkID = snet.Router.VSwitch.PortLinksLocal[k]
+				for k := range Net().Router.VSwitch.PortLinksLocal {
+					if (Net().Router.VSwitch.PortLinksRemote[k] == "") && (uplinkID == "") {
+						uplinkID = Net().Router.VSwitch.PortLinksLocal[k]
 					}
 				}
-				//uplinkID = snet.Router.VSwitch.ID
+				//uplinkID = Net().Router.VSwitch.ID
 
 				// Assign switchport on remote device
-				assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].ID)
+				assignSwitchport(Net().Router.VSwitch, Net().Hosts[i].ID)
 			} else {
 				//Remote device on the new link is not the Router. Search switches
-				for j := range snet.Switches {
-					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
+				for j := range Net().Switches {
+					if remoteDevice == strings.ToUpper(Net().Switches[j].Hostname) {
 
 						//find next free port
-						for k := range snet.Switches[j].PortLinksLocal {
-							if (snet.Switches[j].PortLinksRemote[k] == "") && (uplinkID == "") {
-								uplinkID = snet.Switches[j].PortLinksLocal[k]
+						for k := range Net().Switches[j].PortLinksLocal {
+							if (Net().Switches[j].PortLinksRemote[k] == "") && (uplinkID == "") {
+								uplinkID = Net().Switches[j].PortLinksLocal[k]
 
 								// Assign switchport on remote device
-								assignSwitchport(snet.Switches[j], snet.Switches[i].ID)
+								assignSwitchport(Net().Switches[j], Net().Switches[i].ID)
 							}
 						}
 
@@ -191,7 +191,7 @@ func linkSwitchTo(localDevice string, remoteDevice string) {
 			}
 
 			// Assign switchport on local switch
-			assignSwitchport(snet.Switches[i], "TEST")
+			assignSwitchport(Net().Switches[i], "TEST")
 
 			return
 		}
@@ -202,12 +202,12 @@ func lookupMACTable(dstMAC string, switchportID string) int { // For looking up 
 	resultPort := -1
 	var MACTable map[string]MACEntry
 
-	if isSwitchportID(snet.Router.VSwitch, switchportID) {
-		MACTable = snet.Router.VSwitch.MACTable
+	if isSwitchportID(Net().Router.VSwitch, switchportID) {
+		MACTable = Net().Router.VSwitch.MACTable
 	} else {
-		for i := range snet.Switches {
-			if isSwitchportID(snet.Switches[i], switchportID) {
-				MACTable = snet.Switches[i].MACTable
+		for i := range Net().Switches {
+			if isSwitchportID(Net().Switches[i], switchportID) {
+				MACTable = Net().Switches[i].MACTable
 			}
 		}
 	}
@@ -224,12 +224,12 @@ func lookupMACTable(dstMAC string, switchportID string) int { // For looking up 
 func checkMACTable(macaddr string, id string, port int) { // For updating MAC table on incoming frames
 	result := -1
 	table := make(map[string]MACEntry)
-	if isSwitchportID(snet.Router.VSwitch, id) {
-		table = snet.Router.VSwitch.MACTable
+	if isSwitchportID(Net().Router.VSwitch, id) {
+		table = Net().Router.VSwitch.MACTable
 	} else {
-		for i := range snet.Switches {
-			if isSwitchportID(snet.Switches[i], id) {
-				table = snet.Switches[i].MACTable
+		for i := range Net().Switches {
+			if isSwitchportID(Net().Switches[i], id) {
+				table = Net().Switches[i].MACTable
 			}
 		}
 	}
@@ -254,18 +254,18 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 }
 
 func addMACEntry(macaddr string, id string, port int) {
-	if isSwitchportID(snet.Router.VSwitch, id) {
+	if isSwitchportID(Net().Router.VSwitch, id) {
 		macEntry := MACEntry{
 			Interface: port,
 		}
-		snet.Router.VSwitch.MACTable[macaddr] = macEntry
+		Net().Router.VSwitch.MACTable[macaddr] = macEntry
 	} else {
-		for i := range snet.Switches {
-			if isSwitchportID(snet.Switches[i], id) {
+		for i := range Net().Switches {
+			if isSwitchportID(Net().Switches[i], id) {
 				macEntry := MACEntry{
 					Interface: port,
 				}
-				snet.Switches[i].MACTable[macaddr] = macEntry
+				Net().Switches[i].MACTable[macaddr] = macEntry
 			}
 		}
 	}
@@ -307,7 +307,7 @@ func assignSwitchport(sw Switch, id string) int {
 		}
 	}
 
-	channels[sw.PortLinksLocal[portIndex]] = make(chan json.RawMessage)
+	EngineInstance().Channels[sw.PortLinksLocal[portIndex]] = make(chan json.RawMessage)
 	debug(4, "assignSwitchport", sw.PortLinksLocal[portIndex], "listening for id")
 	go listenSwitchportChannel(sw.ID, sw.PortLinksLocal[portIndex])
 
@@ -329,14 +329,14 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 		floodFrame = true
 		debug(4, "switchforward", switchID, "Destination address "+dstMAC+" not found in MAC table. Flooding frame on all ports")
 	} else {
-		if isSwitchportID(snet.Router.VSwitch, switchportID) { // VSwitch
+		if isSwitchportID(Net().Router.VSwitch, switchportID) { // VSwitch
 			debug(4, "switchforward", switchID, "Destination address found in MAC table.")
-			linkID = snet.Router.VSwitch.PortLinksRemote[outboundPort]
+			linkID = Net().Router.VSwitch.PortLinksRemote[outboundPort]
 		} else { // Regular switch
-			for i := range snet.Switches {
-				if isSwitchportID(snet.Switches[i], switchportID) {
+			for i := range Net().Switches {
+				if isSwitchportID(Net().Switches[i], switchportID) {
 					debug(4, "switchforward", switchID, "Destination address found in MAC table.")
-					linkID = snet.Switches[i].PortLinksRemote[outboundPort]
+					linkID = Net().Switches[i].PortLinksRemote[outboundPort]
 				}
 			}
 		}
@@ -352,26 +352,26 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 	outFrame, _ := json.Marshal(f)
 
 	if floodFrame {
-		if isSwitchportID(snet.Router.VSwitch, switchportID) { // VSwitch
-			for port := range snet.Router.VSwitch.PortLinksRemote {
-				linkID = snet.Router.VSwitch.PortLinksRemote[port]
+		if isSwitchportID(Net().Router.VSwitch, switchportID) { // VSwitch
+			for port := range Net().Router.VSwitch.PortLinksRemote {
+				linkID = Net().Router.VSwitch.PortLinksRemote[port]
 				// Don't send out source interface, or unplugged ports
-				if (snet.Router.VSwitch.PortLinksLocal[port] != switchportID) && (linkID != "") {
-					channels[linkID] <- outFrame
+				if (Net().Router.VSwitch.PortLinksLocal[port] != switchportID) && (linkID != "") {
+					EngineInstance().Channels[linkID] <- outFrame
 				}
 			}
 		} else { // Regular switch
 			switchIndex := getSwitchIndexFromID(switchID)
-			for port := range snet.Switches[switchIndex].PortLinksRemote {
-				linkID = snet.Switches[switchIndex].PortLinksRemote[port]
+			for port := range Net().Switches[switchIndex].PortLinksRemote {
+				linkID = Net().Switches[switchIndex].PortLinksRemote[port]
 				// Don't send out source interface, or unplugged ports
-				if (snet.Switches[switchIndex].PortLinksLocal[port] != switchportID) && (linkID != "") {
-					channels[linkID] <- outFrame
+				if (Net().Switches[switchIndex].PortLinksLocal[port] != switchportID) && (linkID != "") {
+					EngineInstance().Channels[linkID] <- outFrame
 				}
 			}
 		}
 	} else {
-		channels[linkID] <- outFrame
+		EngineInstance().Channels[linkID] <- outFrame
 	}
 }
 
@@ -380,11 +380,11 @@ func freeSwitchport(link string) {
 	switchport := getSwitchportIDFromLink(link)
 	switchID := getSwitchIDFromLink(link)
 
-	if snet.Router.VSwitch.ID == switchID {
-		snet.Router.VSwitch.PortLinksRemote[switchport] = ""
+	if Net().Router.VSwitch.ID == switchID {
+		Net().Router.VSwitch.PortLinksRemote[switchport] = ""
 	} else {
 		i := getSwitchIndexFromID(switchID)
-		snet.Switches[i].PortLinksRemote[switchport] = ""
+		Net().Switches[i].PortLinksRemote[switchport] = ""
 	}
 
 }

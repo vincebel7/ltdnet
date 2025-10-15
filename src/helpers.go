@@ -56,15 +56,15 @@ func ephemeralPortGen() int {
 }
 
 func getDeviceType(id string) string {
-	if snet.Router.ID == id {
+	if Net().Router.ID == id {
 		return "router"
 	}
-	if snet.Router.VSwitch.ID == id {
+	if Net().Router.VSwitch.ID == id {
 		return "vswitch"
 	}
 
-	for s := range snet.Switches {
-		if snet.Switches[s].ID == id {
+	for s := range Net().Switches {
+		if Net().Switches[s].ID == id {
 			return "switch"
 		}
 	}
@@ -73,8 +73,8 @@ func getDeviceType(id string) string {
 }
 
 func getHostIndexFromID(id string) int {
-	for h := range snet.Hosts {
-		if snet.Hosts[h].ID == id {
+	for h := range Net().Hosts {
+		if Net().Hosts[h].ID == id {
 			return h
 		}
 	}
@@ -82,8 +82,8 @@ func getHostIndexFromID(id string) int {
 }
 
 func getHostIndexFromLinkID(id string) int {
-	for h := range snet.Hosts {
-		if snet.Hosts[h].Interfaces["eth0"].RemoteL1ID == id {
+	for h := range Net().Hosts {
+		if Net().Hosts[h].Interfaces["eth0"].RemoteL1ID == id {
 			return h
 		}
 	}
@@ -91,8 +91,8 @@ func getHostIndexFromLinkID(id string) int {
 }
 
 func getSwitchIndexFromID(id string) int {
-	for s := range snet.Switches {
-		if snet.Switches[s].ID == id {
+	for s := range Net().Switches {
+		if Net().Switches[s].ID == id {
 			return s
 		}
 	}
@@ -103,9 +103,9 @@ func getSwitchIndexFromID(id string) int {
 func getSwitchportIDFromLink(link string) int {
 	switchID := getSwitchIDFromLink(link)
 
-	s := snet.Router.VSwitch
-	if switchID != snet.Router.VSwitch.ID {
-		s = snet.Switches[getSwitchIndexFromID(switchID)]
+	s := Net().Router.VSwitch
+	if switchID != Net().Router.VSwitch.ID {
+		s = Net().Switches[getSwitchIndexFromID(switchID)]
 	}
 
 	for i := range s.PortLinksLocal {
@@ -118,14 +118,14 @@ func getSwitchportIDFromLink(link string) int {
 }
 
 func getSwitchIDFromLink(link string) string {
-	s := snet.Router.VSwitch
+	s := Net().Router.VSwitch
 
-	if isSwitchportID(snet.Router.VSwitch, link) {
-		s = snet.Router.VSwitch
+	if isSwitchportID(Net().Router.VSwitch, link) {
+		s = Net().Router.VSwitch
 	} else {
-		for i := range snet.Switches {
-			if isSwitchportID(snet.Switches[i], link) {
-				return snet.Switches[i].ID
+		for i := range Net().Switches {
+			if isSwitchportID(Net().Switches[i], link) {
+				return Net().Switches[i].ID
 			}
 		}
 	}
@@ -135,14 +135,14 @@ func getSwitchIDFromLink(link string) string {
 
 func getIDfromMAC(mac string) string {
 	//Router
-	if mac == snet.Router.Interfaces["eth0"].MACAddr {
-		return snet.Router.ID
+	if mac == Net().Router.Interfaces["eth0"].MACAddr {
+		return Net().Router.ID
 	}
 
 	//Hosts
-	for h := range snet.Hosts {
-		if snet.Hosts[h].Interfaces["eth0"].MACAddr == mac {
-			return snet.Hosts[h].ID
+	for h := range Net().Hosts {
+		if Net().Hosts[h].Interfaces["eth0"].MACAddr == mac {
+			return Net().Hosts[h].ID
 		}
 	}
 
@@ -150,15 +150,15 @@ func getIDfromMAC(mac string) string {
 }
 
 func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask string) {
-	for h := range snet.Hosts {
-		if snet.Hosts[h].ID == id {
-			iface := snet.Hosts[h].Interfaces["eth0"]
+	for h := range Net().Hosts {
+		if Net().Hosts[h].ID == id {
+			iface := Net().Hosts[h].Interfaces["eth0"]
 
 			iface.IPConfig.IPAddress = ipaddr
 			iface.IPConfig.SubnetMask = subnetMask
 			iface.IPConfig.DefaultGateway = defaultgateway
 
-			snet.Hosts[h].Interfaces["eth0"] = iface
+			Net().Hosts[h].Interfaces["eth0"] = iface
 
 			fmt.Println("Network configuration updated")
 		}
@@ -169,21 +169,21 @@ func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask 
 func hostname_exists(hostname string) bool {
 	hostname = strings.ToUpper(hostname)
 
-	if strings.ToUpper(snet.Router.Hostname) == hostname {
+	if strings.ToUpper(Net().Router.Hostname) == hostname {
 		return true
 	}
-	if strings.ToUpper(snet.Router.VSwitch.Hostname) == hostname {
+	if strings.ToUpper(Net().Router.VSwitch.Hostname) == hostname {
 		return true
 	}
 
-	for s := range snet.Switches {
-		if strings.ToUpper(snet.Switches[s].Hostname) == hostname {
+	for s := range Net().Switches {
+		if strings.ToUpper(Net().Switches[s].Hostname) == hostname {
 			return true
 		}
 	}
 
-	for h := range snet.Hosts {
-		if strings.ToUpper(snet.Hosts[h].Hostname) == hostname {
+	for h := range Net().Hosts {
+		if strings.ToUpper(Net().Hosts[h].Hostname) == hostname {
 			return true
 		}
 	}

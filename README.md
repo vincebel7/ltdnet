@@ -1,3 +1,5 @@
+![ltdnet logo](logo.png)
+
 # ltdnet
 ### by Vince Belanger
 ### https://github.com/vincebel7/ltdnet
@@ -6,7 +8,7 @@
 A little CLI-based network simulator for learning networking concepts, utilizing lightweight goroutines and channels for network traffic.
 Includes fictional network appliances and simple implementations of essential TCP/IP protocols.
 
-## How to run (binary)
+## How to run (binary, recommended)
 Download the Windows or Linux executable binary from the [Releases](https://github.com/vincebel7/ltdnet/releases) page
 
 ## How to run (from source)
@@ -15,7 +17,8 @@ Download the Windows or Linux executable binary from the [Releases](https://gith
 3. Make the run script executable, and execute it (./run.sh)
 
 ## ltdnet Tutorial
-First, create a network and pick a network size (/24 is recommended to start)
+First, create a network and pick a network size (/24 is recommended to start).
+
 Currently, each network can only have one router. It is best to start off by creating the router:
 `add router router1`
 

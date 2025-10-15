@@ -273,7 +273,7 @@ func actionsMenu() {
 			save()
 
 		case "reload":
-			loadNetwork(snet.Name, "user")
+			loadNetwork(Net().Name, "user")
 
 		case "show", "sh":
 			switch commandString {
@@ -281,7 +281,7 @@ func actionsMenu() {
 				overview()
 
 			case "show diagram", "sh diagram":
-				drawDiagram(snet.Router.ID)
+				drawDiagram(Net().Router.ID)
 
 			default:
 				if len(commandString) > 12 { // show device
@@ -296,7 +296,7 @@ func actionsMenu() {
 			}
 
 		case "netdump":
-			fmt.Println(snet, "")
+			fmt.Println(Net(), "")
 
 		case "debug":
 			if arg1 != "" {
@@ -388,8 +388,8 @@ func main() {
 
 	go Listener()
 
-	for h := range snet.Hosts {
-		for range snet.Hosts[h].Interfaces {
+	for h := range Net().Hosts {
+		for range Net().Hosts[h].Interfaces {
 			<-listenSync
 		}
 	}

@@ -202,7 +202,7 @@ func achievement4Test() {
 
 // Achievement 5: Have ten hosts on your network (state-based)
 func achievement5Test() {
-	if len(snet.Hosts) >= 10 {
+	if len(Net().Hosts) >= 10 {
 		achievement := AchievementCatalog[TEN_HOSTS]
 		achievementAward(achievement)
 	}

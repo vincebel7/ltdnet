@@ -16,9 +16,9 @@ import (
 
 func controlHost(hostname string) {
 	fmt.Printf("Attempting to control host %s...\n", hostname)
-	for i := range snet.Hosts {
-		if snet.Hosts[i].Hostname == hostname {
-			HostConn("host", snet.Hosts[i].ID)
+	for i := range Net().Hosts {
+		if Net().Hosts[i].Hostname == hostname {
+			HostConn("host", Net().Hosts[i].ID)
 			return
 		}
 	}
@@ -29,10 +29,10 @@ func HostConn(device string, id string) {
 	//find host
 	host := Host{}
 	hostindex := -1
-	for i := range snet.Hosts {
-		if snet.Hosts[i].ID == id {
+	for i := range Net().Hosts {
+		if Net().Hosts[i].ID == id {
 			hostindex = i
-			host = snet.Hosts[i]
+			host = Net().Hosts[i]
 		}
 	}
 	if host.ID == "" {
@@ -52,7 +52,7 @@ func HostConn(device string, id string) {
 	defer rl.Close()
 
 	for strings.ToUpper(action_selection) != "EXIT" {
-		host = snet.Hosts[hostindex]
+		host = Net().Hosts[hostindex]
 
 		line, err := rl.Readline()
 		if err != nil { // Exit on Ctrl+D or any read error
@@ -152,7 +152,7 @@ func HostConn(device string, id string) {
 					}
 
 				case "clear":
-					snet.Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]ARPEntry)
+					Net().Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]ARPEntry)
 					fmt.Println("ARP table cleared")
 
 				case "help", "?":

@@ -13,74 +13,72 @@ import (
 	"github.com/vincebel7/ltdnet/iphelper"
 )
 
-var channels = make(map[string]chan json.RawMessage)    // Physical links
-var socketMaps = make(map[string]map[string]chan Frame) // For internal device communication
-var actionsync = map[string]chan int{}                  // Blocks CLI prompt until action completes
+var actionsync = map[string]chan int{} // Blocks CLI prompt until action completes
 
 func Listener() {
 	// Generate channels
 	generateRouterChannels()
 
-	for i := range snet.Switches {
+	for i := range Net().Switches {
 		generateSwitchChannels(i)
 	}
 
-	for i := range snet.Hosts {
+	for i := range Net().Hosts {
 		generateHostChannels(i)
 	}
 
 	// Listen on channels
-	if snet.Router.Hostname != "" {
-		for iface := range snet.Router.Interfaces {
+	if Net().Router.Hostname != "" {
+		for iface := range Net().Router.Interfaces {
 			go listenRouterChannel(iface)
 		}
 
-		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-			go listenSwitchportChannel(snet.Router.VSwitch.ID, snet.Router.VSwitch.PortLinksLocal[i])
+		for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
+			go listenSwitchportChannel(Net().Router.VSwitch.ID, Net().Router.VSwitch.PortLinksLocal[i])
 		}
 	}
 
-	for i := range snet.Switches {
-		for j := 0; j < getActivePorts(snet.Switches[i]); j++ {
-			go listenSwitchportChannel(snet.Switches[i].ID, snet.Switches[i].PortLinksLocal[j])
+	for i := range Net().Switches {
+		for j := 0; j < getActivePorts(Net().Switches[i]); j++ {
+			go listenSwitchportChannel(Net().Switches[i].ID, Net().Switches[i].PortLinksLocal[j])
 		}
 	}
 
-	for i := range snet.Hosts {
-		for iface := range snet.Hosts[i].Interfaces {
-			go listenHostChannel(snet.Hosts[i], iface)
+	for i := range Net().Hosts {
+		for iface := range Net().Hosts[i].Interfaces {
+			go listenHostChannel(Net().Hosts[i], iface)
 		}
 	}
 
 }
 
 func generateHostChannels(i int) {
-	for iface := range snet.Hosts[i].Interfaces {
-		channels[snet.Hosts[i].Interfaces[iface].L1ID] = make(chan json.RawMessage)
+	for iface := range Net().Hosts[i].Interfaces {
+		EngineInstance().Channels[Net().Hosts[i].Interfaces[iface].L1ID] = make(chan json.RawMessage)
 	}
-	socketMaps[snet.Hosts[i].ID] = make(map[string]chan Frame)
-	actionsync[snet.Hosts[i].ID] = make(chan int)
+	EngineInstance().Sockets[Net().Hosts[i].ID] = make(map[string]chan Frame)
+	actionsync[Net().Hosts[i].ID] = make(chan int)
 }
 
 func generateSwitchChannels(i int) {
-	for j := 0; j < getActivePorts(snet.Switches[i]); j++ {
-		channels[snet.Switches[i].PortLinksLocal[j]] = make(chan json.RawMessage)
-		socketMaps[snet.Switches[i].PortLinksLocal[j]] = make(map[string]chan Frame)
-		actionsync[snet.Switches[i].PortLinksLocal[j]] = make(chan int)
+	for j := 0; j < getActivePorts(Net().Switches[i]); j++ {
+		EngineInstance().Channels[Net().Switches[i].PortLinksLocal[j]] = make(chan json.RawMessage)
+		EngineInstance().Sockets[Net().Switches[i].PortLinksLocal[j]] = make(map[string]chan Frame)
+		actionsync[Net().Switches[i].PortLinksLocal[j]] = make(chan int)
 	}
 }
 
 func generateRouterChannels() {
-	if snet.Router.Hostname != "" {
-		for iface := range snet.Router.Interfaces {
-			channels[snet.Router.Interfaces[iface].L1ID] = make(chan json.RawMessage)
+	if Net().Router.Hostname != "" {
+		for iface := range Net().Router.Interfaces {
+			EngineInstance().Channels[Net().Router.Interfaces[iface].L1ID] = make(chan json.RawMessage)
 		}
-		socketMaps[snet.Router.ID] = make(map[string]chan Frame)
+		EngineInstance().Sockets[Net().Router.ID] = make(map[string]chan Frame)
 
-		for i := 0; i < getActivePorts(snet.Router.VSwitch); i++ {
-			channels[snet.Router.VSwitch.PortLinksLocal[i]] = make(chan json.RawMessage)
-			socketMaps[snet.Router.VSwitch.PortLinksLocal[i]] = make(map[string]chan Frame)
-			actionsync[snet.Router.ID] = make(chan int)
+		for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
+			EngineInstance().Channels[Net().Router.VSwitch.PortLinksLocal[i]] = make(chan json.RawMessage)
+			EngineInstance().Sockets[Net().Router.VSwitch.PortLinksLocal[i]] = make(map[string]chan Frame)
+			actionsync[Net().Router.ID] = make(chan int)
 		}
 	}
 }
@@ -89,7 +87,7 @@ func listenHostChannel(host Host, iface string) {
 	listenSync <- host.ID //synchronizing with client.go
 
 	for {
-		rawFrame := <-channels[host.Interfaces[iface].L1ID]
+		rawFrame := <-EngineInstance().Channels[host.Interfaces[iface].L1ID]
 		debug(4, "listenHostChannel", host.Hostname, "Received unicast frame")
 		go actionHandler(rawFrame, host.ID, iface)
 	}
@@ -97,9 +95,9 @@ func listenHostChannel(host Host, iface string) {
 
 func listenRouterChannel(iface string) {
 	for {
-		rawFrame := <-channels[snet.Router.Interfaces[iface].L1ID]
-		debug(4, "listenRouterChannel", snet.Router.ID, "Received unicast frame")
-		go actionHandler(rawFrame, snet.Router.ID, iface)
+		rawFrame := <-EngineInstance().Channels[Net().Router.Interfaces[iface].L1ID]
+		debug(4, "listenRouterChannel", Net().Router.ID, "Received unicast frame")
+		go actionHandler(rawFrame, Net().Router.ID, iface)
 	}
 }
 
@@ -117,23 +115,23 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			amTarget := false
 			shouldRespond := false
 
-			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP(iface)) {
+			if (Net().Router.ID == id) && (arpMessage.TargetIP == Net().Router.GetIP(iface)) {
 				amTarget = true
 
-				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Router.GetIP(iface), snet.Router.GetMask(iface)) {
+				if iphelper.IPInSameSubnet(arpMessage.SenderIP, Net().Router.GetIP(iface), Net().Router.GetMask(iface)) {
 					shouldRespond = true
 				}
 
-			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
+			} else if (Net().Router.ID != id) && (arpMessage.TargetIP == Net().Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 				amTarget = true
 
-				if iphelper.IPInSameSubnet(arpMessage.SenderIP, snet.Hosts[getHostIndexFromID(id)].GetIP(iface), snet.Hosts[getHostIndexFromID(id)].GetMask(iface)) {
+				if iphelper.IPInSameSubnet(arpMessage.SenderIP, Net().Hosts[getHostIndexFromID(id)].GetIP(iface), Net().Hosts[getHostIndexFromID(id)].GetMask(iface)) {
 					shouldRespond = true
 				}
 			}
 
 			if amTarget && shouldRespond {
-				sockets := socketMaps[id]
+				sockets := EngineInstance().Sockets[id]
 				socketID := "arp_" + string(arpMessage.SenderIP)
 				sockets[socketID] <- frame
 			}
@@ -143,9 +141,9 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 			// Check if target device at network-level
 			amTarget := false
-			if (snet.Router.ID == id) && (arpMessage.TargetIP == snet.Router.GetIP(iface)) {
+			if (Net().Router.ID == id) && (arpMessage.TargetIP == Net().Router.GetIP(iface)) {
 				amTarget = true
-			} else if (snet.Router.ID != id) && (arpMessage.TargetIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
+			} else if (Net().Router.ID != id) && (arpMessage.TargetIP == Net().Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 				amTarget = true
 			}
 
@@ -168,9 +166,9 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 				// Check if target device at network-level
 				amTarget := false
-				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP(iface)) {
+				if (Net().Router.ID == id) && (packetHeader.DstIP == Net().Router.GetIP(iface)) {
 					amTarget = true
-				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
+				} else if (Net().Router.ID != id) && (packetHeader.DstIP == Net().Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 					amTarget = true
 				}
 
@@ -183,14 +181,14 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 				// Check if target device at network-level
 				amTarget := false
-				if (snet.Router.ID == id) && (packetHeader.DstIP == snet.Router.GetIP(iface)) {
+				if (Net().Router.ID == id) && (packetHeader.DstIP == Net().Router.GetIP(iface)) {
 					amTarget = true
-				} else if (snet.Router.ID != id) && (packetHeader.DstIP == snet.Hosts[getHostIndexFromID(id)].GetIP(iface)) {
+				} else if (Net().Router.ID != id) && (packetHeader.DstIP == Net().Hosts[getHostIndexFromID(id)].GetIP(iface)) {
 					amTarget = true
 				}
 
 				if amTarget {
-					sockets := socketMaps[id]
+					sockets := EngineInstance().Sockets[id]
 					socketID := "icmp_" + strconv.Itoa(icmpPacket.Identifier)
 					sockets[socketID] <- frame
 				}
@@ -217,7 +215,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 
 			case 67: // DHCP: Server-bound
-				if snet.Router.ID == id { // I am target
+				if Net().Router.ID == id { // I am target
 					dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
 					// 53 is DHCP message type
@@ -244,20 +242,20 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			case 68: // DHCP: Client-bound
 				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
 
-				if dhcpMessage.CHAddr == snet.Hosts[getHostIndexFromID(id)].Interfaces[iface].MACAddr { // I am target
+				if dhcpMessage.CHAddr == Net().Hosts[getHostIndexFromID(id)].Interfaces[iface].MACAddr { // I am target
 					// 53 is DHCP message type
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 2: // DHCPOFFER
 							debug(2, "actionHandler", id, "DHCPOFFER received")
-							sockets := socketMaps[id]
+							sockets := EngineInstance().Sockets[id]
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets[socketID] <- frame
 
 						case 5: // DHCPACK
 							debug(2, "actionHandler", id, "DHCPACK received")
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
-							sockets := socketMaps[id]
+							sockets := EngineInstance().Sockets[id]
 							sockets[socketID] <- frame
 
 						default:
@@ -270,7 +268,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			default: // Ephemeral
 				portStr := strconv.Itoa(udpSegment.DstPort)
 				debug(2, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
-				sockets := socketMaps[id]
+				sockets := EngineInstance().Sockets[id]
 				socketID := "udp_" + portStr
 				sockets[socketID] <- frame
 			}
@@ -280,7 +278,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 func listenSwitchportChannel(switchID string, switchportID string) {
 	for {
-		rawFrame := <-channels[switchportID]
+		rawFrame := <-EngineInstance().Channels[switchportID]
 		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
 		port := getSwitchportIDFromLink(switchportID)
 

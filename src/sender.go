@@ -15,10 +15,10 @@ func sendFrame(frameBytes json.RawMessage, iface Interface, srcID string) {
 		debug(4, "sendFrame", srcID, "Frame destination is to itself. Mirroring back across the interface.")
 
 		mirrorLinkID := iface.L1ID
-		channels[mirrorLinkID] <- frameBytes
+		EngineInstance().Channels[mirrorLinkID] <- frameBytes
 
 	} else {
-		channels[iface.RemoteL1ID] <- frameBytes
+		EngineInstance().Channels[iface.RemoteL1ID] <- frameBytes
 	}
 }
 

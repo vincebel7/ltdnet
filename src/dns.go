@@ -95,8 +95,8 @@ func (dnsServer *DNSServer) addDNSRecordToServer(recordType uint16, hostname str
 			RData: address,
 		}
 		dnsServer.Records = append(dnsServer.Records, newRecord)
-		snet.Router.DNSServer.Records = dnsServer.Records
-		debug(3, "addDNSRecordToServer", snet.Router.ID, "Record added to DNS server")
+		Net().Router.DNSServer.Records = dnsServer.Records
+		debug(3, "addDNSRecordToServer", Net().Router.ID, "Record added to DNS server")
 
 	default:
 		fmt.Println("[Error] DNS record type not yet supported by DNS server")

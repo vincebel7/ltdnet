@@ -107,7 +107,7 @@ func addHost(hostHostname string) {
 		RData: "127.0.0.1",
 	}
 
-	snet.Hosts = append(snet.Hosts, h)
+	Net().Hosts = append(Net().Hosts, h)
 
 	generateHostChannels(getHostIndexFromID(h.ID))
 	go listenHostChannel(h, "lo")
@@ -121,49 +121,49 @@ func linkHostTo(localDevice string, remoteDevice string) {
 	remoteDevice = strings.ToUpper(remoteDevice)
 
 	//Make sure there's enough ports - if uplink device is a router
-	if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
-		if getActivePorts(snet.Router.VSwitch) >= snet.Router.VSwitch.Maxports {
-			fmt.Printf("No available ports - %s only has %d ports\n", snet.Router.Model, snet.Router.VSwitch.Maxports)
+	if remoteDevice == strings.ToUpper(Net().Router.Hostname) {
+		if getActivePorts(Net().Router.VSwitch) >= Net().Router.VSwitch.Maxports {
+			fmt.Printf("No available ports - %s only has %d ports\n", Net().Router.Model, Net().Router.VSwitch.Maxports)
 			return
 		}
 	}
 
 	//Make sure there's enough ports - if uplink device is a switch
-	for s := range snet.Switches {
-		if remoteDevice == strings.ToUpper(snet.Switches[s].Hostname) {
-			if getActivePorts(snet.Switches[s]) >= snet.Switches[s].Maxports {
-				fmt.Printf("No available ports - %s only has %d ports\n", snet.Switches[s].Model, snet.Switches[s].Maxports)
+	for s := range Net().Switches {
+		if remoteDevice == strings.ToUpper(Net().Switches[s].Hostname) {
+			if getActivePorts(Net().Switches[s]) >= Net().Switches[s].Maxports {
+				fmt.Printf("No available ports - %s only has %d ports\n", Net().Switches[s].Model, Net().Switches[s].Maxports)
 				return
 			}
 		}
 	}
 
 	//find host with that hostname
-	for i := range snet.Hosts {
-		if strings.ToUpper(snet.Hosts[i].Hostname) == localDevice {
+	for i := range Net().Hosts {
+		if strings.ToUpper(Net().Hosts[i].Hostname) == localDevice {
 			uplinkID := ""
 			//Remote device on new link is the Router
-			if remoteDevice == strings.ToUpper(snet.Router.Hostname) {
+			if remoteDevice == strings.ToUpper(Net().Router.Hostname) {
 				//find next free port
-				portIndex := assignSwitchport(snet.Router.VSwitch, snet.Hosts[i].Interfaces["eth0"].L1ID)
-				uplinkID = snet.Router.VSwitch.PortLinksLocal[portIndex]
+				portIndex := assignSwitchport(Net().Router.VSwitch, Net().Hosts[i].Interfaces["eth0"].L1ID)
+				uplinkID = Net().Router.VSwitch.PortLinksLocal[portIndex]
 
 			} else {
 				//Remote device on the new link is not the Router. Search switches
-				for j := range snet.Switches {
-					if remoteDevice == strings.ToUpper(snet.Switches[j].Hostname) {
+				for j := range Net().Switches {
+					if remoteDevice == strings.ToUpper(Net().Switches[j].Hostname) {
 						//find next free port
-						portIndex := assignSwitchport(snet.Switches[j], snet.Hosts[i].Interfaces["eth0"].L1ID)
-						uplinkID = snet.Switches[j].PortLinksLocal[portIndex]
+						portIndex := assignSwitchport(Net().Switches[j], Net().Hosts[i].Interfaces["eth0"].L1ID)
+						uplinkID = Net().Switches[j].PortLinksLocal[portIndex]
 
 					}
 				}
 			}
 
 			// Assign uplink ID to host
-			iface := snet.Hosts[i].Interfaces["eth0"]
+			iface := Net().Hosts[i].Interfaces["eth0"]
 			iface.RemoteL1ID = uplinkID
-			snet.Hosts[i].Interfaces["eth0"] = iface
+			Net().Hosts[i].Interfaces["eth0"] = iface
 
 			return
 		}
@@ -173,16 +173,16 @@ func linkHostTo(localDevice string, remoteDevice string) {
 func unlinkHost(hostname string) {
 	hostname = strings.ToUpper(hostname)
 
-	for i := range snet.Hosts {
-		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
+	for i := range Net().Hosts {
+		if strings.ToUpper(Net().Hosts[i].Hostname) == hostname {
 			//first, unplug from switch (switch-end unlink). TODO try/catch this whole block.
-			freeSwitchport(snet.Hosts[i].Interfaces["eth0"].RemoteL1ID)
+			freeSwitchport(Net().Hosts[i].Interfaces["eth0"].RemoteL1ID)
 
 			//next, remove the host's uplink (host-end unlink)
 			uplinkID := ""
-			iface := snet.Hosts[i].Interfaces["eth0"]
+			iface := Net().Hosts[i].Interfaces["eth0"]
 			iface.RemoteL1ID = uplinkID
-			snet.Router.Interfaces["eth0"] = iface
+			Net().Router.Interfaces["eth0"] = iface
 
 			return
 		}
@@ -192,33 +192,33 @@ func unlinkHost(hostname string) {
 func delHost(hostname string) {
 	hostname = strings.ToUpper(hostname)
 	//search for host
-	for i := range snet.Hosts {
-		if strings.ToUpper(snet.Hosts[i].Hostname) == hostname {
+	for i := range Net().Hosts {
+		if strings.ToUpper(Net().Hosts[i].Hostname) == hostname {
 			//unlink, Vswitch
-			for j := range snet.Router.VSwitch.PortLinksRemote {
-				if snet.Router.VSwitch.PortLinksLocal[j] == snet.Hosts[i].Interfaces["eth0"].RemoteL1ID {
-					snet.Router.VSwitch.PortLinksRemote[j] = ""
+			for j := range Net().Router.VSwitch.PortLinksRemote {
+				if Net().Router.VSwitch.PortLinksLocal[j] == Net().Hosts[i].Interfaces["eth0"].RemoteL1ID {
+					Net().Router.VSwitch.PortLinksRemote[j] = ""
 
-					snet.Hosts = removeHostFromSlice(snet.Hosts, i)
+					Net().Hosts = removeHostFromSlice(Net().Hosts, i)
 					fmt.Printf("\nHost deleted\n")
 					return
 				}
 			}
 
 			//unlink, other switches
-			for sw := range snet.Switches {
-				for p := range snet.Switches[sw].PortLinksRemote {
-					if snet.Switches[sw].PortLinksLocal[p] == snet.Hosts[i].Interfaces["eth0"].RemoteL1ID {
-						snet.Switches[sw].PortLinksRemote[p] = ""
+			for sw := range Net().Switches {
+				for p := range Net().Switches[sw].PortLinksRemote {
+					if Net().Switches[sw].PortLinksLocal[p] == Net().Hosts[i].Interfaces["eth0"].RemoteL1ID {
+						Net().Switches[sw].PortLinksRemote[p] = ""
 
-						snet.Hosts = removeHostFromSlice(snet.Hosts, i)
+						Net().Hosts = removeHostFromSlice(Net().Hosts, i)
 						fmt.Printf("\nHost deleted\n")
 						return
 					}
 				}
 			}
 
-			snet.Hosts = removeHostFromSlice(snet.Hosts, i)
+			Net().Hosts = removeHostFromSlice(Net().Hosts, i)
 			fmt.Printf("\nHost deleted\n")
 			return
 		}
@@ -229,13 +229,13 @@ func delHost(hostname string) {
 func ipclear(id string) {
 	index := getHostIndexFromID(id)
 
-	iface := snet.Hosts[index].Interfaces["eth0"]
+	iface := Net().Hosts[index].Interfaces["eth0"]
 
 	iface.IPConfig.IPAddress = nil
 	iface.IPConfig.SubnetMask = ""
 	iface.IPConfig.DefaultGateway = nil
 
-	snet.Hosts[index].Interfaces["eth0"] = iface
+	Net().Hosts[index].Interfaces["eth0"] = iface
 
 	fmt.Println("Network configuration cleared")
 }
