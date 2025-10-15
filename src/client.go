@@ -390,7 +390,7 @@ func main() {
 
 	for h := range Net().Hosts {
 		for range Net().Hosts[h].Interfaces {
-			<-listenSync
+			<-EngineInstance().ListenSync
 		}
 	}
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())

@@ -84,7 +84,7 @@ func generateRouterChannels() {
 }
 
 func listenHostChannel(host Host, iface string) {
-	listenSync <- host.ID //synchronizing with client.go
+	EngineInstance().ListenSync <- host.ID //synchronizing with client.go
 
 	for {
 		rawFrame := <-EngineInstance().Channels[host.Interfaces[iface].L1ID]

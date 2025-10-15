@@ -29,8 +29,6 @@ type Network struct {
 	ProgramVer string   `json:"program_ver"`
 }
 
-// var snet Network //selected network, essentially the loaded save file
-var listenSync = make(chan string)
 var scanner = bufio.NewScanner(os.Stdin)
 
 // Helper to assign whole network atomically

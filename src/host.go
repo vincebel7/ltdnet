@@ -111,9 +111,9 @@ func addHost(hostHostname string) {
 
 	generateHostChannels(getHostIndexFromID(h.ID))
 	go listenHostChannel(h, "lo")
-	<-listenSync
+	<-EngineInstance().ListenSync
 	go listenHostChannel(h, "eth0")
-	<-listenSync
+	<-EngineInstance().ListenSync
 }
 
 func linkHostTo(localDevice string, remoteDevice string) {
