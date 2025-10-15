@@ -7,7 +7,6 @@ Purpose: 	Network-level functions
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,21 +28,20 @@ type Network struct {
 	ProgramVer string   `json:"program_ver"`
 }
 
-var scanner = bufio.NewScanner(os.Stdin)
-
 // Helper to assign whole network atomically
 func setNetwork(n Network) {
 	*Net() = n
 }
 
 func newNetworkPrompt() {
+	inScanner := EngineInstance().Scanner
 	fmt.Println("Creating a new network")
 
 	var netname = ""
 	for {
 		fmt.Print("Your new network's name: ")
-		scanner.Scan()
-		netname = scanner.Text()
+		inScanner.Scan()
+		netname = inScanner.Text()
 
 		// Check if file / directory exists
 		homeDir, err := os.UserHomeDir()
@@ -75,8 +73,8 @@ func newNetworkPrompt() {
 		fmt.Print("\nNetwork size (/24, /16, or /8)")
 		fmt.Print("\nChoose /24 if you are unsure.")
 		fmt.Print("\nNetwork size: /")
-		scanner.Scan()
-		networkPrefix = scanner.Text()
+		inScanner.Scan()
+		networkPrefix = inScanner.Text()
 		networkPrefix = strings.ToUpper(networkPrefix)
 
 		if networkPrefix == "24" ||
@@ -132,6 +130,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 }
 
 func selectNetwork() {
+	inScanner := EngineInstance().Scanner
 	fmt.Println("\nPlease select a saved network")
 
 	//display files
@@ -176,15 +175,15 @@ func selectNetwork() {
 	}
 
 	fmt.Print("\nLoad: ")
-	scanner.Scan()
-	network_selection := scanner.Text()
+	inScanner.Scan()
+	network_selection := inScanner.Text()
 	int_select, _ := strconv.Atoi(network_selection)
 
 	for (network_selection == "") || (int_select >= i) || (int_select < 1) {
 		fmt.Println("Not a valid option.")
 		fmt.Print("\nLoad: ")
-		scanner.Scan()
-		network_selection = scanner.Text()
+		inScanner.Scan()
+		network_selection = inScanner.Text()
 		int_select, _ = strconv.Atoi(network_selection)
 	}
 	netname := option_map[int_select]
@@ -233,8 +232,9 @@ func loadNetwork(netname string, saveType string) {
 	if net.ProgramVer != ProgramVersion {
 		fmt.Print("The selected save file was created in an older version. Attempt migrating? [y/N]: ")
 
-		scanner.Scan()
-		migrateSelection := strings.ToUpper(scanner.Text())
+		inScanner := EngineInstance().Scanner
+		inScanner.Scan()
+		migrateSelection := strings.ToUpper(inScanner.Text())
 
 		switch migrateSelection {
 		case "Y", "YES":

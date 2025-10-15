@@ -10,8 +10,8 @@ type Engine struct {
 	Net        *Network
 	Channels   map[string]chan json.RawMessage  // Physical links
 	Sockets    map[string]map[string]chan Frame // For internal device communication
-	ActionSync map[string]chan int
-	ListenSync chan string
+	ActionSync map[string]chan int              // Blocks CLI prompt until action completes
+	ListenSync chan string                      // Synchronizes listener goroutines with main CLI (client.go)
 	Scanner    *bufio.Scanner
 	ProgramVer string
 }

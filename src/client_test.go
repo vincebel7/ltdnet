@@ -58,19 +58,19 @@ func TestNetworkSetup(t *testing.T) {
 
 	// Test 4: DHCP
 	go dhcp_discover(Net().Hosts[0])
-	<-actionsync[Net().Hosts[0].ID]
+	<-EngineInstance().ActionSync[Net().Hosts[0].ID]
 	if Net().Hosts[0].GetIP("eth0") != "192.168.0.2" {
 		t.Errorf("DHCP failed for host")
 	}
 
 	go dhcp_discover(Net().Hosts[1])
-	<-actionsync[Net().Hosts[1].ID]
+	<-EngineInstance().ActionSync[Net().Hosts[1].ID]
 	if Net().Hosts[1].GetIP("eth0") != "192.168.0.3" {
 		t.Errorf("DHCP failed for host")
 	}
 
 	go dhcp_discover(Net().Hosts[2])
-	<-actionsync[Net().Hosts[2].ID]
+	<-EngineInstance().ActionSync[Net().Hosts[2].ID]
 	if Net().Hosts[2].GetIP("eth0") != "192.168.0.4" {
 		t.Errorf("DHCP failed for host")
 	}
@@ -80,13 +80,13 @@ func TestNetworkSetup(t *testing.T) {
 
 	// Test 5: Pinging
 	go ping(Net().Hosts[0].ID, "192.168.0.4", 1)
-	lossCount := <-actionsync[Net().Hosts[0].ID]
+	lossCount := <-EngineInstance().ActionSync[Net().Hosts[0].ID]
 	if lossCount != 0 {
 		t.Errorf("Ping from h1 to h3 failed")
 	}
 
 	go ping(Net().Hosts[0].ID, "192.168.0.2", 1)
-	lossCount = <-actionsync[Net().Hosts[0].ID]
+	lossCount = <-EngineInstance().ActionSync[Net().Hosts[0].ID]
 	if lossCount != 0 {
 		t.Errorf("Ping from h1 to h1 failed")
 	}

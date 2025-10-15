@@ -52,7 +52,7 @@ func ping(srcID string, dst string, count int) {
 
 		if dstIP == "" {
 			debug(1, "ping", srcID, "[Error] Hostname could not be resolved")
-			actionsync[srcID] <- 1
+			EngineInstance().ActionSync[srcID] <- 1
 			return
 		}
 	}
@@ -149,7 +149,7 @@ func ping(srcID string, dst string, count int) {
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
 	fmt.Printf("\tSource address: %s\n\n", srcIP)
 
-	actionsync[srcID] <- lossCount
+	EngineInstance().ActionSync[srcID] <- lossCount
 }
 
 func pong(srcID string, frame Frame) {
@@ -400,7 +400,7 @@ func dhcp_discover(host Host) {
 			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address")
 		}
 	}
-	actionsync[srcID] <- 1
+	EngineInstance().ActionSync[srcID] <- 1
 }
 
 func dhcp_offer(dhcpDiscoverFrame Frame) {
@@ -680,8 +680,9 @@ func ipset(hostname string, ipaddr string, subnetMask string) {
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
 	fmt.Print("\nIs this correct? [Y/n]: ")
-	scanner.Scan()
-	affirmation := scanner.Text()
+	inScanner := EngineInstance().Scanner
+	inScanner.Scan()
+	affirmation := inScanner.Text()
 
 	if strings.ToUpper(affirmation) == "Y" {
 		// error checking
@@ -725,7 +726,7 @@ func arpSynchronized(id string, targetIP string) {
 		achievementTester(ARP_HOT)
 	}
 
-	actionsync[id] <- 1
+	EngineInstance().ActionSync[id] <- 1
 }
 
 // A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading ARP table

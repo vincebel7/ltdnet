@@ -64,7 +64,7 @@ func RouterConn(device string, id string) {
 					} else {
 						go ping(Net().Router.ID, commandSplit[1], 4)
 					}
-					<-actionsync[id]
+					<-EngineInstance().ActionSync[id]
 				} else {
 					fmt.Println("Usage: ping <dst_ip> [seconds]")
 				}
@@ -161,7 +161,7 @@ func RouterConn(device string, id string) {
 				case "request":
 					if len(commandSplit) > 2 {
 						go arpSynchronized(id, commandSplit[2])
-						<-actionsync[id]
+						<-EngineInstance().ActionSync[id]
 					} else {
 						fmt.Println("Usage: arp request <target_ip>")
 					}
@@ -187,7 +187,7 @@ func RouterConn(device string, id string) {
 		case "nslookup":
 			if len(commandSplit) > 1 {
 				go printResolveHostname(Net().Router.ID, commandSplit[1], Net().Router.DNSTable)
-				<-actionsync[id]
+				<-EngineInstance().ActionSync[id]
 				save()
 
 			} else {

@@ -75,7 +75,7 @@ func addSwitch(switchHostname string) {
 	for j := 0; j < getActivePorts(s); j++ {
 		EngineInstance().Channels[s.PortLinksLocal[j]] = make(chan json.RawMessage)
 		EngineInstance().Sockets[s.PortLinksLocal[j]] = make(map[string]chan Frame)
-		actionsync[s.PortLinksLocal[j]] = make(chan int)
+		EngineInstance().ActionSync[s.PortLinksLocal[j]] = make(chan int)
 
 		go listenSwitchportChannel(s.ID, s.PortLinksLocal[j])
 	}

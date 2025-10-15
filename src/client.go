@@ -15,10 +15,8 @@ import (
 	"github.com/chzyer/readline"
 )
 
-var currentVersion = "v0.5.2"
-
 func printVersion() {
-	fmt.Println("ltdnet " + currentVersion)
+	fmt.Println("ltdnet " + Net().ProgramVer)
 }
 
 func intro() {
@@ -40,8 +38,9 @@ func startMenu() bool {
 	for !selection {
 		fmt.Print("\nAction: ")
 
-		scanner.Scan()
-		option := scanner.Text()
+		inScanner := EngineInstance().Scanner
+		inScanner.Scan()
+		option := inScanner.Text()
 
 		switch strings.ToUpper(option) {
 		case "1", "C", "NEW", "CREATE":
@@ -79,8 +78,9 @@ func preferencesMenu() {
 	for !selection {
 		fmt.Print("\nAction: ")
 
-		scanner.Scan()
-		option := scanner.Text()
+		inScanner := EngineInstance().Scanner
+		inScanner.Scan()
+		option := inScanner.Text()
 
 		switch strings.ToUpper(option) {
 		case "1":
@@ -105,6 +105,8 @@ func preferencesMenu() {
 }
 
 func actionsMenu() {
+	inScanner := EngineInstance().Scanner
+
 	// Set up readline for actionsMenu
 	rl, err := readline.New("> ")
 	if err != nil {
@@ -162,8 +164,8 @@ func actionsMenu() {
 			switch arg1 {
 			case "router":
 				fmt.Printf("\nAre you sure you want do delete router %s? [y/N]: ", arg2)
-				scanner.Scan()
-				confirmation := scanner.Text()
+				inScanner.Scan()
+				confirmation := inScanner.Text()
 				confirmation = strings.ToUpper(confirmation)
 				if confirmation == "Y" {
 					delRouter() // Only one router per network currently
@@ -173,8 +175,8 @@ func actionsMenu() {
 			case "switch":
 				if arg2 != "" {
 					fmt.Printf("\nAre you sure you want do delete switch %s? [y/N]: ", arg2)
-					scanner.Scan()
-					confirmation := scanner.Text()
+					inScanner.Scan()
+					confirmation := inScanner.Text()
 					confirmation = strings.ToUpper(confirmation)
 					if confirmation == "Y" {
 						delSwitch(arg2)
@@ -185,8 +187,8 @@ func actionsMenu() {
 			case "host":
 				if arg2 != "" {
 					fmt.Printf("\nAre you sure you want do delete host %s? [y/N]: ", arg2)
-					scanner.Scan()
-					confirmation := scanner.Text()
+					inScanner.Scan()
+					confirmation := inScanner.Text()
 					confirmation = strings.ToUpper(confirmation)
 					if confirmation == "Y" {
 						delHost(arg2)
@@ -358,11 +360,11 @@ func launchManual() {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+	fileScanner := bufio.NewScanner(file)
+	for fileScanner.Scan() {
+		fmt.Println(fileScanner.Text())
 	}
-	if err := scanner.Err(); err != nil {
+	if err := fileScanner.Err(); err != nil {
 		fmt.Println("Error reading file:", err)
 		return
 	}

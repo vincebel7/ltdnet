@@ -78,8 +78,9 @@ func (dnsServer *DNSServer) addDNSRecordToServer(recordType uint16, hostname str
 	case 'A':
 		if dnsServer.aRecordLookup(hostname).Name != "" {
 			fmt.Print("Record already exists. are you sure you want to overwrite? [y/n]: ")
-			scanner.Scan()
-			confirmation := scanner.Text()
+			inScanner := EngineInstance().Scanner
+			inScanner.Scan()
+			confirmation := inScanner.Text()
 			confirmation = strings.ToUpper(confirmation)
 
 			if confirmation != "Y" {

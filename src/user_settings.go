@@ -130,8 +130,9 @@ func changeSettingsName() {
 	}
 
 	fmt.Print("\nPlease enter your name: ")
-	scanner.Scan()
-	username := scanner.Text()
+	inScanner := EngineInstance().Scanner
+	inScanner.Scan()
+	username := inScanner.Text()
 	user_settings.Author = username
 	saveUserSettings()
 }
@@ -196,8 +197,9 @@ func wipeSaves() {
 
 func resetAllPrompt() {
 	fmt.Printf("\nAre you sure you want do delete all settings, Achievements, and saved networks? [y/n]: ")
-	scanner.Scan()
-	confirmation := scanner.Text()
+	inScanner := EngineInstance().Scanner
+	inScanner.Scan()
+	confirmation := inScanner.Text()
 	confirmation = strings.ToUpper(confirmation)
 
 	fmt.Printf("\n")

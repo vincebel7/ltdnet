@@ -260,5 +260,5 @@ func printResolveHostname(srcID string, hostname string, dnsTable map[string]DNS
 	fmt.Println("Name: " + hostname)
 	fmt.Println("Address: " + dnsRecord.RData + "\n")
 
-	actionsync[srcID] <- 1
+	EngineInstance().ActionSync[srcID] <- 1
 }

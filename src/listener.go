@@ -13,8 +13,6 @@ import (
 	"github.com/vincebel7/ltdnet/iphelper"
 )
 
-var actionsync = map[string]chan int{} // Blocks CLI prompt until action completes
-
 func Listener() {
 	// Generate channels
 	generateRouterChannels()
@@ -57,14 +55,14 @@ func generateHostChannels(i int) {
 		EngineInstance().Channels[Net().Hosts[i].Interfaces[iface].L1ID] = make(chan json.RawMessage)
 	}
 	EngineInstance().Sockets[Net().Hosts[i].ID] = make(map[string]chan Frame)
-	actionsync[Net().Hosts[i].ID] = make(chan int)
+	EngineInstance().ActionSync[Net().Hosts[i].ID] = make(chan int)
 }
 
 func generateSwitchChannels(i int) {
 	for j := 0; j < getActivePorts(Net().Switches[i]); j++ {
 		EngineInstance().Channels[Net().Switches[i].PortLinksLocal[j]] = make(chan json.RawMessage)
 		EngineInstance().Sockets[Net().Switches[i].PortLinksLocal[j]] = make(map[string]chan Frame)
-		actionsync[Net().Switches[i].PortLinksLocal[j]] = make(chan int)
+		EngineInstance().ActionSync[Net().Switches[i].PortLinksLocal[j]] = make(chan int)
 	}
 }
 
@@ -78,7 +76,7 @@ func generateRouterChannels() {
 		for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
 			EngineInstance().Channels[Net().Router.VSwitch.PortLinksLocal[i]] = make(chan json.RawMessage)
 			EngineInstance().Sockets[Net().Router.VSwitch.PortLinksLocal[i]] = make(map[string]chan Frame)
-			actionsync[Net().Router.ID] = make(chan int)
+			EngineInstance().ActionSync[Net().Router.ID] = make(chan int)
 		}
 	}
 }
