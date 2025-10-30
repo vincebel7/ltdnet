@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/vincebel7/ltdnet/src/engine"
 	"github.com/vincebel7/ltdnet/src/model"
 )
 
@@ -32,35 +33,28 @@ func getDebug() int {
 }
 
 func debug(level int, generatingFunc string, generatingID string, message string) {
-	if Net().DebugLevel >= level {
-		hostname := ""
-		if generatingID == "Listener" {
-			hostname = "Listener"
-		} else {
-			deviceType := getDeviceType(generatingID)
-			if deviceType == "host" {
-				if getHostIndexFromID(generatingID) != -1 {
-					hostname = Net().Hosts[getHostIndexFromID(generatingID)].Hostname
-				} else {
-					hostname = generatingID
-				}
-			} else if deviceType == "switch" {
-				if getSwitchIndexFromID(generatingID) != -1 {
-					hostname = Net().Switches[getSwitchIndexFromID(generatingID)].Hostname
-				} else {
-					hostname = generatingID
-				}
-			} else if deviceType == "vswitch" {
-				hostname = Net().Router.VSwitch.Hostname
-			} else if deviceType == "router" {
-				hostname = Net().Router.Hostname
-			} else {
-				hostname = generatingID
-			}
-		}
-		//fmt.Printf("\n[%s] (%s), %s\n", hostname, generatingFunc, message)
-		fmt.Printf("\n[%s] %s\n", hostname, message)
 
+	hostname := ""
+	if generatingID == "Listener" {
+		hostname = "Listener"
+	} else {
+		hostname = getHostnameFromID(generatingID)
+	}
+	//fmt.Printf("\n[%s] (%s), %s\n", hostname, generatingFunc, message)
+	//fmt.Printf("\n[%s] %s\n", hostname, message)
+
+	logger := engine.Instance().Logger
+	switch level {
+	case 1:
+		logger.Error(generatingFunc, "[%s] %s", hostname, message)
+	case 2:
+		logger.Info(generatingFunc, "[%s] %s", hostname, message)
+	case 3:
+		logger.Debug(generatingFunc, "[%s] %s", hostname, message)
+	case 4:
+		logger.Trace(generatingFunc, "[%s] %s", hostname, message)
+	default:
+		// Do nothing
 	}
 }
 

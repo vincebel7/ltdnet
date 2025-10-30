@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/vincebel7/ltdnet/src/logging"
 	"github.com/vincebel7/ltdnet/src/model"
 	"github.com/vincebel7/ltdnet/src/version"
 )
@@ -19,6 +20,7 @@ type Engine struct {
 	ProgramVer      string
 	AchievementsMap map[int]model.Achievement // catalog
 	Settings        *model.Settings
+	Logger          *logging.Logger
 }
 
 func NewEngine() *Engine {
@@ -32,6 +34,7 @@ func NewEngine() *Engine {
 		ProgramVer:      version.ProgramVersion,
 		AchievementsMap: make(map[int]model.Achievement),
 		Settings:        &model.Settings{Achievements: make(map[int]model.Achievement), AchievementsOn: true},
+		Logger:          logging.New(logging.INFO),
 	}
 }
 

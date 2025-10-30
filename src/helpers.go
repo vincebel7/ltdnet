@@ -72,7 +72,6 @@ func getDeviceType(id string) string {
 			return "switch"
 		}
 	}
-
 	return "host"
 }
 
@@ -105,52 +104,87 @@ func getSwitchIndexFromID(id string) int {
 }
 
 func getSwitchportIDFromLink(link string) int {
-	switchID := getSwitchIDFromLink(link)
-
-	s := Net().Router.VSwitch
-	if switchID != Net().Router.VSwitch.ID {
-		s = Net().Switches[getSwitchIndexFromID(switchID)]
+	r := Net().Router
+	if r != nil && isSwitchportID(r.VSwitch, link) {
+		for i := range r.VSwitch.PortLinksLocal {
+			if r.VSwitch.PortLinksLocal[i] == link {
+				return i
+			}
+		}
+		return -1
 	}
-
-	for i := range s.PortLinksLocal {
-		if s.PortLinksLocal[i] == link {
+	// fall back to other switches
+	switchID := getSwitchIDFromLink(link)
+	if switchID == "" {
+		return -1
+	}
+	swIdx := getSwitchIndexFromID(switchID)
+	if swIdx < 0 {
+		return -1
+	}
+	for i := range Net().Switches[swIdx].PortLinksLocal {
+		if Net().Switches[swIdx].PortLinksLocal[i] == link {
 			return i
 		}
 	}
-
 	return -1
 }
 
 func getSwitchIDFromLink(link string) string {
-	s := Net().Router.VSwitch
-
-	if isSwitchportID(Net().Router.VSwitch, link) {
-		s = Net().Router.VSwitch
-	} else {
-		for i := range Net().Switches {
-			if isSwitchportID(Net().Switches[i], link) {
-				return Net().Switches[i].ID
-			}
+	r := Net().Router
+	if r != nil && isSwitchportID(r.VSwitch, link) {
+		return r.VSwitch.ID
+	}
+	for i := range Net().Switches {
+		if isSwitchportID(Net().Switches[i], link) {
+			return Net().Switches[i].ID
 		}
 	}
-
-	return s.ID
+	if r != nil {
+		return r.VSwitch.ID
+	}
+	return ""
 }
 
 func getIDfromMAC(mac string) string {
-	//Router
-	if mac == Net().Router.Interfaces["eth0"].MACAddr {
-		return Net().Router.ID
+	r := Net().Router
+	if r != nil {
+		if eth0, ok := r.Interfaces["eth0"]; ok && eth0.MACAddr == mac {
+			return r.ID
+		}
 	}
-
-	//Hosts
 	for h := range Net().Hosts {
-		if Net().Hosts[h].Interfaces["eth0"].MACAddr == mac {
+		if iface, ok := Net().Hosts[h].Interfaces["eth0"]; ok && iface.MACAddr == mac {
 			return Net().Hosts[h].ID
 		}
 	}
-
 	return ""
+}
+
+func getHostnameFromID(id string) string {
+	hostname := ""
+	deviceType := getDeviceType(id)
+	if deviceType == "host" {
+		if getHostIndexFromID(id) != -1 {
+			hostname = Net().Hosts[getHostIndexFromID(id)].Hostname
+		} else {
+			hostname = id
+		}
+	} else if deviceType == "switch" {
+		if getSwitchIndexFromID(id) != -1 {
+			hostname = Net().Switches[getSwitchIndexFromID(id)].Hostname
+		} else {
+			hostname = id
+		}
+	} else if deviceType == "vswitch" {
+		hostname = Net().Router.VSwitch.Hostname
+	} else if deviceType == "router" {
+		hostname = Net().Router.Hostname
+	} else {
+		hostname = id
+	}
+
+	return hostname
 }
 
 func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask string) {
@@ -191,7 +225,6 @@ func hostname_exists(hostname string) bool {
 			return true
 		}
 	}
-
 	return false
 }
 

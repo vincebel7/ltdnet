@@ -1,4 +1,6 @@
-![ltdnet logo](logo.png)
+<p align="left">
+  <img src="logo.png" width="200" alt="ltdnet logo">
+</p>
 
 # ltdnet
 ### by Vince Belanger
