@@ -15,26 +15,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
+	"github.com/vincebel7/ltdnet/src/version"
 )
 
-type Network struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Netsize    string   `json:"netsize"`
-	Router     Router   `json:"router"`
-	Switches   []Switch `json:"switches"`
-	Hosts      []Host   `json:"hosts"`
-	DebugLevel int      `json:"debug_level"`
-	ProgramVer string   `json:"program_ver"`
-}
-
 // Helper to assign whole network atomically
-func setNetwork(n Network) {
+func setNetwork(n model.Network) {
 	*Net() = n
 }
 
 func newNetworkPrompt() {
-	inScanner := EngineInstance().Scanner
+	inScanner := engine.Instance().Scanner
 	fmt.Println("Creating a new network")
 
 	var netname = ""
@@ -89,11 +82,11 @@ func newNetworkPrompt() {
 
 func newNetwork(netname string, networkPrefix string, saveType string) {
 	netid := idgen(8)
-	net := Network{
+	net := model.Network{
 		ID:         netid,
 		Name:       netname,
 		Netsize:    networkPrefix,
-		ProgramVer: ProgramVersion,
+		ProgramVer: version.ProgramVersion,
 		DebugLevel: 1,
 	}
 
@@ -130,7 +123,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 }
 
 func selectNetwork() {
-	inScanner := EngineInstance().Scanner
+	inScanner := engine.Instance().Scanner
 	fmt.Println("\nPlease select a saved network")
 
 	//display files
@@ -221,7 +214,7 @@ func loadNetwork(netname string, saveType string) {
 	}
 
 	//unmarshal
-	var net Network
+	var net model.Network
 	err = json.Unmarshal(b1[:n1], &net)
 	if err != nil {
 		fmt.Printf("err: %v", err)
@@ -229,17 +222,17 @@ func loadNetwork(netname string, saveType string) {
 
 	// Version check
 	migrate := false
-	if net.ProgramVer != ProgramVersion {
+	if net.ProgramVer != version.ProgramVersion {
 		fmt.Print("The selected save file was created in an older version. Attempt migrating? [y/N]: ")
 
-		inScanner := EngineInstance().Scanner
+		inScanner := engine.Instance().Scanner
 		inScanner.Scan()
 		migrateSelection := strings.ToUpper(inScanner.Text())
 
 		switch migrateSelection {
 		case "Y", "YES":
 			// "Migrate". Will make this more intelligent eventually
-			net.ProgramVer = ProgramVersion
+			net.ProgramVer = version.ProgramVersion
 			migrate = true
 		default:
 			startMenu()
@@ -283,22 +276,4 @@ func save() {
 	f.Write(marshString)
 	os.Truncate(saveFile, int64(len(marshString)))
 	fmt.Println("Network saved")
-}
-
-func (n *Network) ClearMACTables() {
-	// Host ARP tables
-	for i := range n.Hosts {
-		n.Hosts[i].ARPTable = make(map[string]ARPEntry)
-	}
-
-	// Router ARP table
-	n.Router.ARPTable = make(map[string]ARPEntry)
-
-	// Switch MAC address tables
-	for i := range n.Switches {
-		n.Switches[i].MACTable = make(map[string]MACEntry)
-	}
-
-	// VSwitch MAC address table
-	n.Router.VSwitch.MACTable = make(map[string]MACEntry)
 }

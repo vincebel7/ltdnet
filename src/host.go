@@ -10,29 +10,13 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
-	"github.com/vincebel7/ltdnet/iphelper"
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
-type Host struct {
-	ID         string               `json:"id"`
-	Model      string               `json:"model"`
-	Hostname   string               `json:"hostname"`
-	ARPTable   map[string]ARPEntry  `json:"arptable"`
-	DNSTable   map[string]DNSRecord `json:"dnstable"`
-	Interfaces map[string]Interface `json:"interfaces"`
-}
-
-type ARPEntry struct {
-	MACAddr    string    `json:"macaddr"`
-	ExpireTime time.Time `json:"expireTime"`
-	Interface  string    `json:"interface"`
-	State      string    `json:"state"`
-}
-
 // Populate fields specific to the Probox 1
-func NewProbox(h Host) Host {
+func NewProbox(h model.Host) model.Host {
 	h.Model = "ProBox 1"
 	return h
 }
@@ -46,7 +30,7 @@ func addHost(hostHostname string) {
 		return
 	}
 
-	h := Host{}
+	h := model.Host{}
 	if hostModel == "PROBOX" {
 		h = NewProbox(h)
 	} else {
@@ -56,19 +40,19 @@ func addHost(hostHostname string) {
 
 	h.ID = idgen(8)
 	h.Hostname = hostHostname
-	h.ARPTable = make(map[string]ARPEntry)
+	h.ARPTable = make(map[string]model.ARPEntry)
 
 	// Interfaces
-	h.Interfaces = make(map[string]Interface)
+	h.Interfaces = make(map[string]model.Interface)
 
-	loopbackIPConfig := IPConfig{
+	loopbackIPConfig := model.IPConfig{
 		IPAddress:      net.ParseIP("127.0.0.1"),
 		SubnetMask:     "255.0.0.0",
 		DefaultGateway: nil,
 		DNSServer:      nil,
 		ConfigType:     "static",
 	}
-	eth0IPConfig := IPConfig{
+	eth0IPConfig := model.IPConfig{
 		IPAddress:      nil,
 		SubnetMask:     "",
 		DefaultGateway: nil,
@@ -76,13 +60,13 @@ func addHost(hostHostname string) {
 		ConfigType:     "",
 	}
 
-	h.Interfaces["lo"] = Interface{
+	h.Interfaces["lo"] = model.Interface{
 		Name:     "lo",
 		L1ID:     idgen(8),
 		MACAddr:  macgen(),
 		IPConfig: loopbackIPConfig,
 	}
-	h.Interfaces["eth0"] = Interface{
+	h.Interfaces["eth0"] = model.Interface{
 		Name:     "eth0",
 		L1ID:     idgen(8),
 		MACAddr:  macgen(),
@@ -90,16 +74,16 @@ func addHost(hostHostname string) {
 	}
 
 	// DNS table
-	h.DNSTable = make(map[string]DNSRecord)
+	h.DNSTable = make(map[string]model.DNSRecord)
 
-	h.DNSTable[h.Hostname] = DNSRecord{
+	h.DNSTable[h.Hostname] = model.DNSRecord{
 		Name:  h.Hostname,
 		Type:  'A',
 		Class: 0,
 		TTL:   65535,
 		RData: "127.0.0.1",
 	}
-	h.DNSTable["localhost"] = DNSRecord{
+	h.DNSTable["localhost"] = model.DNSRecord{
 		Name:  "localhost",
 		Type:  'A',
 		Class: 0,
@@ -111,9 +95,9 @@ func addHost(hostHostname string) {
 
 	generateHostChannels(getHostIndexFromID(h.ID))
 	go listenHostChannel(h, "lo")
-	<-EngineInstance().ListenSync
+	<-engine.Instance().ListenSync
 	go listenHostChannel(h, "eth0")
-	<-EngineInstance().ListenSync
+	<-engine.Instance().ListenSync
 }
 
 func linkHostTo(localDevice string, remoteDevice string) {
@@ -240,25 +224,10 @@ func ipclear(id string) {
 	fmt.Println("Network configuration cleared")
 }
 
-func (host Host) routeToInterface(dstIP string) Interface {
-	for iface := range host.Interfaces {
-		devIP := host.GetIP(iface)
-		devMask := host.GetMask(iface)
-
-		if iphelper.IPInSameSubnet(devIP, dstIP, devMask) {
-			return host.Interfaces[iface]
-		}
-	}
-
-	// Default gateway
-	debug(4, "routeToInterface", host.Hostname, "Route not found. Sending to default gateway")
-	return host.Interfaces["eth0"]
-}
-
-func printResolveHostname(srcID string, hostname string, dnsTable map[string]DNSRecord) {
+func printResolveHostname(srcID string, hostname string, dnsTable map[string]model.DNSRecord) {
 	dnsRecord := resolveHostname(srcID, hostname, dnsTable)
 	fmt.Println("Name: " + hostname)
 	fmt.Println("Address: " + dnsRecord.RData + "\n")
 
-	EngineInstance().ActionSync[srcID] <- 1
+	engine.Instance().ActionSync[srcID] <- 1
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 func controlSwitch(hostname string) {
@@ -31,7 +32,7 @@ func controlSwitch(hostname string) {
 }
 
 func SwitchConn(id string) {
-	sw := Switch{}
+	sw := model.Switch{}
 
 	for i := range Net().Switches {
 		if Net().Switches[i].ID == id {
@@ -90,9 +91,9 @@ func SwitchConn(id string) {
 				switch commandSplit[1] {
 				case "clear":
 					if Net().Router.VSwitch.ID == id {
-						Net().Router.VSwitch.MACTable = make(map[string]MACEntry)
+						Net().Router.VSwitch.MACTable = make(map[string]model.MACEntry)
 					} else {
-						Net().Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]MACEntry)
+						Net().Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]model.MACEntry)
 					}
 					fmt.Println("MAC table cleared")
 

@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 func controlRouter(hostname string) {
@@ -24,6 +26,7 @@ func controlRouter(hostname string) {
 }
 
 func RouterConn(device string, id string) {
+	eng := engine.Instance()
 	//interface
 	fmt.Printf("\n")
 	action_selection := ""
@@ -64,7 +67,7 @@ func RouterConn(device string, id string) {
 					} else {
 						go ping(Net().Router.ID, commandSplit[1], 4)
 					}
-					<-EngineInstance().ActionSync[id]
+					<-eng.ActionSync[id]
 				} else {
 					fmt.Println("Usage: ping <dst_ip> [seconds]")
 				}
@@ -91,11 +94,14 @@ func RouterConn(device string, id string) {
 				switch commandSplit[1] {
 				case "add":
 					if len(commandSplit) > 3 {
-						Net().Router.DNSServer.addDNSRecordToServer('A', commandSplit[2], commandSplit[3])
+						if err := engine.Instance().AddDNSRecord("A", commandSplit[2], commandSplit[3]); err != nil {
+							fmt.Println("Error:", err)
+						} else {
+							save()
+						}
 					} else {
 						fmt.Println("Usage: dnsserver add <hostname> <ip_address>")
 					}
-					save()
 
 				case "remove":
 					fmt.Println("DNS record removing not implemented yet")
@@ -105,7 +111,7 @@ func RouterConn(device string, id string) {
 					printDNSServerHelp()
 				}
 			} else {
-				Net().Router.DNSServer.dnsServerMenu()
+				showDNSServer()
 			}
 
 		case "hosts":
@@ -161,13 +167,13 @@ func RouterConn(device string, id string) {
 				case "request":
 					if len(commandSplit) > 2 {
 						go arpSynchronized(id, commandSplit[2])
-						<-EngineInstance().ActionSync[id]
+						<-eng.ActionSync[id]
 					} else {
 						fmt.Println("Usage: arp request <target_ip>")
 					}
 
 				case "clear":
-					Net().Router.ARPTable = make(map[string]ARPEntry)
+					Net().Router.ARPTable = make(map[string]model.ARPEntry)
 					fmt.Println("ARP table cleared")
 
 				case "help", "?":
@@ -187,7 +193,7 @@ func RouterConn(device string, id string) {
 		case "nslookup":
 			if len(commandSplit) > 1 {
 				go printResolveHostname(Net().Router.ID, commandSplit[1], Net().Router.DNSTable)
-				<-EngineInstance().ActionSync[id]
+				<-eng.ActionSync[id]
 				save()
 
 			} else {

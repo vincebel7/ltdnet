@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 func controlHost(hostname string) {
@@ -26,8 +28,9 @@ func controlHost(hostname string) {
 }
 
 func HostConn(device string, id string) {
+	eng := engine.Instance()
 	//find host
-	host := Host{}
+	host := model.Host{}
 	hostindex := -1
 	for i := range Net().Hosts {
 		if Net().Hosts[i].ID == id {
@@ -78,7 +81,7 @@ func HostConn(device string, id string) {
 				} else {
 					go ping(host.ID, commandSplit[1], 4)
 				}
-				<-EngineInstance().ActionSync[id]
+				<-eng.ActionSync[id]
 			} else {
 				fmt.Println("Usage: ping <dst_ip> [count]")
 			}
@@ -88,7 +91,7 @@ func HostConn(device string, id string) {
 				fmt.Println("Device is not connected. Please set an uplink")
 			} else {
 				go dhcp_discover(host)
-				<-EngineInstance().ActionSync[id]
+				<-eng.ActionSync[id]
 				save()
 			}
 
@@ -146,13 +149,13 @@ func HostConn(device string, id string) {
 				case "request":
 					if len(commandSplit) > 2 {
 						go arpSynchronized(id, commandSplit[2])
-						<-EngineInstance().ActionSync[id]
+						<-eng.ActionSync[id]
 					} else {
 						fmt.Println("Usage: arp request <target_ip>")
 					}
 
 				case "clear":
-					Net().Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]ARPEntry)
+					Net().Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]model.ARPEntry)
 					fmt.Println("ARP table cleared")
 
 				case "help", "?":
@@ -172,7 +175,7 @@ func HostConn(device string, id string) {
 		case "nslookup":
 			if len(commandSplit) > 1 {
 				go printResolveHostname(host.ID, commandSplit[1], host.DNSTable)
-				<-EngineInstance().ActionSync[id]
+				<-eng.ActionSync[id]
 				save()
 
 			} else {

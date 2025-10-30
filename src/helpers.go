@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 func idgen(n int) string {
@@ -56,13 +58,15 @@ func ephemeralPortGen() int {
 }
 
 func getDeviceType(id string) string {
-	if Net().Router.ID == id {
-		return "router"
+	r := Net().Router
+	if r != nil {
+		if r.ID == id {
+			return "router"
+		}
+		if r.VSwitch.ID == id {
+			return "vswitch"
+		}
 	}
-	if Net().Router.VSwitch.ID == id {
-		return "vswitch"
-	}
-
 	for s := range Net().Switches {
 		if Net().Switches[s].ID == id {
 			return "switch"
@@ -167,23 +171,23 @@ func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask 
 }
 
 func hostname_exists(hostname string) bool {
-	hostname = strings.ToUpper(hostname)
-
-	if strings.ToUpper(Net().Router.Hostname) == hostname {
-		return true
-	}
-	if strings.ToUpper(Net().Router.VSwitch.Hostname) == hostname {
-		return true
-	}
-
-	for s := range Net().Switches {
-		if strings.ToUpper(Net().Switches[s].Hostname) == hostname {
+	target := strings.ToUpper(hostname)
+	r := Net().Router
+	if r != nil {
+		if strings.ToUpper(r.Hostname) == target {
+			return true
+		}
+		if strings.ToUpper(r.VSwitch.Hostname) == target {
 			return true
 		}
 	}
-
+	for s := range Net().Switches {
+		if strings.ToUpper(Net().Switches[s].Hostname) == target {
+			return true
+		}
+	}
 	for h := range Net().Hosts {
-		if strings.ToUpper(Net().Hosts[h].Hostname) == hostname {
+		if strings.ToUpper(Net().Hosts[h].Hostname) == target {
 			return true
 		}
 	}
@@ -204,12 +208,12 @@ func prefixLengthToSubnetMask(prefixLength int) string {
 	return subnetMask
 }
 
-func removeHostFromSlice(s []Host, i int) []Host {
+func removeHostFromSlice(s []model.Host, i int) []model.Host {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }
 
-func removeSwitchFromSlice(s []Switch, i int) []Switch {
+func removeSwitchFromSlice(s []model.Switch, i int) []model.Switch {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }

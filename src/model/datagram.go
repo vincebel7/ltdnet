@@ -4,11 +4,10 @@ Author: 	https://github.com/vincebel7
 Purpose:	Datagram structs, and associated functions
 */
 
-package main
+package model
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 )
 
@@ -122,12 +121,13 @@ type ArpMessage struct {
 	TargetIP  string `json:"TPA"`
 }
 
-func ConstructDHCPMessage(
-	op byte, htype byte, hlen byte, xid uint32,
+/** Constructors **/
+func NewDHCPMessage(
+	op, htype, hlen byte, xid uint32,
 	ciaddr, yiaddr, siaddr, giaddr net.IP,
 	chaddr string, options map[byte][]byte,
 ) json.RawMessage {
-	dhcpMessage := DHCPMessage{
+	msgBytes, _ := json.Marshal(DHCPMessage{
 		Op:      op,
 		HType:   htype,
 		HLen:    hlen,
@@ -138,172 +138,124 @@ func ConstructDHCPMessage(
 		GIAddr:  giaddr,
 		CHAddr:  chaddr,
 		Options: options,
-	}
-
-	messageBytes, _ := json.Marshal(dhcpMessage)
-	return messageBytes
+	})
+	return msgBytes
 }
 
-func constructUDPSegment(srcPort int, dstPort int, data json.RawMessage) json.RawMessage {
-	segment := UDPSegment{
+func NewUDPSegment(srcPort, dstPort int, data json.RawMessage) json.RawMessage {
+	segBytes, _ := json.Marshal(UDPSegment{
 		SrcPort: srcPort,
 		DstPort: dstPort,
 		Data:    data,
-	}
-
-	segmentBytes, _ := json.Marshal(segment)
-	return segmentBytes
+	})
+	return segBytes
 }
 
-func constructIPv4Packet(srcIP string, dstIP string, protocolName string, data json.RawMessage) json.RawMessage {
-	protocolNumber := -1
+func NewIPv4Packet(srcIP, dstIP, protocolName string, data json.RawMessage) json.RawMessage {
+	proto := -1
 	switch protocolName {
 	case "UDP":
-		protocolNumber = 17
+		proto = 17
 	case "ICMP":
-		protocolNumber = 1
+		proto = 1
 	}
-
-	header := PacketHeader{
-		Protocol: protocolNumber,
+	hdrBytes, _ := json.Marshal(PacketHeader{
+		Protocol: proto,
 		SrcIP:    srcIP,
 		DstIP:    dstIP,
-	}
-
-	packetHeaderBytes, _ := json.Marshal(header)
-
-	packet := IPv4Packet{
-		Header: json.RawMessage(packetHeaderBytes),
+	})
+	pktBytes, _ := json.Marshal(IPv4Packet{
+		Header: hdrBytes,
 		Data:   data,
-	}
-
-	packetBytes, _ := json.Marshal(packet)
-	return json.RawMessage(packetBytes)
+	})
+	return pktBytes
 }
 
-func constructFrame(srcMAC string, dstMAC string, protocolName string, data json.RawMessage) json.RawMessage {
-	etherType := "0x0"
+func NewFrame(srcMAC, dstMAC, protocolName string, data json.RawMessage) json.RawMessage {
+	ether := "0x0"
 	switch protocolName {
 	case "IPv4":
-		etherType = "0x0800"
+		ether = "0x0800"
 	case "ARP":
-		etherType = "0x0806"
+		ether = "0x0806"
 	}
-
-	frame := Frame{
+	frameBytes, _ := json.Marshal(Frame{
 		SrcMAC:    srcMAC,
 		DstMAC:    dstMAC,
-		EtherType: etherType,
-		Data:      data,
-	}
-
-	frameBytes, _ := json.Marshal(frame)
+		EtherType: ether,
+		Data:      data})
 	return frameBytes
 }
 
-// Turns DHCPMessage into an accessible object
-func ReadDHCPMessage(rawDHCPMessage json.RawMessage) DHCPMessage {
-	var dhcpMessage DHCPMessage
-	err := json.Unmarshal(rawDHCPMessage, &dhcpMessage)
-	if err != nil {
-		fmt.Println("[DHCP] Error unmarshalling JSON:", err)
-		return DHCPMessage{}
+/** Decoders **/
+func ParseDHCPMessage(raw json.RawMessage) (DHCPMessage, error) {
+	var v DHCPMessage
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return DHCPMessage{}, err
 	}
-
-	return dhcpMessage
+	return v, nil
 }
 
-// Turns DNSMessage into an accessible object
-func ReadDNSMessage(rawDNSMessage json.RawMessage) DNSMessage {
-	var dnsMessage DNSMessage
-	err := json.Unmarshal(rawDNSMessage, &dnsMessage)
-	if err != nil {
-		fmt.Println("[DNS] Error unmarshalling JSON:", err)
-		return DNSMessage{}
+func ParseDNSMessage(raw json.RawMessage) (DNSMessage, error) {
+	var v DNSMessage
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return DNSMessage{}, err
 	}
-
-	return dnsMessage
+	return v, nil
 }
 
-// Turns segment into an accessible object
-func readUDPSegment(rawUDPSegment json.RawMessage) UDPSegment {
-	var segment UDPSegment
-	err := json.Unmarshal(rawUDPSegment, &segment)
-	if err != nil {
-		fmt.Println("[UDP] Error unmarshalling JSON:", err)
-		return UDPSegment{}
+func ParseUDPSegment(raw json.RawMessage) (UDPSegment, error) {
+	var v UDPSegment
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return UDPSegment{}, err
 	}
-
-	return segment
+	return v, nil
 }
 
-func readTCPSegment(rawTCPSegment json.RawMessage) TCPSegment {
-	var segment TCPSegment
-	err := json.Unmarshal(rawTCPSegment, &segment)
-	if err != nil {
-		fmt.Println("[TCP] Error unmarshalling JSON:", err)
-		return TCPSegment{}
+func ParseTCPSegment(raw json.RawMessage) (TCPSegment, error) {
+	var v TCPSegment
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return TCPSegment{}, err
 	}
-
-	return segment
+	return v, nil
 }
 
-// Turns packet into an accessible object
-func readIPv4Packet(rawPacket json.RawMessage) IPv4Packet {
-	var packet IPv4Packet
-	err := json.Unmarshal(rawPacket, &packet)
-	if err != nil {
-		fmt.Println("[IPv4 Packet] Error unmarshalling JSON:", err)
-		return IPv4Packet{}
+func ParseIPv4Packet(raw json.RawMessage) (IPv4Packet, error) {
+	var v IPv4Packet
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return IPv4Packet{}, err
 	}
-
-	return packet
+	return v, nil
 }
 
-// Turns IPv4 packet into an accessible object
-func readIPv4PacketHeader(rawPacketHeader json.RawMessage) PacketHeader {
-	var packetHeader PacketHeader
-	err := json.Unmarshal(rawPacketHeader, &packetHeader)
-	if err != nil {
-		fmt.Println("[IPv4 Header] Error unmarshalling JSON:", err)
-		return PacketHeader{}
+func ParseIPv4PacketHeader(raw json.RawMessage) (PacketHeader, error) {
+	var v PacketHeader
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return PacketHeader{}, err
 	}
-
-	return packetHeader
+	return v, nil
 }
 
-// Turns ICMP echo packet into an accessible object
-func readICMPEchoPacket(rawPacket json.RawMessage) ICMPEchoPacket {
-	var packet ICMPEchoPacket
-	err := json.Unmarshal(rawPacket, &packet)
-	if err != nil {
-		fmt.Println("[ICMP Packet] Error unmarshalling JSON:", err)
-		return ICMPEchoPacket{}
+func ParseICMPEchoPacket(raw json.RawMessage) (ICMPEchoPacket, error) {
+	var v ICMPEchoPacket
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return ICMPEchoPacket{}, err
 	}
-
-	return packet
+	return v, nil
 }
 
-// Turns frame into an accessible object
-func readFrame(rawFrame json.RawMessage) Frame {
-	var frame Frame
-	err := json.Unmarshal(rawFrame, &frame)
-	if err != nil {
-		fmt.Println("[Frame] Error unmarshalling JSON:", err)
-		return Frame{}
+func ParseFrame(raw json.RawMessage) (Frame, error) {
+	var v Frame
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return Frame{}, err
 	}
-
-	return frame
+	return v, nil
 }
 
-// Turns ArpMessage into an accessible object
-func readArpMessage(rawMessage json.RawMessage) ArpMessage {
-	var arpMessage ArpMessage
-	err := json.Unmarshal(rawMessage, &arpMessage)
-	if err != nil {
-		fmt.Println("[ARP] Error unmarshalling JSON:", err)
-		return ArpMessage{}
+func ParseARPMessage(raw json.RawMessage) (ArpMessage, error) {
+	var v ArpMessage
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return ArpMessage{}, err
 	}
-
-	return arpMessage
+	return v, nil
 }

@@ -13,17 +13,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
+	"github.com/vincebel7/ltdnet/src/version"
 )
 
-type Settings struct {
-	ID             string              `json:"id"`
-	Author         string              `json:"author"`
-	Achievements   map[int]Achievement `json:"achievements"`
-	AchievementsOn bool                `json:"achievements_on"`
-	ProgramVer     string              `json:"program_ver"`
-}
-
-var user_settings Settings
+func UserSettings() *model.Settings { return engine.Instance().Settings }
 
 func loadUserSettings() {
 	// Check if file / directory exists
@@ -32,65 +28,54 @@ func loadUserSettings() {
 		fmt.Printf("[Error] Error finding home directory: %v\n", err)
 		return
 	}
-
 	savesDir := filepath.Join(homeDir, "ltdnet_saves")
 	userSavesDir := filepath.Join(savesDir, "user")
 	settingsFile := filepath.Join(savesDir, "user_settings.json")
 
 	// Check if the saves directory exists, and create it if not
-	if _, err := os.Stat(savesDir); os.IsNotExist(err) {
-		err := os.MkdirAll(savesDir, 0755)
-		if err != nil {
-			fmt.Printf("[Error] Error creating directory: %v\n", err)
-			return
-		}
-
-		if _, err = os.Stat(userSavesDir); os.IsNotExist(err) {
-			err := os.MkdirAll(userSavesDir, 0755)
-			if err != nil {
-				fmt.Printf("[Error] Error creating directory: %v\n", err)
-				return
-			}
-
-			fmt.Println("Created saves directory at:", savesDir)
-		}
+	if err := os.MkdirAll(userSavesDir, 0755); err != nil {
+		fmt.Printf("[Error] Error creating directory: %v\n", err)
+		return
 	}
 
-	_, err = os.Stat(settingsFile)
-	if os.IsNotExist(err) {
-		// File doesn't exist, create it
-		os.Create(settingsFile)
-
-		settings := Settings{
+	if _, err := os.Stat(settingsFile); os.IsNotExist(err) {
+		// Create default settings
+		def := model.Settings{
 			ID:             idgen(8),
 			Author:         "",
-			Achievements:   make(map[int]Achievement),
+			Achievements:   make(map[int]model.Achievement),
 			AchievementsOn: true,
+			ProgramVer:     version.ProgramVersion,
 		}
-		user_settings = settings
+		engine.Instance().Settings = &def
 		saveUserSettings()
+		buildAchievementCatalog()
+		return
 	}
-	f, err := os.Open(settingsFile)
+
+	data, err := os.ReadFile(settingsFile)
 	if err != nil {
-		fmt.Printf("[Error] File not found: %s", settingsFile)
+		fmt.Printf("[Error] Could not read settings file: %v\n", err)
+		return
 	}
 
-	b1 := make([]byte, 1000000) //TODO: secure this
-	n1, err := f.Read(b1)
-
-	if err != nil {
-		fmt.Printf("[Error] File not found: %s", settingsFile)
+	// Unmarshal
+	var loaded model.Settings
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		fmt.Printf("[Error] Could not parse settings file: %v\n", err)
+		// Fallback to defaults
+		loaded = model.Settings{
+			ID:             idgen(8),
+			Achievements:   make(map[int]model.Achievement),
+			AchievementsOn: true,
+			ProgramVer:     version.ProgramVersion,
+		}
 	}
-
-	//unmarshal
-	var settings_obj Settings
-	err = json.Unmarshal(b1[:n1], &settings_obj)
-	if err != nil {
-		fmt.Printf("err: %v", err)
+	// Ensure maps not nil
+	if loaded.Achievements == nil {
+		loaded.Achievements = make(map[int]model.Achievement)
 	}
-
-	user_settings = settings_obj
-
+	engine.Instance().Settings = &loaded
 	buildAchievementCatalog()
 }
 
@@ -101,21 +86,23 @@ func saveUserSettings() {
 		fmt.Printf("[Error] Error finding home directory: %v\n", err)
 		return
 	}
-
 	savesDir := filepath.Join(homeDir, "ltdnet_saves")
+	if err := os.MkdirAll(savesDir, 0755); err != nil {
+		fmt.Printf("[Error] Error creating saves directory: %v\n", err)
+		return
+	}
 	settingsFile := filepath.Join(savesDir, "user_settings.json")
 
-	marshString, err := json.Marshal(user_settings)
+	marshString, err := json.MarshalIndent(UserSettings(), "", " ")
 	if err != nil {
-		log.Println(err)
+		log.Println("[Error] marshal user settings:", err)
+		return
 	}
-	//Write to file
-	f, err := os.OpenFile(settingsFile, os.O_CREATE|os.O_RDWR, 0660)
-	if err != nil {
-		log.Fatal(err)
+
+	// Write to file
+	if err := os.WriteFile(settingsFile, marshString, 0660); err != nil {
+		log.Println("[Error] write user settings:", err)
 	}
-	f.Write(marshString)
-	os.Truncate(settingsFile, int64(len(marshString)))
 }
 
 func changeSettingsName() {
@@ -130,17 +117,17 @@ func changeSettingsName() {
 	}
 
 	fmt.Print("\nPlease enter your name: ")
-	inScanner := EngineInstance().Scanner
+	inScanner := engine.Instance().Scanner
 	inScanner.Scan()
 	username := inScanner.Text()
-	user_settings.Author = username
+	UserSettings().Author = username
 	saveUserSettings()
 }
 
 func toggleAchievements() {}
 
 func resetAchievements() {
-	user_settings.Achievements = make(map[int]Achievement)
+	UserSettings().Achievements = make(map[int]model.Achievement)
 	saveUserSettings()
 	fmt.Println("[Notice] Achievements have been reset")
 }
@@ -153,12 +140,10 @@ func resetProgramSettings() {
 		return
 	}
 
-	savesDir := filepath.Join(homeDir, "ltdnet_saves")
-	settingsFile := filepath.Join(savesDir, "user_settings.json")
+	settingsFile := filepath.Join(homeDir, "ltdnet_saves", "user_settings.json")
 
-	os.Remove(settingsFile)
+	_ = os.Remove(settingsFile)
 	fmt.Println("[Notice] User preferences have been reset")
-	fmt.Println("")
 	loadUserSettings()
 	intro()
 }
@@ -197,7 +182,7 @@ func wipeSaves() {
 
 func resetAllPrompt() {
 	fmt.Printf("\nAre you sure you want do delete all settings, Achievements, and saved networks? [y/n]: ")
-	inScanner := EngineInstance().Scanner
+	inScanner := engine.Instance().Scanner
 	inScanner.Scan()
 	confirmation := inScanner.Text()
 	confirmation = strings.ToUpper(confirmation)

@@ -12,98 +12,92 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
-type Achievement struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Hint        string `json:"hint"`
-	ProgramVer  string `json:"program_ver"`
-}
-
-var AchievementCatalog = make(map[int]Achievement)
-
 // Achievement IDs
-var ROUTINE_BUSINESS = 1
-var UNITED_PINGDOM = 2
-var ARP_HOT = 3
-var SNIFF_FRAMES = 4
-var TEN_HOSTS = 5
-var MY_NAME = 6
+const (
+	ROUTINE_BUSINESS = 1
+	UNITED_PINGDOM   = 2
+	ARP_HOT          = 3
+	SNIFF_FRAMES     = 4
+	TEN_HOSTS        = 5
+	MY_NAME          = 6
+)
 
 func buildAchievementCatalog() {
-	achievement := Achievement{
+	eng := engine.Instance()
+	add := func(a model.Achievement) {
+		eng.AchievementsMap[a.ID] = a
+	}
+	add(model.Achievement{
 		ID:          ROUTINE_BUSINESS,
 		Name:        "Route-ine Business",
 		Description: "Add a router to your network",
 		Hint:        "Have you tried the 'add router' command?",
-	}
-	AchievementCatalog[ROUTINE_BUSINESS] = achievement
+	})
 
-	achievement = Achievement{
+	add(model.Achievement{
 		ID:          UNITED_PINGDOM,
 		Name:        "United Pingdom",
 		Description: "Successfully ping from one device to another",
 		Hint:        "Control a host and ping your default gateway, see if you get a response.",
-	}
-	AchievementCatalog[UNITED_PINGDOM] = achievement
-
-	achievement = Achievement{
+	})
+	add(model.Achievement{
 		ID:          ARP_HOT,
 		Name:        "ARP It Like It's Hot",
 		Description: "Manually send an ARP request, and receive a reply",
 		Hint:        "ARP is how hosts find out other MAC addresses on their network. Try 'arp ?' from a host.",
-	}
-	AchievementCatalog[ARP_HOT] = achievement
-
-	achievement = Achievement{
+	})
+	add(model.Achievement{
 		ID:          SNIFF_FRAMES,
 		Name:        "Sniffing Your Own Frames",
 		Description: "Talk to yourself on localhost",
 		Hint:        "Every host has a loopback interface with an address of 127.0.0.1. Try pinging it.",
-	}
-	AchievementCatalog[SNIFF_FRAMES] = achievement
-
-	achievement = Achievement{
+	})
+	add(model.Achievement{
 		ID:          TEN_HOSTS,
 		Name:        "Room For Ten",
 		Description: "Have ten hosts on your network",
 		Hint:        "The hosts don't need to be linked...",
-	}
-	AchievementCatalog[TEN_HOSTS] = achievement
-
-	achievement = Achievement{
+	})
+	add(model.Achievement{
 		ID:          MY_NAME,
 		Name:        "My Name Is",
 		Description: "Get a host record from a DNS server",
 		Hint:        "nslookup is a utility to retrieve records from a DNS server.",
-	}
-	AchievementCatalog[MY_NAME] = achievement
+	})
 }
 
 func displayAchievements() {
+	eng := engine.Instance()
 	fmt.Printf("Achievements:\n")
 	fmt.Printf("#\tName\t\t\t\tDescription\t\t\t\t\t\tUnlocked\n")
 
-	keys := make([]int, 1, len(AchievementCatalog))
-	for k := range AchievementCatalog {
+	keys := make([]int, 1, len(eng.AchievementsMap))
+	for k := range eng.AchievementsMap {
 		keys = append(keys, k)
 	}
+	sort.Ints(keys)
 
-	for i := range keys {
-		if i == 0 {
-			continue
-		}
-
+	for _, id := range keys {
+		a := eng.AchievementsMap[id]
 		unlockedChar := "."
 
-		if _, exists := user_settings.Achievements[i]; exists {
+		if _, exists := UserSettings().Achievements[id]; exists {
 			unlockedChar = "Yes"
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\n", AchievementCatalog[i].ID, PadRight(AchievementCatalog[i].Name, 25), PadRight(AchievementCatalog[i].Description, 50), unlockedChar)
+		fmt.Printf("%d\t%s\t%s\t%s\n",
+			a.ID,
+			PadRight(a.Name, 25),
+			PadRight(a.Description, 50),
+			unlockedChar,
+		)
 	}
 }
 
@@ -112,35 +106,28 @@ func printAchievementsExplanation() {
 }
 
 func printAchievementInfo(achieveStr string) {
-	achievement := Achievement{}
-	achievementFound := false
-	achieveNum, _ := strconv.Atoi(achieveStr)
-	for a := range AchievementCatalog {
-		if AchievementCatalog[a].ID == achieveNum {
-			achievement = AchievementCatalog[a]
-			achievementFound = true
-		}
-	}
-
-	if !achievementFound {
+	id, _ := strconv.Atoi(achieveStr)
+	a, ok := engine.Instance().AchievementsMap[id]
+	if !ok {
 		fmt.Printf("No achievement \"%s\" found. Usage: achievements info <#>\n", achieveStr)
 		return
 	}
-
-	fmt.Printf("Achievement #%d: %s\n", achievement.ID, achievement.Name)
-	fmt.Printf("Description: %s\n", achievement.Description)
-	fmt.Printf("Hint: %s\n", achievement.Hint)
+	fmt.Printf("Achievement #%d: %s\nDescription: %s\nHint: %s\n",
+		a.ID, a.Name, a.Description, a.Hint)
 }
 
-func achievementAward(achievement Achievement) {
-	fmt.Printf("\n[ACHIEVEMENT COMPLETE] \"%s\" (#%d)\n\n", achievement.Name, achievement.ID)
-	user_settings.Achievements[achievement.ID] = achievement
+func achievementAward(a model.Achievement) {
+	if _, exists := UserSettings().Achievements[a.ID]; exists {
+		return
+	}
+	fmt.Printf("\n[ACHIEVEMENT COMPLETE] \"%s\" (#%d)\n\n", a.Name, a.ID)
+	UserSettings().Achievements[a.ID] = a
 	saveUserSettings()
 }
 
 // Does a check of state-based Achievements
-func achievementCheck() {
-	if !user_settings.AchievementsOn {
+func achievementStateCheck() {
+	if !UserSettings().AchievementsOn {
 		return
 	}
 
@@ -149,68 +136,25 @@ func achievementCheck() {
 }
 
 // Kicks off tests for incomplete Achievements
-func achievementTester(achievementID int) {
-	if !user_settings.AchievementsOn {
+func achievementTester(id int) {
+	if !UserSettings().AchievementsOn {
 		return
 	}
-
-	if _, exists := user_settings.Achievements[achievementID]; !exists {
-		switch achievementID {
-		case 1:
-			achievement1Test()
-		case 2:
-			achievement2Test()
-		case 3:
-			achievement3Test()
-		case 4:
-			achievement4Test()
-		case 5:
-			achievement5Test()
-		case 6:
-			achievement6Test()
-		}
+	if _, unlocked := UserSettings().Achievements[id]; unlocked {
+		return
 	}
-}
-
-// Achievement 1: Create a router (action-based)
-func achievement1Test() {
-	// If this function is called, the achievement is already complete (action-based)
-	achievement := AchievementCatalog[ROUTINE_BUSINESS]
-	achievementAward(achievement)
-}
-
-// Achievement 2: Successful ping (action-based)
-func achievement2Test() {
-	// If this function is called, the achievement is already complete (action-based)
-	achievement := AchievementCatalog[UNITED_PINGDOM]
-	achievementAward(achievement)
-}
-
-// Achievement 3: Successful manual ARP request (action-based)
-func achievement3Test() {
-	// If this function is called, the achievement is already complete (action-based)
-	achievement := AchievementCatalog[ARP_HOT]
-	achievementAward(achievement)
-}
-
-// Achievement 4: Ping loopback (action-based)
-func achievement4Test() {
-	// If this function is called, the achievement is already complete (action-based)
-	achievement := AchievementCatalog[SNIFF_FRAMES]
-	achievementAward(achievement)
+	switch id {
+	case ROUTINE_BUSINESS, UNITED_PINGDOM, ARP_HOT, SNIFF_FRAMES, MY_NAME:
+		achievementAward(engine.Instance().AchievementsMap[id])
+	case TEN_HOSTS:
+		achievement5Test()
+	}
 }
 
 // Achievement 5: Have ten hosts on your network (state-based)
 func achievement5Test() {
 	if len(Net().Hosts) >= 10 {
-		achievement := AchievementCatalog[TEN_HOSTS]
+		achievement := engine.Instance().AchievementsMap[TEN_HOSTS]
 		achievementAward(achievement)
 	}
-}
-
-// Achievement 6: Get DNS record (action-based)
-func achievement6Test() {
-	// If this function is called, the achievement is already complete (action-based)
-	achievement := AchievementCatalog[MY_NAME]
-	achievementAward(achievement)
 }

@@ -9,6 +9,8 @@ package main
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 /* DIAGRAMMING */
@@ -185,7 +187,7 @@ func drawHost(id string) {
 	fmt.Println("|------------------------|")
 }
 
-func drawConnectedHost(id string, iter int, sw Switch) {
+func drawConnectedHost(id string, iter int, sw model.Switch) {
 	h := Net().Hosts[getHostIndexFromID(id)]
 
 	space1 := 13 - len(h.Hostname)
@@ -346,7 +348,7 @@ func show(hostname string) {
 }
 
 func displayARPTable(deviceID string) {
-	var ARPTable map[string]ARPEntry
+	var ARPTable map[string]model.ARPEntry
 
 	if Net().Router.ID == deviceID {
 		ARPTable = Net().Router.ARPTable
@@ -364,7 +366,7 @@ func displayARPTable(deviceID string) {
 }
 
 func displayMACTable(deviceID string) {
-	var MACTable map[string]MACEntry
+	var MACTable map[string]model.MACEntry
 
 	if Net().Router.VSwitch.ID == deviceID {
 		MACTable = Net().Router.VSwitch.MACTable

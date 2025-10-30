@@ -4,7 +4,7 @@ Author: 	https://github.com/vincebel7
 Purpose: 	Network interface
 */
 
-package main
+package model
 
 import "net"
 

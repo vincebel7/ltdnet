@@ -8,21 +8,25 @@ package main
 
 import (
 	"encoding/json"
+
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
-func sendFrame(frameBytes json.RawMessage, iface Interface, srcID string) {
-	if isToSelf(readFrame(frameBytes)) {
+func sendFrame(frameBytes json.RawMessage, iface model.Interface, srcID string) {
+	frame, _ := model.ParseFrame(frameBytes)
+	if isToSelf(frame) {
 		debug(4, "sendFrame", srcID, "Frame destination is to itself. Mirroring back across the interface.")
 
 		mirrorLinkID := iface.L1ID
-		EngineInstance().Channels[mirrorLinkID] <- frameBytes
+		engine.Instance().Channels[mirrorLinkID] <- frameBytes
 
 	} else {
-		EngineInstance().Channels[iface.RemoteL1ID] <- frameBytes
+		engine.Instance().Channels[iface.RemoteL1ID] <- frameBytes
 	}
 }
 
-func isToSelf(frame Frame) bool {
+func isToSelf(frame model.Frame) bool {
 	// L2 (Reminder: ARPREQUEST is broadcast, not mirrored)
 	if frame.SrcMAC == frame.DstMAC {
 		return true
@@ -30,8 +34,8 @@ func isToSelf(frame Frame) bool {
 
 	// L3 (optional)
 	if frame.EtherType == "0x0800" { // IPv4
-		packet := readIPv4Packet(frame.Data)
-		packetHeader := readIPv4PacketHeader(packet.Header)
+		packet, _ := model.ParseIPv4Packet(frame.Data)
+		packetHeader, _ := model.ParseIPv4PacketHeader(packet.Header)
 		return packetHeader.SrcIP == packetHeader.DstIP
 	}
 

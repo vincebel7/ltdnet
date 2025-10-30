@@ -13,7 +13,11 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
+
+func Net() *model.Network { return engine.Instance().Net }
 
 func printVersion() {
 	fmt.Println("ltdnet " + Net().ProgramVer)
@@ -22,7 +26,7 @@ func printVersion() {
 func intro() {
 	printVersion()
 
-	if user_settings.Author == "" {
+	if UserSettings().Author == "" {
 		changeSettingsName()
 	}
 }
@@ -38,7 +42,7 @@ func startMenu() bool {
 	for !selection {
 		fmt.Print("\nAction: ")
 
-		inScanner := EngineInstance().Scanner
+		inScanner := engine.Instance().Scanner
 		inScanner.Scan()
 		option := inScanner.Text()
 
@@ -78,7 +82,7 @@ func preferencesMenu() {
 	for !selection {
 		fmt.Print("\nAction: ")
 
-		inScanner := EngineInstance().Scanner
+		inScanner := engine.Instance().Scanner
 		inScanner.Scan()
 		option := inScanner.Text()
 
@@ -105,7 +109,7 @@ func preferencesMenu() {
 }
 
 func actionsMenu() {
-	inScanner := EngineInstance().Scanner
+	inScanner := engine.Instance().Scanner
 
 	// Set up readline for actionsMenu
 	rl, err := readline.New("> ")
@@ -348,7 +352,7 @@ func actionsMenu() {
 			fmt.Println(" Invalid command. Type 'help' for a list of commands.")
 		}
 
-		achievementCheck()
+		achievementStateCheck() // Check for state-based achievements after each command
 	}
 }
 
@@ -392,7 +396,7 @@ func main() {
 
 	for h := range Net().Hosts {
 		for range Net().Hosts[h].Interfaces {
-			<-EngineInstance().ListenSync
+			<-engine.Instance().ListenSync
 		}
 	}
 	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())

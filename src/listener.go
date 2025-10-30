@@ -11,10 +11,11 @@ import (
 	"strconv"
 
 	"github.com/vincebel7/ltdnet/iphelper"
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 func Listener() {
-	// Generate channels
 	generateRouterChannels()
 
 	for i := range Net().Switches {
@@ -26,7 +27,8 @@ func Listener() {
 	}
 
 	// Listen on channels
-	if Net().Router.Hostname != "" {
+	r := Net().Router
+	if r != nil { // no router added yet
 		for iface := range Net().Router.Interfaces {
 			go listenRouterChannel(iface)
 		}
@@ -52,40 +54,44 @@ func Listener() {
 
 func generateHostChannels(i int) {
 	for iface := range Net().Hosts[i].Interfaces {
-		EngineInstance().Channels[Net().Hosts[i].Interfaces[iface].L1ID] = make(chan json.RawMessage)
+		engine.Instance().Channels[Net().Hosts[i].Interfaces[iface].L1ID] = make(chan json.RawMessage)
 	}
-	EngineInstance().Sockets[Net().Hosts[i].ID] = make(map[string]chan Frame)
-	EngineInstance().ActionSync[Net().Hosts[i].ID] = make(chan int)
+	engine.Instance().Sockets[Net().Hosts[i].ID] = make(map[string]chan model.Frame)
+	engine.Instance().ActionSync[Net().Hosts[i].ID] = make(chan int)
 }
 
 func generateSwitchChannels(i int) {
 	for j := 0; j < getActivePorts(Net().Switches[i]); j++ {
-		EngineInstance().Channels[Net().Switches[i].PortLinksLocal[j]] = make(chan json.RawMessage)
-		EngineInstance().Sockets[Net().Switches[i].PortLinksLocal[j]] = make(map[string]chan Frame)
-		EngineInstance().ActionSync[Net().Switches[i].PortLinksLocal[j]] = make(chan int)
+		engine.Instance().Channels[Net().Switches[i].PortLinksLocal[j]] = make(chan json.RawMessage)
+		engine.Instance().Sockets[Net().Switches[i].PortLinksLocal[j]] = make(map[string]chan model.Frame)
+		engine.Instance().ActionSync[Net().Switches[i].PortLinksLocal[j]] = make(chan int)
 	}
 }
 
 func generateRouterChannels() {
-	if Net().Router.Hostname != "" {
-		for iface := range Net().Router.Interfaces {
-			EngineInstance().Channels[Net().Router.Interfaces[iface].L1ID] = make(chan json.RawMessage)
-		}
-		EngineInstance().Sockets[Net().Router.ID] = make(map[string]chan Frame)
+	r := Net().Router
+	if r == nil { // no router added yet
+		return
+	}
+	eng := engine.Instance()
 
-		for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
-			EngineInstance().Channels[Net().Router.VSwitch.PortLinksLocal[i]] = make(chan json.RawMessage)
-			EngineInstance().Sockets[Net().Router.VSwitch.PortLinksLocal[i]] = make(map[string]chan Frame)
-			EngineInstance().ActionSync[Net().Router.ID] = make(chan int)
-		}
+	for iface := range Net().Router.Interfaces {
+		eng.Channels[Net().Router.Interfaces[iface].L1ID] = make(chan json.RawMessage)
+	}
+	eng.Sockets[Net().Router.ID] = make(map[string]chan model.Frame)
+
+	for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
+		eng.Channels[Net().Router.VSwitch.PortLinksLocal[i]] = make(chan json.RawMessage)
+		eng.Sockets[Net().Router.VSwitch.PortLinksLocal[i]] = make(map[string]chan model.Frame)
+		eng.ActionSync[Net().Router.ID] = make(chan int)
 	}
 }
 
-func listenHostChannel(host Host, iface string) {
-	EngineInstance().ListenSync <- host.ID //synchronizing with client.go
+func listenHostChannel(host model.Host, iface string) {
+	engine.Instance().ListenSync <- host.ID //synchronizing with client.go
 
 	for {
-		rawFrame := <-EngineInstance().Channels[host.Interfaces[iface].L1ID]
+		rawFrame := <-engine.Instance().Channels[host.Interfaces[iface].L1ID]
 		debug(4, "listenHostChannel", host.Hostname, "Received unicast frame")
 		go actionHandler(rawFrame, host.ID, iface)
 	}
@@ -93,7 +99,7 @@ func listenHostChannel(host Host, iface string) {
 
 func listenRouterChannel(iface string) {
 	for {
-		rawFrame := <-EngineInstance().Channels[Net().Router.Interfaces[iface].L1ID]
+		rawFrame := <-engine.Instance().Channels[Net().Router.Interfaces[iface].L1ID]
 		debug(4, "listenRouterChannel", Net().Router.ID, "Received unicast frame")
 		go actionHandler(rawFrame, Net().Router.ID, iface)
 	}
@@ -101,11 +107,11 @@ func listenRouterChannel(iface string) {
 
 // Should actions be broken into functions?
 func actionHandler(rawFrame json.RawMessage, id string, iface string) {
-	frame := readFrame(rawFrame)
+	frame, _ := model.ParseFrame(rawFrame)
 
 	switch frame.EtherType {
 	case "0x0806": // ARP
-		arpMessage := readArpMessage(frame.Data)
+		arpMessage, _ := model.ParseARPMessage(frame.Data)
 		switch arpMessage.Opcode {
 		case 2:
 			debug(2, "actionHandler", id, "ARPREPLY received")
@@ -129,7 +135,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			}
 
 			if amTarget && shouldRespond {
-				sockets := EngineInstance().Sockets[id]
+				sockets := engine.Instance().Sockets[id]
 				socketID := "arp_" + string(arpMessage.SenderIP)
 				sockets[socketID] <- frame
 			}
@@ -151,12 +157,12 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 		}
 
 	case "0x0800": // IPv4
-		packet := readIPv4Packet(frame.Data)
-		packetHeader := readIPv4PacketHeader(packet.Header)
+		packet, _ := model.ParseIPv4Packet(frame.Data)
+		packetHeader, _ := model.ParseIPv4PacketHeader(packet.Header)
 
 		switch packetHeader.Protocol {
 		case 1: // ICMP
-			icmpPacket := readICMPEchoPacket(packet.Data)
+			icmpPacket, _ := model.ParseICMPEchoPacket(packet.Data)
 
 			switch icmpPacket.ControlType {
 			case 8:
@@ -186,14 +192,14 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 
 				if amTarget {
-					sockets := EngineInstance().Sockets[id]
+					sockets := engine.Instance().Sockets[id]
 					socketID := "icmp_" + strconv.Itoa(icmpPacket.Identifier)
 					sockets[socketID] <- frame
 				}
 			}
 
 		case 6: // TCP
-			tcpSegment := readTCPSegment(packet.Data)
+			tcpSegment, _ := model.ParseTCPSegment(packet.Data)
 
 			switch tcpSegment.DstPort {
 			case 23: // Telnet
@@ -201,11 +207,11 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			}
 
 		case 17: // UDP
-			udpSegment := readUDPSegment(packet.Data)
+			udpSegment, _ := model.ParseUDPSegment(packet.Data)
 
 			switch udpSegment.DstPort {
 			case 53: // DNS
-				dnsMessage := ReadDNSMessage(json.RawMessage(udpSegment.Data))
+				dnsMessage, _ := model.ParseDNSMessage(json.RawMessage(udpSegment.Data))
 
 				if !dnsMessage.QR {
 					debug(2, "actionHandler", id, "DNS query received")
@@ -214,7 +220,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 			case 67: // DHCP: Server-bound
 				if Net().Router.ID == id { // I am target
-					dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
+					dhcpMessage, _ := model.ParseDHCPMessage(json.RawMessage(udpSegment.Data))
 
 					// 53 is DHCP message type
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
@@ -238,7 +244,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					}
 				}
 			case 68: // DHCP: Client-bound
-				dhcpMessage := ReadDHCPMessage(json.RawMessage(udpSegment.Data))
+				dhcpMessage, _ := model.ParseDHCPMessage(json.RawMessage(udpSegment.Data))
 
 				if dhcpMessage.CHAddr == Net().Hosts[getHostIndexFromID(id)].Interfaces[iface].MACAddr { // I am target
 					// 53 is DHCP message type
@@ -246,14 +252,14 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 						switch int(option53[0]) {
 						case 2: // DHCPOFFER
 							debug(2, "actionHandler", id, "DHCPOFFER received")
-							sockets := EngineInstance().Sockets[id]
+							sockets := engine.Instance().Sockets[id]
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets[socketID] <- frame
 
 						case 5: // DHCPACK
 							debug(2, "actionHandler", id, "DHCPACK received")
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
-							sockets := EngineInstance().Sockets[id]
+							sockets := engine.Instance().Sockets[id]
 							sockets[socketID] <- frame
 
 						default:
@@ -266,7 +272,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			default: // Ephemeral
 				portStr := strconv.Itoa(udpSegment.DstPort)
 				debug(2, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
-				sockets := EngineInstance().Sockets[id]
+				sockets := engine.Instance().Sockets[id]
 				socketID := "udp_" + portStr
 				sockets[socketID] <- frame
 			}
@@ -276,11 +282,12 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 func listenSwitchportChannel(switchID string, switchportID string) {
 	for {
-		rawFrame := <-EngineInstance().Channels[switchportID]
+		rawFrame := <-engine.Instance().Channels[switchportID]
 		debug(4, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
 		port := getSwitchportIDFromLink(switchportID)
 
-		checkMACTable(readFrame(rawFrame).SrcMAC, switchportID, port)
+		frame, _ := model.ParseFrame(rawFrame)
+		checkMACTable(frame.SrcMAC, switchportID, port)
 
 		go switchportActionHandler(rawFrame, switchID, switchportID)
 	}
@@ -290,6 +297,7 @@ func switchportActionHandler(rawFrame json.RawMessage, switchID string, switchpo
 	if false { // Traffic for switch. TODO how to receive mgmt frames
 		//data := frame.Data.Data.Data
 	} else { // Normal frame forward
-		switchforward(readFrame(rawFrame), switchID, switchportID)
+		frame, _ := model.ParseFrame(rawFrame)
+		switchforward(frame, switchID, switchportID)
 	}
 }

@@ -9,6 +9,8 @@ package main
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 /* DEBUG LEVELS
@@ -62,7 +64,7 @@ func debug(level int, generatingFunc string, generatingID string, message string
 	}
 }
 
-func inspectFrame(frame Frame) {
+func inspectFrame(frame model.Frame) {
 	frameData := frame.Data
 
 	fmt.Printf("\n ========== FRAME ========== \n")

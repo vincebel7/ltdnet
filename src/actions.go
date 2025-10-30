@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/vincebel7/ltdnet/iphelper"
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
 func ping(srcID string, dst string, count int) {
@@ -25,8 +27,8 @@ func ping(srcID string, dst string, count int) {
 	srcMAC := ""
 	dstMAC := ""
 	srcHostname := ""
-	srcHost := Host{}
-	dnsTable := make(map[string]DNSRecord)
+	srcHost := model.Host{}
+	dnsTable := make(map[string]model.DNSRecord)
 
 	sendCount := 0
 	recvCount := 0
@@ -52,19 +54,23 @@ func ping(srcID string, dst string, count int) {
 
 		if dstIP == "" {
 			debug(1, "ping", srcID, "[Error] Hostname could not be resolved")
-			EngineInstance().ActionSync[srcID] <- 1
+			engine.Instance().ActionSync[srcID] <- 1
 			return
 		}
 	}
 
-	iface := Interface{}
+	iface := model.Interface{}
 	if Net().Router.ID == srcID {
-		iface = Net().Router.routeToInterface(dstIP)
+		iface, _ = engine.Instance().RouteToRouterInterface(srcID, dstIP)
 		srcHostname = Net().Router.Hostname
 	} else {
 		for h := range Net().Hosts {
 			if Net().Hosts[h].ID == srcID {
-				iface = Net().Hosts[h].routeToInterface(dstIP)
+				nonDefaultRoute := false
+				iface, nonDefaultRoute = engine.Instance().RouteToHostInterface(Net().Hosts[h], dstIP)
+				if !nonDefaultRoute {
+					debug(4, "routeToInterface", Net().Hosts[h].Hostname, "Route not found. Sending to default gateway")
+				}
 				srcHost = Net().Hosts[h]
 				srcHostname = Net().Router.Hostname
 			}
@@ -92,7 +98,7 @@ func ping(srcID string, dst string, count int) {
 
 		payload, _ := json.Marshal("101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")
 
-		icmpRequestPacket := ICMPEchoPacket{
+		icmpRequestPacket := model.ICMPEchoPacket{
 			ControlType: 8,
 			ControlCode: 0,
 			Checksum:    "checksum",
@@ -101,8 +107,8 @@ func ping(srcID string, dst string, count int) {
 			Data:        json.RawMessage(payload),
 		}
 		icmpRequestPacketBytes, _ := json.Marshal(icmpRequestPacket)
-		ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, "ICMP", icmpRequestPacketBytes)
-		frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
+		ipv4PacketBytes := model.NewIPv4Packet(srcIP, dstIP, "ICMP", icmpRequestPacketBytes)
+		frameBytes := model.NewFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
 		debug(4, "ping", srcID, "Awaiting ping send")
 		sendFrame(frameBytes, iface, srcID)
@@ -110,15 +116,15 @@ func ping(srcID string, dst string, count int) {
 
 		sendCount++
 
-		sockets := EngineInstance().Sockets[srcID]
+		sockets := engine.Instance().Sockets[srcID]
 		socketID := "icmp_" + strconv.Itoa(identifier)
-		sockets[socketID] = make(chan Frame)
+		sockets[socketID] = make(chan model.Frame)
 
 		debug(4, "ping", srcID, "Awaiting ping reply on "+srcID)
 		select {
 		case pongFrame := <-sockets[socketID]:
-			pongIpv4Packet := readIPv4Packet(pongFrame.Data)
-			pongIcmpPacket := readICMPEchoPacket(pongIpv4Packet.Data)
+			pongIpv4Packet, _ := model.ParseIPv4Packet(pongFrame.Data)
+			pongIcmpPacket, _ := model.ParseICMPEchoPacket(pongIpv4Packet.Data)
 
 			if pongIcmpPacket.ControlType == 0 {
 				recvCount++
@@ -149,32 +155,33 @@ func ping(srcID string, dst string, count int) {
 	fmt.Printf("\tPackets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n", sendCount, recvCount, lossCount, (lossCount / sendCount * 100))
 	fmt.Printf("\tSource address: %s\n\n", srcIP)
 
-	EngineInstance().ActionSync[srcID] <- lossCount
+	engine.Instance().ActionSync[srcID] <- lossCount
 }
 
-func pong(srcID string, frame Frame) {
-	receivedIpv4Packet := readIPv4Packet(frame.Data)
-	receivedIcmpPacket := readICMPEchoPacket(receivedIpv4Packet.Data)
+func pong(srcID string, frame model.Frame) {
+	receivedIpv4Packet, _ := model.ParseIPv4Packet(frame.Data)
+	receivedIcmpPacket, _ := model.ParseICMPEchoPacket(receivedIpv4Packet.Data)
 
 	srcIP := ""
 	srcMAC := ""
-	dstIP := readIPv4PacketHeader(receivedIpv4Packet.Header).SrcIP
+	header, _ := model.ParseIPv4PacketHeader(receivedIpv4Packet.Header)
+	dstIP := header.SrcIP
 	dstMAC := ""
 
-	iface := Interface{}
+	iface := model.Interface{}
 	if Net().Router.ID == srcID {
-		iface = Net().Router.routeToInterface(dstIP)
+		iface, _ = engine.Instance().RouteToRouterInterface(srcID, dstIP)
 		dstMAC = routerDetermineDstMAC(Net().Router, dstIP, iface.Name, true)
 	} else {
 		index := getHostIndexFromID(srcID)
-		iface = Net().Hosts[index].routeToInterface(dstIP)
+		iface, _ = engine.Instance().RouteToHostInterface(Net().Hosts[index], dstIP)
 		dstMAC = hostDetermineDstMAC(Net().Hosts[index], dstIP, iface.Name, true)
 	}
 
 	srcIP = iface.IPConfig.IPAddress.String()
 	srcMAC = iface.MACAddr
 
-	icmpReplyPacket := ICMPEchoPacket{
+	icmpReplyPacket := model.ICMPEchoPacket{
 		ControlType: 0,
 		ControlCode: 0,
 		Checksum:    "checksum",
@@ -183,8 +190,8 @@ func pong(srcID string, frame Frame) {
 		Data:        receivedIcmpPacket.Data,
 	}
 	icmpReplyPacketBytes, _ := json.Marshal(icmpReplyPacket)
-	ipv4PacketBytes := constructIPv4Packet(srcIP, dstIP, "ICMP", icmpReplyPacketBytes)
-	frameBytes := constructFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
+	ipv4PacketBytes := model.NewIPv4Packet(srcIP, dstIP, "ICMP", icmpReplyPacketBytes)
+	frameBytes := model.NewFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
 	debug(4, "pong", srcID, "Awaiting pong send")
 	sendFrame(frameBytes, iface, srcID)
@@ -199,7 +206,7 @@ func arp_request(srcID string, targetIP string) string {
 	srcIP := ""
 	dstMAC := "ff:ff:ff:ff:ff:ff"
 
-	iface := Interface{}
+	iface := model.Interface{}
 	if srcID == Net().Router.ID {
 		iface = Net().Router.Interfaces["eth0"]
 	} else {
@@ -216,7 +223,7 @@ func arp_request(srcID string, targetIP string) string {
 		return srcMAC
 	}
 
-	arpRequestMessage := ArpMessage{
+	arpRequestMessage := model.ArpMessage{
 		HTYPE:     1,
 		PTYPE:     "0x800",
 		HLEN:      6,
@@ -228,19 +235,19 @@ func arp_request(srcID string, targetIP string) string {
 		TargetIP:  targetIP,
 	}
 	arpRequestMessageBytes, _ := json.Marshal(arpRequestMessage)
-	arpRequestFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpRequestMessageBytes)
+	arpRequestFrameBytes := model.NewFrame(srcMAC, dstMAC, "ARP", arpRequestMessageBytes)
 
 	// Send frame and wait for ARPREPLY
 	sendFrame(arpRequestFrameBytes, iface, srcID)
 	debug(3, "arp_request", srcID, "ARPREQUEST sent")
 
-	sockets := EngineInstance().Sockets[srcID]
+	sockets := engine.Instance().Sockets[srcID]
 	socketID := "arp_" + string(targetIP)
-	sockets[socketID] = make(chan Frame)
+	sockets[socketID] = make(chan model.Frame)
 
 	select {
 	case arpReplyFrameBytes := <-sockets[socketID]:
-		arpReplyMessage := readArpMessage(arpReplyFrameBytes.Data)
+		arpReplyMessage, _ := model.ParseARPMessage(arpReplyFrameBytes.Data)
 		return arpReplyMessage.SenderMAC
 
 	case <-time.After(time.Second * 4):
@@ -249,8 +256,8 @@ func arp_request(srcID string, targetIP string) string {
 	}
 }
 
-func arp_reply(id string, arpRequestFrame Frame) {
-	arpRequestMessage := readArpMessage(arpRequestFrame.Data)
+func arp_reply(id string, arpRequestFrame model.Frame) {
+	arpRequestMessage, _ := model.ParseARPMessage(arpRequestFrame.Data)
 
 	// Construct frame
 	srcID := ""
@@ -260,7 +267,7 @@ func arp_reply(id string, arpRequestFrame Frame) {
 	dstIP := arpRequestMessage.SenderIP
 
 	// Network listener decided to reply to this request - no checking needed.
-	iface := Interface{}
+	iface := model.Interface{}
 	if id == Net().Router.ID {
 		iface = Net().Router.Interfaces["eth0"]
 		srcID = Net().Router.ID
@@ -273,7 +280,7 @@ func arp_reply(id string, arpRequestFrame Frame) {
 	srcIP = iface.IPConfig.IPAddress.String()
 	srcMAC = iface.MACAddr
 
-	arpReplyMessage := ArpMessage{
+	arpReplyMessage := model.ArpMessage{
 		HTYPE:     1,
 		PTYPE:     "0x800",
 		HLEN:      6,
@@ -285,14 +292,14 @@ func arp_reply(id string, arpRequestFrame Frame) {
 		TargetIP:  dstIP,
 	}
 	arpReplyMessageBytes, _ := json.Marshal(arpReplyMessage)
-	arpReplyFrameBytes := constructFrame(srcMAC, dstMAC, "ARP", arpReplyMessageBytes)
+	arpReplyFrameBytes := model.NewFrame(srcMAC, dstMAC, "ARP", arpReplyMessageBytes)
 
 	// Send frame
 	sendFrame(arpReplyFrameBytes, iface, srcID)
 	debug(3, "arp_reply", srcID, "ARPREPLY sent")
 }
 
-func dhcp_discover(host Host) {
+func dhcp_discover(host model.Host) {
 	debug(4, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
 	//get info
 	iface := host.Interfaces["eth0"]
@@ -307,7 +314,7 @@ func dhcp_discover(host Host) {
 		53: {1},                   // Option 53: DHCPDISCOVER
 		12: []byte(host.Hostname), // Option 12: Hostname
 	}
-	dhcpDiscoverMessage := DHCPMessage{
+	dhcpDiscoverMessage := model.DHCPMessage{
 		Op:      1,                      // Message type: 1 = Request, 2 = Reply
 		HType:   1,                      // Hardware address type (e.g., 1 for Ethernet)
 		HLen:    6,                      // Length of hardware address
@@ -325,25 +332,25 @@ func dhcp_discover(host Host) {
 	// Encapsulate DHCPDISCOVER
 	protocol := "UDP"
 	dhcpDiscoverMessageBytes, _ := json.Marshal(dhcpDiscoverMessage)
-	segmentData := constructUDPSegment(68, 67, dhcpDiscoverMessageBytes)
-	packetData := constructIPv4Packet(srcIP, dstIP, protocol, segmentData)
-	frameData := constructFrame(srcMAC, dstMAC, "IPv4", packetData)
+	segmentData := model.NewUDPSegment(68, 67, dhcpDiscoverMessageBytes)
+	packetData := model.NewIPv4Packet(srcIP, dstIP, protocol, segmentData)
+	frameData := model.NewFrame(srcMAC, dstMAC, "IPv4", packetData)
 
 	// Send DHCPDISCOVER, await DHCPOFFER
 	//need to give it to uplink
 	sendFrame(frameData, iface, srcID)
 	debug(3, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
-	sockets := EngineInstance().Sockets[srcID]
+	sockets := engine.Instance().Sockets[srcID]
 	socketID := "udp_" + strconv.Itoa(68)
-	sockets[socketID] = make(chan Frame)
+	sockets[socketID] = make(chan model.Frame)
 	dhcpOfferFrame := <-sockets[socketID]
 
 	// De-encapsulate DHCPOFFER
-	dhcpOfferIPv4Packet := readIPv4Packet(dhcpOfferFrame.Data)
-	dhcpOfferIPv4PacketHeader := readIPv4PacketHeader(dhcpOfferIPv4Packet.Header)
-	dhcpOfferUDPSegment := readUDPSegment(dhcpOfferIPv4Packet.Data)
-	dhcpOfferMessage := ReadDHCPMessage(dhcpOfferUDPSegment.Data)
+	dhcpOfferIPv4Packet, _ := model.ParseIPv4Packet(dhcpOfferFrame.Data)
+	dhcpOfferIPv4PacketHeader, _ := model.ParseIPv4PacketHeader(dhcpOfferIPv4Packet.Header)
+	dhcpOfferUDPSegment, _ := model.ParseUDPSegment(dhcpOfferIPv4Packet.Data)
+	dhcpOfferMessage, _ := model.ParseDHCPMessage(dhcpOfferUDPSegment.Data)
 
 	if int(dhcpOfferMessage.Options[53][0]) == 6 { // 6 is DHCPNAK
 		debug(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
@@ -355,7 +362,7 @@ func dhcp_discover(host Host) {
 			53: {3},                   // Option 53: DHCPREQUEST
 			12: []byte(host.Hostname), // Option 12: Hostname
 		}
-		dhcpRequestMessage := DHCPMessage{
+		dhcpRequestMessage := model.DHCPMessage{
 			Op:      1,                       // Message type: 1 = Request, 2 = Reply
 			HType:   1,                       // Hardware address type (e.g., 1 for Ethernet)
 			HLen:    6,                       // Length of hardware address
@@ -373,9 +380,9 @@ func dhcp_discover(host Host) {
 		// Encapsulate DHCPREQUEST
 		protocol := "UDP"
 		dhcpRequestMessageBytes, _ := json.Marshal(dhcpRequestMessage)
-		dhcpRequestUDPSegment := constructUDPSegment(68, 67, dhcpRequestMessageBytes)
-		dhcpRequestIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dhcpRequestUDPSegment)
-		dhcpRequestFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpRequestIPv4Packet)
+		dhcpRequestUDPSegment := model.NewUDPSegment(68, 67, dhcpRequestMessageBytes)
+		dhcpRequestIPv4Packet := model.NewIPv4Packet(srcIP, dstIP, protocol, dhcpRequestUDPSegment)
+		dhcpRequestFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dhcpRequestIPv4Packet)
 
 		// Send DHCPREQUEST, await DHCPACK
 		sendFrame(dhcpRequestFrame, iface, srcID)
@@ -383,9 +390,9 @@ func dhcp_discover(host Host) {
 		dhcpAckFrame := <-sockets[socketID]
 
 		// De-encapsulate DHCPACK
-		dhcpAckIpv4Packet := readIPv4Packet(dhcpAckFrame.Data)
-		dhcpAckUDPSegment := readUDPSegment(dhcpAckIpv4Packet.Data)
-		dhcpAckMessage := ReadDHCPMessage(dhcpAckUDPSegment.Data)
+		dhcpAckIpv4Packet, _ := model.ParseIPv4Packet(dhcpAckFrame.Data)
+		dhcpAckUDPSegment, _ := model.ParseUDPSegment(dhcpAckIpv4Packet.Data)
+		dhcpAckMessage, _ := model.ParseDHCPMessage(dhcpAckUDPSegment.Data)
 
 		if int(dhcpAckMessage.Options[53][0]) == 5 {
 			debug(3, "dhcp_discover", srcID, "DHCPACK assigned a lease - "+dhcpAckMessage.YIAddr.String())
@@ -400,15 +407,15 @@ func dhcp_discover(host Host) {
 			debug(1, "dhcp_discover", srcID, "Failed to obtain IP address")
 		}
 	}
-	EngineInstance().ActionSync[srcID] <- 1
+	engine.Instance().ActionSync[srcID] <- 1
 }
 
-func dhcp_offer(dhcpDiscoverFrame Frame) {
+func dhcp_offer(dhcpDiscoverFrame model.Frame) {
 	// De-encapsulate DHCPDISCOVER
-	dhcpDiscoverIPv4Packet := readIPv4Packet(dhcpDiscoverFrame.Data)
-	//dhcpDiscoverIpv4PacketHeader := readIPv4PacketHeader(dhcpDiscoverIPv4Packet.Header)
-	dhcpDiscoverUDPSegment := readUDPSegment(dhcpDiscoverIPv4Packet.Data)
-	dhcpDiscoverMessage := ReadDHCPMessage(dhcpDiscoverUDPSegment.Data)
+	dhcpDiscoverIPv4Packet, _ := model.ParseIPv4Packet(dhcpDiscoverFrame.Data)
+	//dhcpDiscoverIpv4PacketHeader, _ := model.ParseIPv4PacketHeader(dhcpDiscoverIPv4Packet.Header)
+	dhcpDiscoverUDPSegment, _ := model.ParseUDPSegment(dhcpDiscoverIPv4Packet.Data)
+	dhcpDiscoverMessage, _ := model.ParseDHCPMessage(dhcpDiscoverUDPSegment.Data)
 
 	iface := Net().Router.Interfaces["eth0"]
 	srcIP := Net().Router.GetIP(iface.Name)
@@ -435,7 +442,7 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 		51: {0, 0, 10, 0},                 // Lease time
 		54: net.ParseIP(gateway).To4(),    // DHCP server
 	}
-	dhcpOfferMessage := DHCPMessage{
+	dhcpOfferMessage := model.DHCPMessage{
 		Op:      2,                        // Message type: 1 = Request, 2 = Reply
 		HType:   1,                        // Hardware address type (e.g., 1 for Ethernet)
 		HLen:    6,                        // Length of hardware address
@@ -453,21 +460,21 @@ func dhcp_offer(dhcpDiscoverFrame Frame) {
 	// Encapsulate DHCPOFFER
 	protocol := "UDP"
 	dhcpOfferMessageBytes, _ := json.Marshal(dhcpOfferMessage)
-	dhcpOfferSegment := constructUDPSegment(67, 68, dhcpOfferMessageBytes)
-	dhcpOfferPacket := constructIPv4Packet(srcIP, dstIP, protocol, dhcpOfferSegment)
-	dhcpOfferFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpOfferPacket)
+	dhcpOfferSegment := model.NewUDPSegment(67, 68, dhcpOfferMessageBytes)
+	dhcpOfferPacket := model.NewIPv4Packet(srcIP, dstIP, protocol, dhcpOfferSegment)
+	dhcpOfferFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dhcpOfferPacket)
 
 	// Send DHCPOFFER, await DHCPREQUEST
 	sendFrame(dhcpOfferFrame, iface, Net().Router.ID)
 	debug(3, "dhcp_offer", Net().Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
 }
 
-func dhcp_ack(dhcpRequestFrame Frame) {
+func dhcp_ack(dhcpRequestFrame model.Frame) {
 	// De-encapsulate DHCPREQUEST
-	dhcpRequestIPv4Packet := readIPv4Packet(dhcpRequestFrame.Data)
-	dhcpRequestIPv4PacketHeader := readIPv4PacketHeader(dhcpRequestIPv4Packet.Header)
-	dhcpRequestUDPSegment := readUDPSegment(dhcpRequestIPv4Packet.Data)
-	dhcpRequestMessage := ReadDHCPMessage(dhcpRequestUDPSegment.Data)
+	dhcpRequestIPv4Packet, _ := model.ParseIPv4Packet(dhcpRequestFrame.Data)
+	dhcpRequestIPv4PacketHeader, _ := model.ParseIPv4PacketHeader(dhcpRequestIPv4Packet.Header)
+	dhcpRequestUDPSegment, _ := model.ParseUDPSegment(dhcpRequestIPv4Packet.Data)
+	dhcpRequestMessage, _ := model.ParseDHCPMessage(dhcpRequestUDPSegment.Data)
 
 	iface := Net().Router.Interfaces["eth0"]
 	srcIP := Net().Router.GetIP(iface.Name)
@@ -500,7 +507,7 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 		51: {0, 0, 10, 0},                 // Lease time
 		54: net.ParseIP(gateway).To4(),    // DHCP server
 	}
-	dhcpAckMessage := DHCPMessage{
+	dhcpAckMessage := model.DHCPMessage{
 		Op:      2,                         // Message type: 1 = Request, 2 = Reply
 		HType:   1,                         // Hardware address type (e.g., 1 for Ethernet)
 		HLen:    6,                         // Length of hardware address
@@ -518,9 +525,9 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	// Encapsulate DHCPACK
 	protocol := "UDP"
 	dhcpAckMessageBytes, _ := json.Marshal(dhcpAckMessage)
-	dhcpAckSegment := constructUDPSegment(67, 68, dhcpAckMessageBytes)
-	dhcpAckIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dhcpAckSegment)
-	dhcpAckFrame := constructFrame(srcMAC, dstMAC, "IPv4", dhcpAckIPv4Packet)
+	dhcpAckSegment := model.NewUDPSegment(67, 68, dhcpAckMessageBytes)
+	dhcpAckIPv4Packet := model.NewIPv4Packet(srcIP, dstIP, protocol, dhcpAckSegment)
+	dhcpAckFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dhcpAckIPv4Packet)
 
 	// Send DHCPACK
 	sendFrame(dhcpAckFrame, iface, Net().Router.ID)
@@ -536,11 +543,11 @@ func dhcp_ack(dhcpRequestFrame Frame) {
 	}
 }
 
-func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
+func dns_query(srcID string, hostname string, reqType uint16) model.DNSMessage {
 	srcIP := ""
 	dstMAC := ""
 	dstIP := ""
-	iface := Interface{}
+	iface := model.Interface{}
 
 	if Net().Router.ID == srcID {
 		iface = Net().Router.Interfaces["lo"]
@@ -560,18 +567,18 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 
 	srcMAC := iface.MACAddr
 
-	var dnsQueryMessage = DNSMessage{}
+	var dnsQueryMessage = model.DNSMessage{}
 	switch reqType {
 	case 'A':
-		dnsQuestionMessage := DNSQuestion{
+		dnsQuestionMessage := model.DNSQuestion{
 			QName:  hostname,
 			QType:  reqType,
 			QClass: 1,
 		}
-		dnsQuestions := make([]DNSQuestion, 1)
+		dnsQuestions := make([]model.DNSQuestion, 1)
 		dnsQuestions[0] = dnsQuestionMessage
 
-		dnsQueryMessage = DNSMessage{
+		dnsQueryMessage = model.DNSMessage{
 			QR:        false, // false = query
 			Opcode:    0,
 			QDCount:   1,
@@ -580,28 +587,28 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 
 	default:
 		debug(1, "dns_query", srcID, "[Error] DNS query type not implemented yet")
-		return DNSMessage{}
+		return model.DNSMessage{}
 	}
 
 	protocol := "UDP"
 	srcPort := ephemeralPortGen()
 	dnsQueryMessageBytes, _ := json.Marshal(dnsQueryMessage)
-	dnsQuerySegment := constructUDPSegment(srcPort, 53, dnsQueryMessageBytes)
-	dnsQueryIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsQuerySegment)
-	dnsQueryFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
+	dnsQuerySegment := model.NewUDPSegment(srcPort, 53, dnsQueryMessageBytes)
+	dnsQueryIPv4Packet := model.NewIPv4Packet(srcIP, dstIP, protocol, dnsQuerySegment)
+	dnsQueryFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
 
 	sendFrame(dnsQueryFrame, iface, srcID)
 	debug(3, "dns_query", srcID, "DNS query sent - "+hostname)
 
-	sockets := EngineInstance().Sockets[srcID]
+	sockets := engine.Instance().Sockets[srcID]
 	socketID := "udp_" + strconv.Itoa(srcPort)
-	sockets[socketID] = make(chan Frame)
+	sockets[socketID] = make(chan model.Frame)
 
 	select {
 	case dnsResponseFrame := <-sockets[socketID]:
-		dnsResponsePacket := readIPv4Packet(dnsResponseFrame.Data)
-		dnsResponseSegment := readUDPSegment(dnsResponsePacket.Data)
-		dnsResponseMessage := ReadDNSMessage(dnsResponseSegment.Data)
+		dnsResponsePacket, _ := model.ParseIPv4Packet(dnsResponseFrame.Data)
+		dnsResponseSegment, _ := model.ParseUDPSegment(dnsResponsePacket.Data)
+		dnsResponseMessage, _ := model.ParseDNSMessage(dnsResponseSegment.Data)
 
 		switch dnsResponseMessage.Rcode {
 		case 2:
@@ -618,39 +625,39 @@ func dns_query(srcID string, hostname string, reqType uint16) DNSMessage {
 	case <-time.After(time.Second * 4):
 		fmt.Printf("DNS request timed out.\n")
 	}
-	return DNSMessage{}
+	return model.DNSMessage{}
 }
 
-func dns_response(dnsQueryFrame Frame) {
+func dns_response(dnsQueryFrame model.Frame) {
 	// De-encapsulate DNS Query
-	dnsQueryIPv4Packet := readIPv4Packet(dnsQueryFrame.Data)
-	dnsQueryIPv4PacketHeader := readIPv4PacketHeader(dnsQueryIPv4Packet.Header)
-	dnsQueryUDPSegment := readUDPSegment(dnsQueryIPv4Packet.Data)
-	dnsQueryMessage := ReadDNSMessage(dnsQueryUDPSegment.Data)
+	dnsQueryIPv4Packet, _ := model.ParseIPv4Packet(dnsQueryFrame.Data)
+	dnsQueryIPv4PacketHeader, _ := model.ParseIPv4PacketHeader(dnsQueryIPv4Packet.Header)
+	dnsQueryUDPSegment, _ := model.ParseUDPSegment(dnsQueryIPv4Packet.Data)
+	dnsQueryMessage, _ := model.ParseDNSMessage(dnsQueryUDPSegment.Data)
 
 	dstIP := dnsQueryIPv4PacketHeader.SrcIP
-	iface := Net().Router.routeToInterface(dstIP)
+	iface, _ := engine.Instance().RouteToRouterInterface(Net().Router.ID, dstIP)
 	srcIP := Net().Router.GetIP(iface.Name)
 	dstPort := dnsQueryUDPSegment.SrcPort
 	srcMAC := iface.MACAddr
 	dstMAC := dnsQueryFrame.SrcMAC
 
-	var dnsResponseMessage = DNSMessage{}
+	var dnsResponseMessage = model.DNSMessage{}
 	switch dnsQueryMessage.Questions[0].QType {
 	case 'A':
-		dnsResponseMessage = DNSMessage{
+		dnsResponseMessage = model.DNSMessage{
 			QR:     true, // false = query
 			Opcode: 0,
 			Rcode:  2,
 		}
 
-		dnsAnswerRecord := Net().Router.DNSServer.aRecordLookup(dnsQueryMessage.Questions[0].QName)
+		dnsAnswerRecord, _ := Net().Router.DNSServer.ARecordLookup(dnsQueryMessage.Questions[0].QName)
 
 		if dnsAnswerRecord.Name != "" {
 			dnsResponseMessage.Rcode = 0
 			dnsResponseMessage.ANCount = 1
 
-			dnsAnswers := make([]DNSRecord, 1)
+			dnsAnswers := make([]model.DNSRecord, 1)
 			dnsAnswers[0] = dnsAnswerRecord
 
 			dnsResponseMessage.Answers = dnsAnswers
@@ -666,9 +673,9 @@ func dns_response(dnsQueryFrame Frame) {
 
 	protocol := "UDP"
 	dnsResponseMessageBytes, _ := json.Marshal(dnsResponseMessage)
-	dnsResponseSegment := constructUDPSegment(53, dstPort, dnsResponseMessageBytes)
-	dnsResponseIPv4Packet := constructIPv4Packet(srcIP, dstIP, protocol, dnsResponseSegment)
-	dnsResponseFrame := constructFrame(srcMAC, dstMAC, "IPv4", dnsResponseIPv4Packet)
+	dnsResponseSegment := model.NewUDPSegment(53, dstPort, dnsResponseMessageBytes)
+	dnsResponseIPv4Packet := model.NewIPv4Packet(srcIP, dstIP, protocol, dnsResponseSegment)
+	dnsResponseFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dnsResponseIPv4Packet)
 
 	sendFrame(dnsResponseFrame, iface, Net().Router.ID)
 	debug(3, "dns_query", Net().Router.ID, "DNS response sent")
@@ -680,7 +687,7 @@ func ipset(hostname string, ipaddr string, subnetMask string) {
 
 	fmt.Printf("\nIP Address: %s\nSubnet mask: %s\nDefault gateway: %s\n", ipaddr, subnetMask, defaultGateway)
 	fmt.Print("\nIs this correct? [Y/n]: ")
-	inScanner := EngineInstance().Scanner
+	inScanner := engine.Instance().Scanner
 	inScanner.Scan()
 	affirmation := inScanner.Text()
 
@@ -726,11 +733,11 @@ func arpSynchronized(id string, targetIP string) {
 		achievementTester(ARP_HOT)
 	}
 
-	EngineInstance().ActionSync[id] <- 1
+	engine.Instance().ActionSync[id] <- 1
 }
 
 // A host determines the destination MAC to send to... Either by ARP, sending to GW, or reading ARP table
-func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool) string {
+func hostDetermineDstMAC(srcHost model.Host, dstIP string, iface string, useTable bool) string {
 	srcID := srcHost.ID
 	dstMAC := ""
 
@@ -751,7 +758,7 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("ARP request timed out.\n")
 			} else {
-				arpEntry := ARPEntry{
+				arpEntry := model.ARPEntry{
 					MACAddr:   dstMAC,
 					Interface: Net().Hosts[getHostIndexFromID(srcID)].Interfaces[iface].RemoteL1ID,
 				}
@@ -772,7 +779,7 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
 				fmt.Printf("ARP request timed out.\n")
 			} else {
-				arpEntry := ARPEntry{
+				arpEntry := model.ARPEntry{
 					MACAddr:   dstMAC,
 					Interface: Net().Hosts[getHostIndexFromID(srcID)].Interfaces[iface].RemoteL1ID,
 				}
@@ -785,44 +792,42 @@ func hostDetermineDstMAC(srcHost Host, dstIP string, iface string, useTable bool
 }
 
 // A router determines the destination MAC to send to... Either by ARP, or reading ARP table
-func routerDetermineDstMAC(router Router, dstIP string, iface string, useTable bool) string {
+func routerDetermineDstMAC(router *model.Router, dstIP string, iface string, useTable bool) string {
+	if router == nil {
+		return ""
+	}
 	dstMAC := ""
 
 	if dstIP == "127.0.0.1" && iface == "lo" {
 		return router.Interfaces["lo"].MACAddr
 	}
 
-	// Same subnet - ARP table, or ARP request.
 	netsizeInt, _ := strconv.Atoi(Net().Netsize)
 	subnetMask := prefixLengthToSubnetMask(netsizeInt)
 	if iphelper.IPInSameSubnet(router.GetIP(iface), dstIP, subnetMask) {
-		debug(4, "routerDetermineDstMAC", router.ID, "Sending to same subnet, about to MAC table lookup or ARP")
+		debug(4, "routerDetermineDstMAC", router.ID, "Same subnet; ARP table lookup or ARP")
 
-		// Check ARP table
-		if useTable && Net().Router.ARPTable[dstIP].MACAddr != "" {
-			dstMAC = Net().Router.ARPTable[dstIP].MACAddr
+		if useTable && router.ARPTable[dstIP].MACAddr != "" {
+			dstMAC = router.ARPTable[dstIP].MACAddr
 		} else {
-			// ARP request
 			dstMAC = arp_request(router.ID, dstIP)
-			if dstMAC == "TIMEOUT" { // ARP did not return a MAC
+			if dstMAC == "TIMEOUT" {
 				fmt.Printf("ARP request timed out.\n")
 			} else {
-				arpEntry := ARPEntry{
+				router.ARPTable[dstIP] = model.ARPEntry{
 					MACAddr:   dstMAC,
 					Interface: router.Interfaces[iface].RemoteL1ID,
 				}
-				Net().Router.ARPTable[dstIP] = arpEntry // Add to ARP table
 			}
 		}
-
 	} else {
-		fmt.Printf("Error: Routing not implemented yet.")
+		fmt.Printf("Error: Routing not implemented yet.\n")
 	}
 
 	return dstMAC
 }
 
-func resolveHostname(srcID string, hostname string, dnsTable map[string]DNSRecord) DNSRecord {
+func resolveHostname(srcID string, hostname string, dnsTable map[string]model.DNSRecord) model.DNSRecord {
 	// Check local table
 	if entry, found := dnsTable[hostname]; found {
 		if entry.TTL == 65535 {

@@ -10,33 +10,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
+
+	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/model"
 )
 
-type Switch struct {
-	ID              string              `json:"id"`
-	Model           string              `json:"model"`
-	Hostname        string              `json:"hostname"`
-	MACTable        map[string]MACEntry `json:"mactable"`
-	Maxports        int                 `json:"maxports"`
-	PortLinksRemote []string            `json:"links_remote"` // maps port # to remote link ID
-	PortLinksLocal  []string            `json:"links_local"`  // maps port # to local link ID
-	ARPTable        map[string]ARPEntry `json:"arptable"`
-}
-
-type MACEntry struct {
-	Interface  int       `json:"interface"`
-	State      string    `json:"state"`
-	ExpireTime time.Time `json:"expireTime"`
-}
-
-func NewSumerian2100(hostname string) Switch {
-	s := Switch{}
+func NewSumerian2100(hostname string) model.Switch {
+	s := model.Switch{}
 	s.ID = idgen(8)
 	s.Model = "Sumerian 2100"
 	s.Hostname = hostname
 	s.Maxports = 4
-	s.ARPTable = make(map[string]ARPEntry)
+	s.ARPTable = make(map[string]model.ARPEntry)
 
 	return s
 }
@@ -50,7 +35,7 @@ func addSwitch(switchHostname string) {
 		return
 	}
 
-	s := Switch{}
+	s := model.Switch{}
 	if switchModel == "SUMERIAN" {
 		s = NewSumerian2100(switchHostname)
 	} else {
@@ -68,21 +53,21 @@ func addSwitch(switchHostname string) {
 		s.PortLinksRemote[i] = ""
 	}
 
-	s.MACTable = make(map[string]MACEntry)
+	s.MACTable = make(map[string]model.MACEntry)
 	Net().Switches = append(Net().Switches, s)
 
 	generateSwitchChannels(getSwitchIndexFromID(s.ID))
 	for j := 0; j < getActivePorts(s); j++ {
-		EngineInstance().Channels[s.PortLinksLocal[j]] = make(chan json.RawMessage)
-		EngineInstance().Sockets[s.PortLinksLocal[j]] = make(map[string]chan Frame)
-		EngineInstance().ActionSync[s.PortLinksLocal[j]] = make(chan int)
+		engine.Instance().Channels[s.PortLinksLocal[j]] = make(chan json.RawMessage)
+		engine.Instance().Sockets[s.PortLinksLocal[j]] = make(map[string]chan model.Frame)
+		engine.Instance().ActionSync[s.PortLinksLocal[j]] = make(chan int)
 
 		go listenSwitchportChannel(s.ID, s.PortLinksLocal[j])
 	}
 }
 
-func addVirtualSwitch(maxports int) Switch {
-	v := Switch{}
+func addVirtualSwitch(maxports int) model.Switch {
+	v := model.Switch{}
 	v.ID = idgen(8)
 	v.Model = "virtual"
 	v.Hostname = "V-" + v.ID
@@ -98,7 +83,7 @@ func addVirtualSwitch(maxports int) Switch {
 		v.PortLinksRemote[i] = ""
 	}
 
-	v.MACTable = make(map[string]MACEntry)
+	v.MACTable = make(map[string]model.MACEntry)
 
 	return v
 }
@@ -200,7 +185,7 @@ func linkSwitchTo(localDevice string, remoteDevice string) {
 
 func lookupMACTable(dstMAC string, switchportID string) int { // For looking up addresses
 	resultPort := -1
-	var MACTable map[string]MACEntry
+	var MACTable map[string]model.MACEntry
 
 	if isSwitchportID(Net().Router.VSwitch, switchportID) {
 		MACTable = Net().Router.VSwitch.MACTable
@@ -223,7 +208,7 @@ func lookupMACTable(dstMAC string, switchportID string) int { // For looking up 
 
 func checkMACTable(macaddr string, id string, port int) { // For updating MAC table on incoming frames
 	result := -1
-	table := make(map[string]MACEntry)
+	table := make(map[string]model.MACEntry)
 	if isSwitchportID(Net().Router.VSwitch, id) {
 		table = Net().Router.VSwitch.MACTable
 	} else {
@@ -255,14 +240,14 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 
 func addMACEntry(macaddr string, id string, port int) {
 	if isSwitchportID(Net().Router.VSwitch, id) {
-		macEntry := MACEntry{
+		macEntry := model.MACEntry{
 			Interface: port,
 		}
 		Net().Router.VSwitch.MACTable[macaddr] = macEntry
 	} else {
 		for i := range Net().Switches {
 			if isSwitchportID(Net().Switches[i], id) {
-				macEntry := MACEntry{
+				macEntry := model.MACEntry{
 					Interface: port,
 				}
 				Net().Switches[i].MACTable[macaddr] = macEntry
@@ -275,7 +260,7 @@ func addMACEntry(macaddr string, id string, port int) {
 func delMACEntry(macaddr string, id string, port int) {
 }
 
-func isSwitchportID(sw Switch, id string) bool {
+func isSwitchportID(sw model.Switch, id string) bool {
 	for i := range sw.PortLinksLocal {
 		if sw.PortLinksLocal[i] == id {
 			return true
@@ -285,7 +270,7 @@ func isSwitchportID(sw Switch, id string) bool {
 	return false
 }
 
-func getActivePorts(sw Switch) int {
+func getActivePorts(sw model.Switch) int {
 	count := 0
 
 	for i := range sw.PortLinksRemote {
@@ -297,7 +282,7 @@ func getActivePorts(sw Switch) int {
 	return count
 }
 
-func assignSwitchport(sw Switch, id string) int {
+func assignSwitchport(sw model.Switch, id string) int {
 	portIndex := -1
 	for i := range sw.PortLinksRemote {
 		if sw.PortLinksRemote[i] == "" {
@@ -307,14 +292,14 @@ func assignSwitchport(sw Switch, id string) int {
 		}
 	}
 
-	EngineInstance().Channels[sw.PortLinksLocal[portIndex]] = make(chan json.RawMessage)
+	engine.Instance().Channels[sw.PortLinksLocal[portIndex]] = make(chan json.RawMessage)
 	debug(4, "assignSwitchport", sw.PortLinksLocal[portIndex], "listening for id")
 	go listenSwitchportChannel(sw.ID, sw.PortLinksLocal[portIndex])
 
 	return portIndex
 }
 
-func switchforward(frame Frame, switchID string, switchportID string) {
+func switchforward(frame model.Frame, switchID string, switchportID string) {
 	srcMAC := frame.SrcMAC
 	dstMAC := frame.DstMAC
 	linkID := ""
@@ -343,7 +328,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 	}
 
 	p := frame.Data
-	f := Frame{
+	f := model.Frame{
 		SrcMAC:    srcMAC,
 		DstMAC:    dstMAC,
 		EtherType: frame.EtherType,
@@ -357,7 +342,7 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 				linkID = Net().Router.VSwitch.PortLinksRemote[port]
 				// Don't send out source interface, or unplugged ports
 				if (Net().Router.VSwitch.PortLinksLocal[port] != switchportID) && (linkID != "") {
-					EngineInstance().Channels[linkID] <- outFrame
+					engine.Instance().Channels[linkID] <- outFrame
 				}
 			}
 		} else { // Regular switch
@@ -366,12 +351,12 @@ func switchforward(frame Frame, switchID string, switchportID string) {
 				linkID = Net().Switches[switchIndex].PortLinksRemote[port]
 				// Don't send out source interface, or unplugged ports
 				if (Net().Switches[switchIndex].PortLinksLocal[port] != switchportID) && (linkID != "") {
-					EngineInstance().Channels[linkID] <- outFrame
+					engine.Instance().Channels[linkID] <- outFrame
 				}
 			}
 		}
 	} else {
-		EngineInstance().Channels[linkID] <- outFrame
+		engine.Instance().Channels[linkID] <- outFrame
 	}
 }
 
