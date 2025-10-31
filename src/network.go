@@ -87,7 +87,6 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 		Name:       netname,
 		Netsize:    networkPrefix,
 		ProgramVer: version.ProgramVersion,
-		DebugLevel: 1,
 	}
 
 	marshString, err := json.Marshal(net)

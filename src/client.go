@@ -304,18 +304,18 @@ func actionsMenu() {
 		case "netdump":
 			fmt.Println(Net(), "")
 
-		case "debug":
+		case "log":
 			if arg1 != "" {
-				setDebug(arg1)
+				setLogLevel(arg1)
 				save()
 			} else {
-				fmt.Printf("Current debug level: %d\n", getDebug())
+				fmt.Printf("Current log level: %d\n", getLogLevel())
 				fmt.Println("\nAll levels (least to most verbose):\n",
-					"0 - No debugging\n",
-					"1 - Errors\n",
-					"2 - Network traffic (receive)\n",
-					"3 - Network traffic (send+receive) + Warnings\n",
-					"4 - Step-by-step device actions")
+					"0 (NONE)\t No logging\n",
+					"1 (ERROR)\t Errors\n",
+					"2 (INFO)\t Network traffic (receive)\n",
+					"3 (DEBUG)\t Network traffic (send+receive) + Warnings\n",
+					"4 (TRACE)\t Step-by-step device actions")
 			}
 
 		case "manual", "man":
@@ -341,7 +341,7 @@ func actionsMenu() {
 				"achievements <action>\tView user achievements\n",
 				"save\t\t\tManually saves network changes\n",
 				"reload\t\t\tReloads the network file. May fix runtime bugs\n",
-				"debug <0-4>\t\tSets debug level. Default is 1\n",
+				"log <0-4>\t\tSets log level. Default is 1\n",
 				"manual\t\t\tLaunches the user manual. Great for beginners!\n",
 				"version\t\tltdnet version info\n",
 				"exit\t\t\tExits the program",
@@ -399,7 +399,7 @@ func main() {
 			<-engine.Instance().ListenSync
 		}
 	}
-	fmt.Printf("\n[Notice] Debug level is set to %d\n", getDebug())
+	fmt.Printf("\n[Notice] Log level is set to %d\n", getLogLevel())
 	fmt.Printf("[Notice] Please note that switches can't yet link to routers or other switches.\n")
 
 	fmt.Println("\nltdnetOS:")

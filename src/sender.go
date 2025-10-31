@@ -16,7 +16,7 @@ import (
 func sendFrame(frameBytes json.RawMessage, iface model.Interface, srcID string) {
 	frame, _ := model.ParseFrame(frameBytes)
 	if isToSelf(frame) {
-		debug(4, "sendFrame", srcID, "Frame destination is to itself. Mirroring back across the interface.")
+		writeLog(4, "sendFrame", srcID, "Frame destination is to itself. Mirroring back across the interface.")
 
 		mirrorLinkID := iface.L1ID
 		engine.Instance().Channels[mirrorLinkID] <- frameBytes

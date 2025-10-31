@@ -15,7 +15,6 @@ type Network struct {
 	Router     *Router  `json:"router"`
 	Switches   []Switch `json:"switches"`
 	Hosts      []Host   `json:"hosts"`
-	DebugLevel int      `json:"debug_level"`
 	ProgramVer string   `json:"program_ver"`
 }
 

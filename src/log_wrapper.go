@@ -1,7 +1,7 @@
 /*
-File:		debug.go
+File:		log_wrapper.go
 Author: 	https://github.com/vincebel7
-Purpose:	Functions related to debugging and testing
+Purpose:	Functions related to logging and testing
 */
 
 package main
@@ -11,28 +11,37 @@ import (
 	"strconv"
 
 	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/logging"
 	"github.com/vincebel7/ltdnet/src/model"
 )
 
-/* DEBUG LEVELS
-0 - No debugging
+/* LOG LEVELS
+0 - No logging
 1 - Errors
 2 - General network traffic
 3 - All network traffic and warnings
 4 - Garbage
 */
 
-func setDebug(val string) {
+func setLogLevel(val string) {
 	intval, _ := strconv.Atoi(val)
-	Net().DebugLevel = intval
-	fmt.Printf("Debug level set to %d\n", Net().DebugLevel)
+
+	// Update current logger
+	engine.Instance().Logger.SetLevel(logging.Level(intval))
+
+	// Write to settings
+	UserSettings().LogLevel = intval
+	saveUserSettings()
+
+	fmt.Printf("Log level set to %d\n", getLogLevel())
 }
 
-func getDebug() int {
-	return Net().DebugLevel
+func getLogLevel() int {
+	return int(engine.Instance().Logger.GetLevel())
 }
 
-func debug(level int, generatingFunc string, generatingID string, message string) {
+// Wrapper to get hostname and determine log level
+func writeLog(level int, generatingFunc string, generatingID string, message string) {
 
 	hostname := ""
 	if generatingID == "Listener" {
@@ -40,22 +49,9 @@ func debug(level int, generatingFunc string, generatingID string, message string
 	} else {
 		hostname = getHostnameFromID(generatingID)
 	}
-	//fmt.Printf("\n[%s] (%s), %s\n", hostname, generatingFunc, message)
-	//fmt.Printf("\n[%s] %s\n", hostname, message)
 
 	logger := engine.Instance().Logger
-	switch level {
-	case 1:
-		logger.Error(generatingFunc, "[%s] %s", hostname, message)
-	case 2:
-		logger.Info(generatingFunc, "[%s] %s", hostname, message)
-	case 3:
-		logger.Debug(generatingFunc, "[%s] %s", hostname, message)
-	case 4:
-		logger.Trace(generatingFunc, "[%s] %s", hostname, message)
-	default:
-		// Do nothing
-	}
+	logger.Log(logging.Level(level), generatingFunc, "[%s] %s", hostname, message)
 }
 
 func inspectFrame(frame model.Frame) {

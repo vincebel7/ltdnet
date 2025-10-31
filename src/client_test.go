@@ -31,7 +31,7 @@ func TestNetworkSetup(t *testing.T) {
 	newNetwork(testnetName, "24", "test")
 	go Listener()
 
-	setDebug("4")
+	setLogLevel("4")
 
 	// Test 1: Add router
 	addRouter("r1", "Bobcat")

@@ -6,4 +6,5 @@ type Settings struct {
 	Achievements   map[int]Achievement `json:"achievements"`
 	AchievementsOn bool                `json:"achievements_on"`
 	ProgramVer     string              `json:"program_ver"`
+	LogLevel       int                 `json:"log_level"`
 }

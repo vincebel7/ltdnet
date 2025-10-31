@@ -222,10 +222,10 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 	for k, v := range table {
 		if k == macaddr {
 			if v.Interface == port {
-				debug(4, "checkMACTable", id, "Source address found in MAC table")
+				writeLog(4, "checkMACTable", id, "Source address found in MAC table")
 				result = v.Interface
 			} else {
-				debug(4, "checkMACTable", id, "Source address found in MAC table, but wrong - removing old.")
+				writeLog(4, "checkMACTable", id, "Source address found in MAC table, but wrong - removing old.")
 				delMACEntry(macaddr, id, port)
 			}
 		}
@@ -233,7 +233,7 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 
 	if result == -1 {
 		msg := "Source address " + macaddr + " not found in MAC table. Adding"
-		debug(3, "learnMACTable", id, msg)
+		writeLog(3, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
 	}
 }
@@ -293,7 +293,7 @@ func assignSwitchport(sw model.Switch, id string) int {
 	}
 
 	engine.Instance().Channels[sw.PortLinksLocal[portIndex]] = make(chan json.RawMessage)
-	debug(4, "assignSwitchport", sw.PortLinksLocal[portIndex], "listening for id")
+	writeLog(4, "assignSwitchport", sw.PortLinksLocal[portIndex], "listening for id")
 	go listenSwitchportChannel(sw.ID, sw.PortLinksLocal[portIndex])
 
 	return portIndex
@@ -309,18 +309,18 @@ func switchforward(frame model.Frame, switchID string, switchportID string) {
 
 	if dstMAC == "ff:ff:ff:ff:ff:ff" { // Broadcast
 		floodFrame = true
-		debug(4, "switchforward", switchID, "L2 Broadcast. Flooding frame on all ports")
+		writeLog(4, "switchforward", switchID, "L2 Broadcast. Flooding frame on all ports")
 	} else if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table
 		floodFrame = true
-		debug(4, "switchforward", switchID, "Destination address "+dstMAC+" not found in MAC table. Flooding frame on all ports")
+		writeLog(4, "switchforward", switchID, "Destination address "+dstMAC+" not found in MAC table. Flooding frame on all ports")
 	} else {
 		if isSwitchportID(Net().Router.VSwitch, switchportID) { // VSwitch
-			debug(4, "switchforward", switchID, "Destination address found in MAC table.")
+			writeLog(4, "switchforward", switchID, "Destination address found in MAC table.")
 			linkID = Net().Router.VSwitch.PortLinksRemote[outboundPort]
 		} else { // Regular switch
 			for i := range Net().Switches {
 				if isSwitchportID(Net().Switches[i], switchportID) {
-					debug(4, "switchforward", switchID, "Destination address found in MAC table.")
+					writeLog(4, "switchforward", switchID, "Destination address found in MAC table.")
 					linkID = Net().Switches[i].PortLinksRemote[outboundPort]
 				}
 			}

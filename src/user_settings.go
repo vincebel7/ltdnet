@@ -12,9 +12,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/vincebel7/ltdnet/src/engine"
+	"github.com/vincebel7/ltdnet/src/logging"
 	"github.com/vincebel7/ltdnet/src/model"
 	"github.com/vincebel7/ltdnet/src/version"
 )
@@ -77,6 +79,11 @@ func loadUserSettings() {
 	}
 	engine.Instance().Settings = &loaded
 	buildAchievementCatalog()
+
+	// Apply log level
+	val := strconv.Itoa(UserSettings().LogLevel)
+	intval, _ := strconv.Atoi(val)
+	engine.Instance().Logger.SetLevel(logging.Level(intval))
 }
 
 func saveUserSettings() {
