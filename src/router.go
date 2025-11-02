@@ -176,5 +176,5 @@ func delRouter() {
 	r.VSwitch = addVirtualSwitch(0)
 
 	Net().Router = &r
-	fmt.Printf("\nRouter deleted\n")
+	systemLog(2, "delRouter", "Router deleted")
 }

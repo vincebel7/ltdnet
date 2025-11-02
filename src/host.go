@@ -184,7 +184,7 @@ func delHost(hostname string) {
 					Net().Router.VSwitch.PortLinksRemote[j] = ""
 
 					Net().Hosts = removeHostFromSlice(Net().Hosts, i)
-					fmt.Printf("\nHost deleted\n")
+					deviceLog(2, "delHost", hostname, "Host deleted")
 					return
 				}
 			}
@@ -196,18 +196,18 @@ func delHost(hostname string) {
 						Net().Switches[sw].PortLinksRemote[p] = ""
 
 						Net().Hosts = removeHostFromSlice(Net().Hosts, i)
-						fmt.Printf("\nHost deleted\n")
+						deviceLog(2, "delHost", hostname, "Host deleted")
 						return
 					}
 				}
 			}
 
 			Net().Hosts = removeHostFromSlice(Net().Hosts, i)
-			fmt.Printf("\nHost deleted\n")
+			deviceLog(2, "delHost", hostname, "Host deleted")
 			return
 		}
 	}
-	fmt.Printf("\nHost %s was not deleted.\n", hostname)
+	systemLog(1, "delHost", fmt.Sprintf("Host %s not found - deletion failed", hostname))
 }
 
 func ipclear(id string) {
@@ -221,7 +221,7 @@ func ipclear(id string) {
 
 	Net().Hosts[index].Interfaces["eth0"] = iface
 
-	fmt.Println("Network configuration cleared")
+	deviceLog(2, "ipclear", Net().Hosts[index].Hostname, "Cleared IP configuration")
 }
 
 func printResolveHostname(srcID string, hostname string, dnsTable map[string]model.DNSRecord) {

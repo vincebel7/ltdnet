@@ -29,6 +29,7 @@ func controlHost(hostname string) {
 
 func HostConn(device string, id string) {
 	eng := engine.Instance()
+
 	//find host
 	host := model.Host{}
 	hostindex := -1
@@ -39,17 +40,18 @@ func HostConn(device string, id string) {
 		}
 	}
 	if host.ID == "" {
-		fmt.Println("Error: ID cannot be located. Please try again")
+		fmt.Println("Host not found")
+		return
 	}
 
-	//interface
+	// interface
 	fmt.Printf("\n")
 	action_selection := ""
 
 	// Set up readline for actionsMenu
 	rl, err := readline.New(host.Hostname + "> ")
 	if err != nil {
-		fmt.Printf("Error setting up readline: %v\n", err)
+		deviceLog(1, "HostConn", host.ID, fmt.Sprintf("Error setting up readline: %v", err))
 		return
 	}
 	defer rl.Close()
@@ -156,7 +158,7 @@ func HostConn(device string, id string) {
 
 				case "clear":
 					Net().Hosts[getHostIndexFromID(host.ID)].ARPTable = make(map[string]model.ARPEntry)
-					fmt.Println("ARP table cleared")
+					deviceLog(2, "arp", host.Hostname, "ARP table cleared")
 
 				case "help", "?":
 					fmt.Println("",

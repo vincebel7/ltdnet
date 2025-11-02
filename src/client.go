@@ -114,7 +114,7 @@ func actionsMenu() {
 	// Set up readline for actionsMenu
 	rl, err := readline.New("> ")
 	if err != nil {
-		fmt.Printf("Error setting up readline: %v\n", err)
+		systemLog(1, "actionsMenu", fmt.Sprintf("Error setting up readline: %v", err))
 		return
 	}
 	defer rl.Close()
@@ -341,7 +341,7 @@ func actionsMenu() {
 				"achievements <action>\tView user achievements\n",
 				"save\t\t\tManually saves network changes\n",
 				"reload\t\t\tReloads the network file. May fix runtime bugs\n",
-				"log <0-4>\t\tSets log level. Default is 1\n",
+				"log <2-5>\t\tSets log level. Default is 2\n",
 				"manual\t\t\tLaunches the user manual. Great for beginners!\n",
 				"version\t\tltdnet version info\n",
 				"exit\t\t\tExits the program",
@@ -359,7 +359,7 @@ func actionsMenu() {
 func launchManual() {
 	file, err := os.Open("USER-MANUAL")
 	if err != nil {
-		fmt.Println("Error opening file:", err)
+		systemLog(1, "launchManual", fmt.Sprintf("Error opening USER-MANUAL file: %v", err))
 		return
 	}
 	defer file.Close()
@@ -369,7 +369,7 @@ func launchManual() {
 		fmt.Println(fileScanner.Text())
 	}
 	if err := fileScanner.Err(); err != nil {
-		fmt.Println("Error reading file:", err)
+		systemLog(1, "launchManual", fmt.Sprintf("Error reading USER-MANUAL file: %v", err))
 		return
 	}
 }

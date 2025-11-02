@@ -94,6 +94,7 @@ func delSwitch(hostname string) {
 	//search for switch
 	for i := range Net().Switches {
 		if strings.ToUpper(Net().Switches[i].Hostname) == hostname {
+			switchID := Net().Switches[i].ID
 			// Unlink all devices connected to this switch
 			for j := range Net().Switches[i].PortLinksLocal {
 				if Net().Switches[i].PortLinksRemote[j] != "" {
@@ -111,11 +112,11 @@ func delSwitch(hostname string) {
 			}
 
 			Net().Switches = removeSwitchFromSlice(Net().Switches, i)
-			fmt.Printf("\nSwitch deleted\n")
+			deviceLog(2, "delSwitch", switchID, "Switch deleted")
 			return
 		}
 	}
-	fmt.Printf("\nSwitch %s was not deleted.\n", hostname)
+	systemLog(1, "delSwitch", fmt.Sprintf("Switch %s not found - deletion failed", hostname))
 }
 
 func linkSwitchTo(localDevice string, remoteDevice string) {
@@ -222,10 +223,10 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 	for k, v := range table {
 		if k == macaddr {
 			if v.Interface == port {
-				writeLog(4, "checkMACTable", id, "Source address found in MAC table")
+				deviceLog(5, "checkMACTable", id, "Source address found in MAC table")
 				result = v.Interface
 			} else {
-				writeLog(4, "checkMACTable", id, "Source address found in MAC table, but wrong - removing old.")
+				deviceLog(5, "checkMACTable", id, "Source address found in MAC table, but wrong - removing old.")
 				delMACEntry(macaddr, id, port)
 			}
 		}
@@ -233,7 +234,7 @@ func checkMACTable(macaddr string, id string, port int) { // For updating MAC ta
 
 	if result == -1 {
 		msg := "Source address " + macaddr + " not found in MAC table. Adding"
-		writeLog(3, "learnMACTable", id, msg)
+		deviceLog(4, "learnMACTable", id, msg)
 		addMACEntry(macaddr, id, port)
 	}
 }
@@ -293,7 +294,7 @@ func assignSwitchport(sw model.Switch, id string) int {
 	}
 
 	engine.Instance().Channels[sw.PortLinksLocal[portIndex]] = make(chan json.RawMessage)
-	writeLog(4, "assignSwitchport", sw.PortLinksLocal[portIndex], "listening for id")
+	deviceLog(5, "assignSwitchport", sw.PortLinksLocal[portIndex], "listening for id")
 	go listenSwitchportChannel(sw.ID, sw.PortLinksLocal[portIndex])
 
 	return portIndex
@@ -309,18 +310,18 @@ func switchforward(frame model.Frame, switchID string, switchportID string) {
 
 	if dstMAC == "ff:ff:ff:ff:ff:ff" { // Broadcast
 		floodFrame = true
-		writeLog(4, "switchforward", switchID, "L2 Broadcast. Flooding frame on all ports")
+		deviceLog(5, "switchforward", switchID, "L2 Broadcast. Flooding frame on all ports")
 	} else if outboundPort == -1 { // No matching port for this MAC address was found in the MAC address table
 		floodFrame = true
-		writeLog(4, "switchforward", switchID, "Destination address "+dstMAC+" not found in MAC table. Flooding frame on all ports")
+		deviceLog(5, "switchforward", switchID, "Destination address "+dstMAC+" not found in MAC table. Flooding frame on all ports")
 	} else {
 		if isSwitchportID(Net().Router.VSwitch, switchportID) { // VSwitch
-			writeLog(4, "switchforward", switchID, "Destination address found in MAC table.")
+			deviceLog(5, "switchforward", switchID, "Destination address found in MAC table.")
 			linkID = Net().Router.VSwitch.PortLinksRemote[outboundPort]
 		} else { // Regular switch
 			for i := range Net().Switches {
 				if isSwitchportID(Net().Switches[i], switchportID) {
-					writeLog(4, "switchforward", switchID, "Destination address found in MAC table.")
+					deviceLog(5, "switchforward", switchID, "Destination address found in MAC table.")
 					linkID = Net().Switches[i].PortLinksRemote[outboundPort]
 				}
 			}

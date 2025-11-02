@@ -20,7 +20,7 @@ import (
 )
 
 func ping(srcID string, dst string, count int) {
-	writeLog(4, "ping", srcID, "About to ping")
+	deviceLog(5, "ping", srcID, "About to ping")
 
 	identifier := idgen_int(5)
 	srcIP := ""
@@ -53,7 +53,7 @@ func ping(srcID string, dst string, count int) {
 		dstIP = resolveHostname(srcID, dst, dnsTable).RData
 
 		if dstIP == "" {
-			writeLog(1, "ping", srcID, "[Error] Hostname could not be resolved")
+			deviceLog(1, "ping", srcID, "[Error] Hostname could not be resolved")
 			engine.Instance().ActionSync[srcID] <- 1
 			return
 		}
@@ -69,7 +69,7 @@ func ping(srcID string, dst string, count int) {
 				nonDefaultRoute := false
 				iface, nonDefaultRoute = engine.Instance().RouteToHostInterface(Net().Hosts[h], dstIP)
 				if !nonDefaultRoute {
-					writeLog(4, "routeToInterface", Net().Hosts[h].Hostname, "Route not found. Sending to default gateway")
+					deviceLog(5, "routeToInterface", Net().Hosts[h].Hostname, "Route not found. Sending to default gateway")
 				}
 				srcHost = Net().Hosts[h]
 				srcHostname = Net().Router.Hostname
@@ -110,9 +110,9 @@ func ping(srcID string, dst string, count int) {
 		ipv4PacketBytes := model.NewIPv4Packet(srcIP, dstIP, "ICMP", icmpRequestPacketBytes)
 		frameBytes := model.NewFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
-		writeLog(4, "ping", srcID, "Awaiting ping send")
+		deviceLog(5, "ping", srcID, "Awaiting ping send")
 		sendFrame(frameBytes, iface, srcID)
-		writeLog(3, "ping", srcID, "Ping request sent")
+		deviceLog(4, "ping", srcID, "Ping request sent")
 
 		sendCount++
 
@@ -120,7 +120,7 @@ func ping(srcID string, dst string, count int) {
 		socketID := "icmp_" + strconv.Itoa(identifier)
 		sockets[socketID] = make(chan model.Frame)
 
-		writeLog(4, "ping", srcID, "Awaiting ping reply on "+srcID)
+		deviceLog(5, "ping", srcID, "Awaiting ping reply on "+srcID)
 		select {
 		case pongFrame := <-sockets[socketID]:
 			pongIpv4Packet, _ := model.ParseIPv4Packet(pongFrame.Data)
@@ -138,7 +138,7 @@ func ping(srcID string, dst string, count int) {
 					achievementTester(SNIFF_FRAMES)
 				}
 			} else {
-				writeLog(1, "ping", srcID, "Error: Out-of-order channel")
+				deviceLog(1, "ping", srcID, "Error: Out-of-order channel")
 			}
 		case <-time.After(time.Second * 4):
 			lossCount++
@@ -193,13 +193,13 @@ func pong(srcID string, frame model.Frame) {
 	ipv4PacketBytes := model.NewIPv4Packet(srcIP, dstIP, "ICMP", icmpReplyPacketBytes)
 	frameBytes := model.NewFrame(srcMAC, dstMAC, "IPv4", ipv4PacketBytes)
 
-	writeLog(4, "pong", srcID, "Awaiting pong send")
+	deviceLog(5, "pong", srcID, "Awaiting pong send")
 	sendFrame(frameBytes, iface, srcID)
-	writeLog(3, "pong", srcID, "Ping reply sent")
+	deviceLog(4, "pong", srcID, "Ping reply sent")
 }
 
 func arp_request(srcID string, targetIP string) string {
-	writeLog(4, "arp_request", srcID, "About to ARP request")
+	deviceLog(5, "arp_request", srcID, "About to ARP request")
 
 	// Construct frame
 	srcMAC := ""
@@ -219,7 +219,7 @@ func arp_request(srcID string, targetIP string) string {
 
 	// First, check if it is trying to ARP itself.
 	if targetIP == srcIP {
-		writeLog(4, "arp_request", srcID, "Destination IP is source IP! Canceling ARP request.")
+		deviceLog(5, "arp_request", srcID, "Destination IP is source IP! Canceling ARP request.")
 		return srcMAC
 	}
 
@@ -239,7 +239,7 @@ func arp_request(srcID string, targetIP string) string {
 
 	// Send frame and wait for ARPREPLY
 	sendFrame(arpRequestFrameBytes, iface, srcID)
-	writeLog(3, "arp_request", srcID, "ARPREQUEST sent")
+	deviceLog(4, "arp_request", srcID, "ARPREQUEST sent")
 
 	sockets := engine.Instance().Sockets[srcID]
 	socketID := "arp_" + string(targetIP)
@@ -251,7 +251,7 @@ func arp_request(srcID string, targetIP string) string {
 		return arpReplyMessage.SenderMAC
 
 	case <-time.After(time.Second * 4):
-		writeLog(1, "arp_request", srcID, "ARP request timed out.")
+		deviceLog(1, "arp_request", srcID, "ARP request timed out.")
 		return "TIMEOUT"
 	}
 }
@@ -296,11 +296,11 @@ func arp_reply(id string, arpRequestFrame model.Frame) {
 
 	// Send frame
 	sendFrame(arpReplyFrameBytes, iface, srcID)
-	writeLog(3, "arp_reply", srcID, "ARPREPLY sent")
+	deviceLog(4, "arp_reply", srcID, "ARPREPLY sent")
 }
 
 func dhcp_discover(host model.Host) {
-	writeLog(4, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
+	deviceLog(5, "dhcp_discover", host.ID, "Starting DHCPDISCOVER")
 	//get info
 	iface := host.Interfaces["eth0"]
 	srcIP := host.GetIP(iface.Name)
@@ -339,7 +339,7 @@ func dhcp_discover(host model.Host) {
 	// Send DHCPDISCOVER, await DHCPOFFER
 	//need to give it to uplink
 	sendFrame(frameData, iface, srcID)
-	writeLog(3, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
+	deviceLog(4, "dhcp_discover", host.ID, "DHCPDISCOVER sent")
 
 	sockets := engine.Instance().Sockets[srcID]
 	socketID := "udp_" + strconv.Itoa(68)
@@ -353,7 +353,7 @@ func dhcp_discover(host model.Host) {
 	dhcpOfferMessage, _ := model.ParseDHCPMessage(dhcpOfferUDPSegment.Data)
 
 	if int(dhcpOfferMessage.Options[53][0]) == 6 { // 6 is DHCPNAK
-		writeLog(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
+		deviceLog(1, "dhcp_discover", srcID, "Failed to obtain IP address: No free addresses available")
 	} else {
 		dstIP = dhcpOfferIPv4PacketHeader.SrcIP
 
@@ -386,7 +386,7 @@ func dhcp_discover(host model.Host) {
 
 		// Send DHCPREQUEST, await DHCPACK
 		sendFrame(dhcpRequestFrame, iface, srcID)
-		writeLog(3, "dhcp_discover", srcID, "DHCPREQUEST sent")
+		deviceLog(4, "dhcp_discover", srcID, "DHCPREQUEST sent")
 		dhcpAckFrame := <-sockets[socketID]
 
 		// De-encapsulate DHCPACK
@@ -395,7 +395,7 @@ func dhcp_discover(host model.Host) {
 		dhcpAckMessage, _ := model.ParseDHCPMessage(dhcpAckUDPSegment.Data)
 
 		if int(dhcpAckMessage.Options[53][0]) == 5 {
-			writeLog(3, "dhcp_discover", srcID, "DHCPACK assigned a lease - "+dhcpAckMessage.YIAddr.String())
+			deviceLog(4, "dhcp_discover", srcID, "DHCPACK assigned a lease - "+dhcpAckMessage.YIAddr.String())
 
 			assignedAddress := dhcpAckMessage.YIAddr
 			defaultGateway := net.IP(dhcpAckMessage.Options[3]).To4()
@@ -404,7 +404,7 @@ func dhcp_discover(host model.Host) {
 			dynamic_assign(srcID, assignedAddress, defaultGateway, subnetMask.String())
 
 		} else { // 5 is DHCPACK
-			writeLog(1, "dhcp_discover", srcID, "Failed to obtain IP address")
+			deviceLog(1, "dhcp_discover", srcID, "Failed to obtain IP address")
 		}
 	}
 	engine.Instance().ActionSync[srcID] <- 1
@@ -466,7 +466,7 @@ func dhcp_offer(dhcpDiscoverFrame model.Frame) {
 
 	// Send DHCPOFFER, await DHCPREQUEST
 	sendFrame(dhcpOfferFrame, iface, Net().Router.ID)
-	writeLog(3, "dhcp_offer", Net().Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
+	deviceLog(4, "dhcp_offer", Net().Router.ID, "DHCPOFFER sent - "+addr_to_give.String())
 }
 
 func dhcp_ack(dhcpRequestFrame model.Frame) {
@@ -488,10 +488,10 @@ func dhcp_ack(dhcpRequestFrame model.Frame) {
 			if Net().Router.IsAvailableAddress(dhcpRequestMessage.YIAddr) {
 				messageType = 5
 			} else {
-				writeLog(1, "dhcp_offer", Net().Router.ID, "Error: DHCP address requested is not available")
+				deviceLog(1, "dhcp_offer", Net().Router.ID, "Error: DHCP address requested is not available")
 			}
 		} else {
-			writeLog(1, "dhcp_offer", Net().Router.ID, "Error: Empty DHCP request")
+			deviceLog(1, "dhcp_offer", Net().Router.ID, "Error: Empty DHCP request")
 		}
 	}
 
@@ -531,13 +531,13 @@ func dhcp_ack(dhcpRequestFrame model.Frame) {
 
 	// Send DHCPACK
 	sendFrame(dhcpAckFrame, iface, Net().Router.ID)
-	writeLog(3, "dhcp_offer", Net().Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
+	deviceLog(4, "dhcp_offer", Net().Router.ID, "DHCPACK sent - "+dhcpAckMessage.YIAddr.String())
 
 	// Setting leasee's MAC in pool (new)
 	pool := Net().Router.GetDHCPPoolAddresses()
 	for k := range pool {
 		if pool[k].Equal(dhcpAckMessage.YIAddr) {
-			writeLog(4, "dhcp_offer", Net().Router.ID, "Assigning and removing address "+dhcpAckMessage.YIAddr.String()+" from pool")
+			deviceLog(5, "dhcp_offer", Net().Router.ID, "Assigning and removing address "+dhcpAckMessage.YIAddr.String()+" from pool")
 			Net().Router.DHCPPool.DHCPPoolLeases[dhcpAckMessage.YIAddr.String()] = dhcpAckMessage.CHAddr
 		}
 	}
@@ -586,7 +586,7 @@ func dns_query(srcID string, hostname string, reqType uint16) model.DNSMessage {
 		}
 
 	default:
-		writeLog(1, "dns_query", srcID, "[Error] DNS query type not implemented yet")
+		deviceLog(1, "dns_query", srcID, "[Error] DNS query type not implemented yet")
 		return model.DNSMessage{}
 	}
 
@@ -598,7 +598,7 @@ func dns_query(srcID string, hostname string, reqType uint16) model.DNSMessage {
 	dnsQueryFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dnsQueryIPv4Packet)
 
 	sendFrame(dnsQueryFrame, iface, srcID)
-	writeLog(3, "dns_query", srcID, "DNS query sent - "+hostname)
+	deviceLog(4, "dns_query", srcID, "DNS query sent - "+hostname)
 
 	sockets := engine.Instance().Sockets[srcID]
 	socketID := "udp_" + strconv.Itoa(srcPort)
@@ -667,7 +667,7 @@ func dns_response(dnsQueryFrame model.Frame) {
 		}
 
 	default:
-		writeLog(1, "dns_query", Net().Router.ID, "[Warning] DNS query type not implemented yet - returning SERVFAIL message")
+		deviceLog(1, "dns_query", Net().Router.ID, "[Warning] DNS query type not implemented yet - returning SERVFAIL message")
 		return
 	}
 
@@ -678,7 +678,7 @@ func dns_response(dnsQueryFrame model.Frame) {
 	dnsResponseFrame := model.NewFrame(srcMAC, dstMAC, "IPv4", dnsResponseIPv4Packet)
 
 	sendFrame(dnsResponseFrame, iface, Net().Router.ID)
-	writeLog(3, "dns_query", Net().Router.ID, "DNS response sent")
+	deviceLog(4, "dns_query", Net().Router.ID, "DNS response sent")
 
 }
 
@@ -747,7 +747,7 @@ func hostDetermineDstMAC(srcHost model.Host, dstIP string, iface string, useTabl
 
 	// Same subnet - ARP table, or ARP request.
 	if iphelper.IPInSameSubnet(srcHost.GetIP(iface), dstIP, srcHost.GetMask(iface)) {
-		writeLog(4, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
+		deviceLog(5, "hostDetermineDstMAC", srcID, "Sending to same subnet, about to ARP table lookup or ARP")
 
 		// Check ARP table
 		if useTable && Net().Hosts[getHostIndexFromID(srcID)].ARPTable[dstIP].MACAddr != "" {
@@ -767,7 +767,7 @@ func hostDetermineDstMAC(srcHost model.Host, dstIP string, iface string, useTabl
 		}
 
 	} else { // Different subnet - GW.
-		writeLog(4, "hostDetermineDstMAC", srcID, "Sending to different subnet, sending to GW")
+		deviceLog(5, "hostDetermineDstMAC", srcID, "Sending to different subnet, sending to GW")
 		gateway := srcHost.GetGateway(iface)
 
 		// Check ARP table
@@ -805,7 +805,7 @@ func routerDetermineDstMAC(router *model.Router, dstIP string, iface string, use
 	netsizeInt, _ := strconv.Atoi(Net().Netsize)
 	subnetMask := prefixLengthToSubnetMask(netsizeInt)
 	if iphelper.IPInSameSubnet(router.GetIP(iface), dstIP, subnetMask) {
-		writeLog(4, "routerDetermineDstMAC", router.ID, "Same subnet; ARP table lookup or ARP")
+		deviceLog(5, "routerDetermineDstMAC", router.ID, "Same subnet; ARP table lookup or ARP")
 
 		if useTable && router.ARPTable[dstIP].MACAddr != "" {
 			dstMAC = router.ARPTable[dstIP].MACAddr

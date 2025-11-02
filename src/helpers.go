@@ -198,7 +198,7 @@ func dynamic_assign(id string, ipaddr net.IP, defaultgateway net.IP, subnetMask 
 
 			Net().Hosts[h].Interfaces["eth0"] = iface
 
-			fmt.Println("Network configuration updated")
+			deviceLog(2, "dynamic_assign", Net().Hosts[h].ID, "Network configuration updated")
 		}
 	}
 

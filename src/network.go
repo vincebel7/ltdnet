@@ -96,7 +96,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "newNetwork", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 
@@ -117,7 +117,7 @@ func newNetwork(netname string, networkPrefix string, saveType string) {
 	f.Write(marshString)
 	f.Write([]byte("\n"))
 
-	fmt.Println("\nNetwork created!")
+	systemLog(2, "netNetwork", "Network created!")
 	loadNetwork(netname, saveType)
 }
 
@@ -130,7 +130,7 @@ func selectNetwork() {
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "selectNetwork", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 	savesDir := filepath.Join(homeDir, "ltdnet_saves/user/")
@@ -187,7 +187,7 @@ func selectNetwork() {
 func loadNetwork(netname string, saveType string) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "loadNetwork", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 
@@ -216,7 +216,7 @@ func loadNetwork(netname string, saveType string) {
 	var net model.Network
 	err = json.Unmarshal(b1[:n1], &net)
 	if err != nil {
-		fmt.Printf("err: %v", err)
+		systemLog(1, "loadNetwork", fmt.Sprintf("Error unmarshaling network file: %v", err))
 	}
 
 	// Version check
@@ -250,7 +250,7 @@ func loadNetwork(netname string, saveType string) {
 		save()
 	}
 
-	fmt.Printf("Loaded %q\n", Net().Name)
+	systemLog(2, "loadNetwork", fmt.Sprintf("Network %s loaded", Net().Name))
 }
 
 func save() {
@@ -261,7 +261,7 @@ func save() {
 	//Write to file
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "save", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 
@@ -274,5 +274,5 @@ func save() {
 	}
 	f.Write(marshString)
 	os.Truncate(saveFile, int64(len(marshString)))
-	fmt.Println("Network saved")
+	systemLog(2, "save", fmt.Sprintf("Network %s saved", Net().Name))
 }

@@ -17,14 +17,20 @@ import (
 
 /* LOG LEVELS
 0 - No logging
-1 - Errors
-2 - General network traffic
-3 - All network traffic and warnings
-4 - Garbage
+1 - ERROR - Errors
+2 - INFO - General info
+3 - TRAF - General network traffic (like packet capture)
+4 - DEBUG - All network traffic, plus warnings, debug output
+5 - TRACE - For tracing function calls, network decision making, etc
 */
 
 func setLogLevel(val string) {
 	intval, _ := strconv.Atoi(val)
+
+	if intval < 2 || intval > 5 {
+		fmt.Println("Invalid log level. Please enter a value between 2 and 5.")
+		return
+	}
 
 	// Update current logger
 	engine.Instance().Logger.SetLevel(logging.Level(intval))
@@ -41,8 +47,7 @@ func getLogLevel() int {
 }
 
 // Wrapper to get hostname and determine log level
-func writeLog(level int, generatingFunc string, generatingID string, message string) {
-
+func deviceLog(level int, generatingFunc string, generatingID string, message string) {
 	hostname := ""
 	if generatingID == "Listener" {
 		hostname = "Listener"
@@ -52,6 +57,11 @@ func writeLog(level int, generatingFunc string, generatingID string, message str
 
 	logger := engine.Instance().Logger
 	logger.Log(logging.Level(level), generatingFunc, "[%s] %s", hostname, message)
+}
+
+func systemLog(level int, generatingFunc string, message string) {
+	logger := engine.Instance().Logger
+	logger.Log(logging.Level(level), generatingFunc, "%s", message)
 }
 
 func inspectFrame(frame model.Frame) {

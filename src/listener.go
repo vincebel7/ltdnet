@@ -92,7 +92,7 @@ func listenHostChannel(host model.Host, iface string) {
 
 	for {
 		rawFrame := <-engine.Instance().Channels[host.Interfaces[iface].L1ID]
-		writeLog(4, "listenHostChannel", host.Hostname, "Received unicast frame")
+		deviceLog(5, "listenHostChannel", host.Hostname, "Received unicast frame")
 		go actionHandler(rawFrame, host.ID, iface)
 	}
 }
@@ -100,7 +100,7 @@ func listenHostChannel(host model.Host, iface string) {
 func listenRouterChannel(iface string) {
 	for {
 		rawFrame := <-engine.Instance().Channels[Net().Router.Interfaces[iface].L1ID]
-		writeLog(4, "listenRouterChannel", Net().Router.ID, "Received unicast frame")
+		deviceLog(5, "listenRouterChannel", Net().Router.ID, "Received unicast frame")
 		go actionHandler(rawFrame, Net().Router.ID, iface)
 	}
 }
@@ -114,7 +114,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 		arpMessage, _ := model.ParseARPMessage(frame.Data)
 		switch arpMessage.Opcode {
 		case 2:
-			writeLog(2, "actionHandler", id, "ARPREPLY received")
+			deviceLog(2, "actionHandler", id, "ARPREPLY received")
 
 			amTarget := false
 			shouldRespond := false
@@ -141,7 +141,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			}
 
 		case 1:
-			writeLog(2, "actionHandler", id, "ARPREQUEST received")
+			deviceLog(2, "actionHandler", id, "ARPREQUEST received")
 
 			// Check if target device at network-level
 			amTarget := false
@@ -166,7 +166,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 			switch icmpPacket.ControlType {
 			case 8:
-				writeLog(2, "actionHandler", id, "Ping request received")
+				deviceLog(2, "actionHandler", id, "Ping request received")
 
 				// Check if target device at network-level
 				amTarget := false
@@ -181,7 +181,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 
 			case 0:
-				writeLog(2, "actionHandler", id, "Ping reply received")
+				deviceLog(2, "actionHandler", id, "Ping reply received")
 
 				// Check if target device at network-level
 				amTarget := false
@@ -214,7 +214,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				dnsMessage, _ := model.ParseDNSMessage(json.RawMessage(udpSegment.Data))
 
 				if !dnsMessage.QR {
-					writeLog(2, "actionHandler", id, "DNS query received")
+					deviceLog(2, "actionHandler", id, "DNS query received")
 					dns_response(frame)
 				}
 
@@ -226,21 +226,21 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 1: // DHCPDISCOVER
-							writeLog(2, "actionHandler", id, "DHCPDISCOVER received")
+							deviceLog(2, "actionHandler", id, "DHCPDISCOVER received")
 							dhcp_offer(frame)
 
 						case 3: // DHCPREQUEST
-							writeLog(2, "actionHandler", id, "DHCPREQUEST received")
+							deviceLog(2, "actionHandler", id, "DHCPREQUEST received")
 							dhcp_ack(frame)
 
 						case 2, 4, 5:
-							writeLog(4, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
+							deviceLog(5, "actionHandler", id, "DHCP server traffic received on host. Ignoring")
 
 						default:
-							writeLog(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
+							deviceLog(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
 						}
 					} else {
-						writeLog(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
+						deviceLog(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
 					}
 				}
 			case 68: // DHCP: Client-bound
@@ -251,27 +251,27 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 2: // DHCPOFFER
-							writeLog(2, "actionHandler", id, "DHCPOFFER received")
+							deviceLog(2, "actionHandler", id, "DHCPOFFER received")
 							sockets := engine.Instance().Sockets[id]
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets[socketID] <- frame
 
 						case 5: // DHCPACK
-							writeLog(2, "actionHandler", id, "DHCPACK received")
+							deviceLog(2, "actionHandler", id, "DHCPACK received")
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets := engine.Instance().Sockets[id]
 							sockets[socketID] <- frame
 
 						default:
-							writeLog(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
+							deviceLog(1, "actionHandler", id, "Unhandled DHCP message type:"+string(option53[0]))
 						}
 					} else {
-						writeLog(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
+						deviceLog(1, "actionHandler", id, "DHCP Option 53 is missing or empty")
 					}
 				}
 			default: // Ephemeral
 				portStr := strconv.Itoa(udpSegment.DstPort)
-				writeLog(2, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
+				deviceLog(2, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
 				sockets := engine.Instance().Sockets[id]
 				socketID := "udp_" + portStr
 				sockets[socketID] <- frame
@@ -283,7 +283,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 func listenSwitchportChannel(switchID string, switchportID string) {
 	for {
 		rawFrame := <-engine.Instance().Channels[switchportID]
-		writeLog(4, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
+		deviceLog(5, "listenSwitchportChannel", switchportID, "(Switch) Received frame from port "+switchportID)
 		port := getSwitchportIDFromLink(switchportID)
 
 		frame, _ := model.ParseFrame(rawFrame)

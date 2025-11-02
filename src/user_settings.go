@@ -9,7 +9,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,7 +26,7 @@ func loadUserSettings() {
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "loadUserSettings", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 	savesDir := filepath.Join(homeDir, "ltdnet_saves")
@@ -36,7 +35,7 @@ func loadUserSettings() {
 
 	// Check if the saves directory exists, and create it if not
 	if err := os.MkdirAll(userSavesDir, 0755); err != nil {
-		fmt.Printf("[Error] Error creating directory: %v\n", err)
+		systemLog(1, "loadUserSettings", fmt.Sprintf("Error creating directory: %v", err))
 		return
 	}
 
@@ -57,14 +56,14 @@ func loadUserSettings() {
 
 	data, err := os.ReadFile(settingsFile)
 	if err != nil {
-		fmt.Printf("[Error] Could not read settings file: %v\n", err)
+		systemLog(1, "loadUserSettings", fmt.Sprintf("Could not read settings file: %v", err))
 		return
 	}
 
 	// Unmarshal
 	var loaded model.Settings
 	if err := json.Unmarshal(data, &loaded); err != nil {
-		fmt.Printf("[Error] Could not parse settings file: %v\n", err)
+		systemLog(1, "loadUserSettings", fmt.Sprintf("Could not parse settings file: %v", err))
 		// Fallback to defaults
 		loaded = model.Settings{
 			ID:             idgen(8),
@@ -90,25 +89,25 @@ func saveUserSettings() {
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "saveUserSettings", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 	savesDir := filepath.Join(homeDir, "ltdnet_saves")
 	if err := os.MkdirAll(savesDir, 0755); err != nil {
-		fmt.Printf("[Error] Error creating saves directory: %v\n", err)
+		systemLog(1, "saveUserSettings", fmt.Sprintf("Error creating saves directory: %v", err))
 		return
 	}
 	settingsFile := filepath.Join(savesDir, "user_settings.json")
 
 	marshString, err := json.MarshalIndent(UserSettings(), "", " ")
 	if err != nil {
-		log.Println("[Error] marshal user settings:", err)
+		systemLog(1, "saveUserSettings", fmt.Sprintf("Error marshaling user settings: %v", err))
 		return
 	}
 
 	// Write to file
 	if err := os.WriteFile(settingsFile, marshString, 0660); err != nil {
-		log.Println("[Error] write user settings:", err)
+		systemLog(1, "saveUserSettings", fmt.Sprintf("Error writing user settings to file: %v", err))
 	}
 }
 
@@ -136,21 +135,21 @@ func toggleAchievements() {}
 func resetAchievements() {
 	UserSettings().Achievements = make(map[int]model.Achievement)
 	saveUserSettings()
-	fmt.Println("[Notice] Achievements have been reset")
+	systemLog(2, "resetAchievements", "User achievements have been reset")
 }
 
 func resetProgramSettings() {
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "resetProgramSettings", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 
 	settingsFile := filepath.Join(homeDir, "ltdnet_saves", "user_settings.json")
 
 	_ = os.Remove(settingsFile)
-	fmt.Println("[Notice] User preferences have been reset")
+	systemLog(2, "resetProgramSettings", "User preferences have been reset")
 	loadUserSettings()
 	intro()
 }
@@ -159,7 +158,7 @@ func wipeSaves() {
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("[Error] Error finding home directory: %v\n", err)
+		systemLog(1, "wipeSaves", fmt.Sprintf("Error finding home directory: %v", err))
 		return
 	}
 
@@ -174,16 +173,16 @@ func wipeSaves() {
 		if !info.IsDir() && filepath.Ext(info.Name()) == ".json" {
 			err := os.Remove(path) // Delete the file
 			if err != nil {
-				log.Printf("[Error] Failed to remove file: %s, error: %v", path, err)
+				systemLog(1, "wipeSaves", fmt.Sprintf("Failed to remove file: %s, error: %v", path, err))
 			}
 		}
 		return nil
 	})
 
 	if err != nil {
-		log.Fatalf("[Error] Error wiping saves: %v", err)
+		systemLog(1, "wipeSaves", fmt.Sprintf("Error wiping saves: %v", err))
 	} else {
-		fmt.Println("[Notice] Save files have been wiped")
+		systemLog(2, "wipeSaves", "All save files have been wiped")
 	}
 }
 

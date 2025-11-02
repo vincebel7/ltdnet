@@ -27,14 +27,15 @@ func controlRouter(hostname string) {
 
 func RouterConn(device string, id string) {
 	eng := engine.Instance()
-	//interface
+
+	// interface
 	fmt.Printf("\n")
 	action_selection := ""
 
 	// Set up readline for actionsMenu
 	rl, err := readline.New(Net().Router.Hostname + "> ")
 	if err != nil {
-		fmt.Printf("Error setting up readline: %v\n", err)
+		deviceLog(1, "RouterConn", Net().Router.ID, fmt.Sprintf("Error setting up readline: %v", err))
 		return
 	}
 	defer rl.Close()
@@ -95,7 +96,7 @@ func RouterConn(device string, id string) {
 				case "add":
 					if len(commandSplit) > 3 {
 						if err := engine.Instance().AddDNSRecord("A", commandSplit[2], commandSplit[3]); err != nil {
-							fmt.Println("Error:", err)
+							deviceLog(1, "dns", Net().Router.ID, "Error adding DNS record: "+err.Error())
 						} else {
 							save()
 						}
@@ -104,7 +105,7 @@ func RouterConn(device string, id string) {
 					}
 
 				case "remove":
-					fmt.Println("DNS record removing not implemented yet")
+					systemLog(2, "RouterConn", "DNS record removing not implemented yet")
 					save()
 
 				default:
@@ -137,7 +138,7 @@ func RouterConn(device string, id string) {
 					}
 
 				case "route":
-					fmt.Println("Routing not implemented yet.")
+					systemLog(2, "RouterConn", "Routing not implemented yet")
 
 				case "set":
 					if len(commandSplit) > 3 {
@@ -174,7 +175,7 @@ func RouterConn(device string, id string) {
 
 				case "clear":
 					Net().Router.ARPTable = make(map[string]model.ARPEntry)
-					fmt.Println("ARP table cleared")
+					deviceLog(2, "arp", Net().Router.ID, "ARP table cleared")
 
 				case "help", "?":
 					fmt.Println("",

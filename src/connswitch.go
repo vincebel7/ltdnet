@@ -43,18 +43,18 @@ func SwitchConn(id string) {
 		sw = Net().Router.VSwitch
 	}
 	if sw.ID == "" {
-		fmt.Println("Error: ID cannot be located. Please try again")
+		fmt.Println("Switch not found")
 		return
 	}
 
-	//interface
+	// interface
 	fmt.Printf("\n")
 	action_selection := ""
 
 	// Set up readline for actionsMenu
 	rl, err := readline.New(sw.Hostname + "> ")
 	if err != nil {
-		fmt.Printf("Error setting up readline: %v\n", err)
+		systemLog(1, "SwitchConn", fmt.Sprintf("Error setting up readline: %v", err))
 		return
 	}
 	defer rl.Close()
@@ -77,13 +77,13 @@ func SwitchConn(id string) {
 		case "":
 
 		case "ping":
-			fmt.Println("Not yet implemented on switches")
+			systemLog(2, "SwitchConn", "Ping for switches not implemented yet")
 
 		case "ip":
-			fmt.Println("Not yet implemented on switches")
+			systemLog(2, "SwitchConn", "IP for switches not implemented yet")
 
 		case "arp":
-			fmt.Println("Not yet implemented on switches")
+			systemLog(2, "SwitchConn", "ARP for switches not implemented yet")
 			//displayARPTable(sw.ID)
 
 		case "mac":
@@ -95,7 +95,7 @@ func SwitchConn(id string) {
 					} else {
 						Net().Switches[getSwitchIndexFromID(id)].MACTable = make(map[string]model.MACEntry)
 					}
-					fmt.Println("MAC table cleared")
+					deviceLog(2, "SwitchConn", sw.ID, "MAC table cleared")
 
 				case "help", "?":
 					fmt.Println("",
