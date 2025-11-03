@@ -13,25 +13,17 @@ import (
 	"strings"
 
 	"github.com/vincebel7/ltdnet/iphelper"
+	"github.com/vincebel7/ltdnet/src/engine"
 	"github.com/vincebel7/ltdnet/src/model"
 )
 
 const BOBCAT_PORTS = 4
 const OSIRIS_PORTS = 2
 
-func NewDHCPPool(start_addr net.IP, end_addr net.IP) model.DHCPPool {
-	pool := model.DHCPPool{}
-	pool.DHCPPoolStart = start_addr
-	pool.DHCPPoolEnd = end_addr
-	pool.DHCPPoolLeases = make(map[string]string)
-
-	return pool
-}
-
 func NewBobcat(r model.Router) model.Router {
 	r.Model = "Bobcat 100"
 
-	vSwitch := addVirtualSwitch(BOBCAT_PORTS)
+	vSwitch := engine.AddVirtualSwitch(BOBCAT_PORTS)
 	r.VSwitch = vSwitch
 
 	return r
@@ -40,7 +32,7 @@ func NewBobcat(r model.Router) model.Router {
 func NewOsiris(r model.Router) model.Router {
 	r.Model = "Osiris 2-I"
 
-	vSwitch := addVirtualSwitch(OSIRIS_PORTS)
+	vSwitch := engine.AddVirtualSwitch(OSIRIS_PORTS)
 	r.VSwitch = vSwitch
 
 	return r
@@ -85,7 +77,7 @@ func addRouter(routerHostname string, routerModel string) {
 		gateway = net.ParseIP("192.168.0.1")
 	}
 
-	r.ID = idgen(8)
+	r.ID = engine.IDgen(8)
 	r.Hostname = routerHostname
 	r.ARPTable = make(map[string]model.ARPEntry)
 
@@ -110,13 +102,13 @@ func addRouter(routerHostname string, routerModel string) {
 
 	r.Interfaces["lo"] = model.Interface{
 		Name:     "lo",
-		L1ID:     idgen(8),
+		L1ID:     engine.IDgen(8),
 		MACAddr:  macgen(),
 		IPConfig: loopbackIPConfig,
 	}
 	r.Interfaces["eth0"] = model.Interface{
 		Name:     "eth0",
-		L1ID:     idgen(8),
+		L1ID:     engine.IDgen(8),
 		MACAddr:  macgen(),
 		IPConfig: eth0IPConfig,
 	}
@@ -145,7 +137,7 @@ func addRouter(routerHostname string, routerModel string) {
 	start_ip := net.ParseIP(network_portion + "2")
 	end_iph, _ := iphelper.NewIPHelper(start_ip)
 	end_ip := end_iph.IncreaseIPByConstant(dhcpPoolSize)
-	r.DHCPPool = NewDHCPPool(start_ip, end_ip)
+	r.DHCPPool = model.NewDHCPPool(start_ip, end_ip)
 
 	Net().Router = &r
 
@@ -162,7 +154,7 @@ func addRouter(routerHostname string, routerModel string) {
 	for i := 0; i < getActivePorts(Net().Router.VSwitch); i++ {
 		go listenSwitchportChannel(Net().Router.VSwitch.ID, Net().Router.VSwitch.PortLinksLocal[i])
 	}
-	achievementTester(ROUTINE_BUSINESS)
+	achievementCheck(model.AchRoutineBusiness)
 }
 
 func delRouter() {
@@ -172,8 +164,8 @@ func delRouter() {
 	r.Model = ""
 	r.Interfaces["eth0"] = model.Interface{}
 	r.Hostname = ""
-	r.DHCPPool = NewDHCPPool(net.ParseIP("0.0.0.0"), net.ParseIP("0.0.0.0"))
-	r.VSwitch = addVirtualSwitch(0)
+	r.DHCPPool = model.NewDHCPPool(net.ParseIP("0.0.0.0"), net.ParseIP("0.0.0.0"))
+	r.VSwitch = engine.AddVirtualSwitch(0)
 
 	Net().Router = &r
 	systemLog(2, "delRouter", "Router deleted")

@@ -20,8 +20,6 @@ import (
 	"github.com/vincebel7/ltdnet/src/version"
 )
 
-func UserSettings() *model.Settings { return engine.Instance().Settings }
-
 func loadUserSettings() {
 	// Check if file / directory exists
 	homeDir, err := os.UserHomeDir()
@@ -42,7 +40,7 @@ func loadUserSettings() {
 	if _, err := os.Stat(settingsFile); os.IsNotExist(err) {
 		// Create default settings
 		def := model.Settings{
-			ID:             idgen(8),
+			ID:             engine.IDgen(8),
 			Author:         "",
 			Achievements:   make(map[int]model.Achievement),
 			AchievementsOn: true,
@@ -50,7 +48,7 @@ func loadUserSettings() {
 		}
 		engine.Instance().Settings = &def
 		saveUserSettings()
-		buildAchievementCatalog()
+		engine.BuildAchievementCatalog()
 		return
 	}
 
@@ -66,7 +64,7 @@ func loadUserSettings() {
 		systemLog(1, "loadUserSettings", fmt.Sprintf("Could not parse settings file: %v", err))
 		// Fallback to defaults
 		loaded = model.Settings{
-			ID:             idgen(8),
+			ID:             engine.IDgen(8),
 			Achievements:   make(map[int]model.Achievement),
 			AchievementsOn: true,
 			ProgramVer:     version.ProgramVersion,
@@ -77,37 +75,17 @@ func loadUserSettings() {
 		loaded.Achievements = make(map[int]model.Achievement)
 	}
 	engine.Instance().Settings = &loaded
-	buildAchievementCatalog()
+	engine.BuildAchievementCatalog()
 
 	// Apply log level
-	val := strconv.Itoa(UserSettings().LogLevel)
+	val := strconv.Itoa(engine.UserSettings().LogLevel)
 	intval, _ := strconv.Atoi(val)
 	engine.Instance().Logger.SetLevel(logging.Level(intval))
 }
 
 func saveUserSettings() {
-	// Check if file / directory exists
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		systemLog(1, "saveUserSettings", fmt.Sprintf("Error finding home directory: %v", err))
-		return
-	}
-	savesDir := filepath.Join(homeDir, "ltdnet_saves")
-	if err := os.MkdirAll(savesDir, 0755); err != nil {
-		systemLog(1, "saveUserSettings", fmt.Sprintf("Error creating saves directory: %v", err))
-		return
-	}
-	settingsFile := filepath.Join(savesDir, "user_settings.json")
-
-	marshString, err := json.MarshalIndent(UserSettings(), "", " ")
-	if err != nil {
-		systemLog(1, "saveUserSettings", fmt.Sprintf("Error marshaling user settings: %v", err))
-		return
-	}
-
-	// Write to file
-	if err := os.WriteFile(settingsFile, marshString, 0660); err != nil {
-		systemLog(1, "saveUserSettings", fmt.Sprintf("Error writing user settings to file: %v", err))
+	if err := engine.Instance().SaveUserSettings(); err != nil {
+		systemLog(1, "saveUserSettings", fmt.Sprintf("Error saving user settings: %v", err))
 	}
 }
 
@@ -126,14 +104,14 @@ func changeSettingsName() {
 	inScanner := engine.Instance().Scanner
 	inScanner.Scan()
 	username := inScanner.Text()
-	UserSettings().Author = username
+	engine.UserSettings().Author = username
 	saveUserSettings()
 }
 
 func toggleAchievements() {}
 
 func resetAchievements() {
-	UserSettings().Achievements = make(map[int]model.Achievement)
+	engine.UserSettings().Achievements = make(map[int]model.Achievement)
 	saveUserSettings()
 	systemLog(2, "resetAchievements", "User achievements have been reset")
 }

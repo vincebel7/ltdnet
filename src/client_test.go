@@ -27,9 +27,9 @@ func TestNetworkSetup(t *testing.T) {
 	}
 
 	// Setup
-	testnetName := "testnet-" + idgen(8)
+	testnetName := "testnet-" + engine.IDgen(8)
 	newNetwork(testnetName, "24", "test")
-	go Listener()
+	Listener()
 
 	setLogLevel("5")
 

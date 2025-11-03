@@ -114,7 +114,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 		arpMessage, _ := model.ParseARPMessage(frame.Data)
 		switch arpMessage.Opcode {
 		case 2:
-			deviceLog(2, "actionHandler", id, "ARPREPLY received")
+			deviceLog(3, "actionHandler", id, "ARPREPLY received")
 
 			amTarget := false
 			shouldRespond := false
@@ -141,7 +141,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 			}
 
 		case 1:
-			deviceLog(2, "actionHandler", id, "ARPREQUEST received")
+			deviceLog(3, "actionHandler", id, "ARPREQUEST received")
 
 			// Check if target device at network-level
 			amTarget := false
@@ -166,7 +166,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 
 			switch icmpPacket.ControlType {
 			case 8:
-				deviceLog(2, "actionHandler", id, "Ping request received")
+				deviceLog(3, "actionHandler", id, "Ping request received")
 
 				// Check if target device at network-level
 				amTarget := false
@@ -181,7 +181,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 
 			case 0:
-				deviceLog(2, "actionHandler", id, "Ping reply received")
+				deviceLog(3, "actionHandler", id, "Ping reply received")
 
 				// Check if target device at network-level
 				amTarget := false
@@ -214,7 +214,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				dnsMessage, _ := model.ParseDNSMessage(json.RawMessage(udpSegment.Data))
 
 				if !dnsMessage.QR {
-					deviceLog(2, "actionHandler", id, "DNS query received")
+					deviceLog(3, "actionHandler", id, "DNS query received")
 					dns_response(frame)
 				}
 
@@ -226,11 +226,11 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 1: // DHCPDISCOVER
-							deviceLog(2, "actionHandler", id, "DHCPDISCOVER received")
+							deviceLog(3, "actionHandler", id, "DHCPDISCOVER received")
 							dhcp_offer(frame)
 
 						case 3: // DHCPREQUEST
-							deviceLog(2, "actionHandler", id, "DHCPREQUEST received")
+							deviceLog(3, "actionHandler", id, "DHCPREQUEST received")
 							dhcp_ack(frame)
 
 						case 2, 4, 5:
@@ -251,13 +251,13 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 					if option53, ok := dhcpMessage.Options[53]; ok && len(option53) > 0 {
 						switch int(option53[0]) {
 						case 2: // DHCPOFFER
-							deviceLog(2, "actionHandler", id, "DHCPOFFER received")
+							deviceLog(3, "actionHandler", id, "DHCPOFFER received")
 							sockets := engine.Instance().Sockets[id]
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets[socketID] <- frame
 
 						case 5: // DHCPACK
-							deviceLog(2, "actionHandler", id, "DHCPACK received")
+							deviceLog(3, "actionHandler", id, "DHCPACK received")
 							socketID := "udp_" + strconv.Itoa(udpSegment.DstPort)
 							sockets := engine.Instance().Sockets[id]
 							sockets[socketID] <- frame
@@ -271,7 +271,7 @@ func actionHandler(rawFrame json.RawMessage, id string, iface string) {
 				}
 			default: // Ephemeral
 				portStr := strconv.Itoa(udpSegment.DstPort)
-				deviceLog(2, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
+				deviceLog(3, "actionHandler", id, "Ephemeral port ("+portStr+") response received")
 				sockets := engine.Instance().Sockets[id]
 				socketID := "udp_" + portStr
 				sockets[socketID] <- frame

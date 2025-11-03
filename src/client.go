@@ -26,7 +26,7 @@ func printVersion() {
 func intro() {
 	printVersion()
 
-	if UserSettings().Author == "" {
+	if engine.UserSettings().Author == "" {
 		changeSettingsName()
 	}
 }
@@ -282,24 +282,7 @@ func actionsMenu() {
 			loadNetwork(Net().Name, "user")
 
 		case "show", "sh":
-			switch commandString {
-			case "show overview", "sh overview":
-				overview()
-
-			case "show diagram", "sh diagram":
-				drawDiagram(Net().Router.ID)
-
-			default:
-				if len(commandString) > 12 { // show device
-					show(commandString[12:])
-				} else {
-					fmt.Println("",
-						"show overview\n",
-						"show device <hostname>\n",
-						"show diagram",
-					)
-				}
-			}
+			handleShow(commandSplit)
 
 		case "netdump":
 			fmt.Println(Net(), "")
@@ -380,6 +363,63 @@ func safeArg(args []string, idx int) string {
 		return args[idx]
 	}
 	return ""
+}
+
+func handleShow(parts []string) {
+	// parts[0] == show|sh
+	if len(parts) == 1 {
+		fmt.Println(
+			"show overview\n" +
+				"show device <hostname>\n" +
+				"show host <hostname>\n" +
+				"show router\n" +
+				"show switch <hostname>\n" +
+				"show diagram\n" +
+				"show devices",
+		)
+		return
+	}
+
+	switch parts[1] {
+	case "overview":
+		overview()
+	case "diagram":
+		if Net().Router != nil {
+			drawDiagram(Net().Router.ID)
+		} else {
+			fmt.Println("No router to diagram yet.")
+		}
+	case "devices":
+		eng := engine.Instance()
+		for _, d := range eng.Devices() {
+			fmt.Printf("%s\t%s\n", d.GetID(), d.GetHostname())
+		}
+	case "router":
+		if Net().Router == nil {
+			fmt.Println("No router present.")
+			return
+		}
+		show(Net().Router.Hostname)
+	case "device", "host":
+		if len(parts) < 3 {
+			fmt.Printf("Usage: show %s <hostname>\n", parts[1])
+			return
+		}
+		show(parts[2])
+	case "switch":
+		if len(parts) < 3 {
+			fmt.Println("Usage: show switch <hostname>")
+			return
+		}
+		show(parts[2])
+	default:
+		// Allow shorthand: show <hostname>
+		if len(parts) == 2 {
+			show(parts[1])
+			return
+		}
+		fmt.Println("Unknown show command. Type just 'show' for help.")
+	}
 }
 
 func main() {

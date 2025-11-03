@@ -51,7 +51,7 @@ What now? You can start by reading the user manual from within the program with 
 
 I hope you find this program to be fun. Many more features are on their way, but the main focus right now is ironing out some of the remaining bugs in v0.x.
 
-For any further questions, please email vincebel@protonmail.com
+For any further questions, please email vinceb7@proton.me
 
 
 ## Known bugs (highest to lowest impact)

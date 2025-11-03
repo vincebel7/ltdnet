@@ -36,7 +36,7 @@ func setLogLevel(val string) {
 	engine.Instance().Logger.SetLevel(logging.Level(intval))
 
 	// Write to settings
-	UserSettings().LogLevel = intval
+	engine.UserSettings().LogLevel = intval
 	saveUserSettings()
 
 	fmt.Printf("Log level set to %d\n", getLogLevel())

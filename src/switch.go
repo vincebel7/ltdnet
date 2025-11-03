@@ -15,17 +15,6 @@ import (
 	"github.com/vincebel7/ltdnet/src/model"
 )
 
-func NewSumerian2100(hostname string) model.Switch {
-	s := model.Switch{}
-	s.ID = idgen(8)
-	s.Model = "Sumerian 2100"
-	s.Hostname = hostname
-	s.Maxports = 4
-	s.ARPTable = make(map[string]model.ARPEntry)
-
-	return s
-}
-
 func addSwitch(switchHostname string) {
 	switchModel := strings.ToUpper("Sumerian")
 
@@ -37,7 +26,7 @@ func addSwitch(switchHostname string) {
 
 	s := model.Switch{}
 	if switchModel == "SUMERIAN" {
-		s = NewSumerian2100(switchHostname)
+		s = engine.NewSumerian2100(switchHostname)
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
@@ -45,7 +34,7 @@ func addSwitch(switchHostname string) {
 
 	s.PortLinksLocal = make([]string, s.Maxports)
 	for i := range s.PortLinksLocal {
-		s.PortLinksLocal[i] = idgen(8)
+		s.PortLinksLocal[i] = engine.IDgen(8)
 	}
 
 	s.PortLinksRemote = make([]string, s.Maxports)
@@ -64,28 +53,6 @@ func addSwitch(switchHostname string) {
 
 		go listenSwitchportChannel(s.ID, s.PortLinksLocal[j])
 	}
-}
-
-func addVirtualSwitch(maxports int) model.Switch {
-	v := model.Switch{}
-	v.ID = idgen(8)
-	v.Model = "virtual"
-	v.Hostname = "V-" + v.ID
-	v.Maxports = maxports
-
-	v.PortLinksLocal = make([]string, v.Maxports)
-	for i := range v.PortLinksLocal {
-		v.PortLinksLocal[i] = idgen(8)
-	}
-
-	v.PortLinksRemote = make([]string, v.Maxports)
-	for i := range v.PortLinksRemote {
-		v.PortLinksRemote[i] = ""
-	}
-
-	v.MACTable = make(map[string]model.MACEntry)
-
-	return v
 }
 
 func delSwitch(hostname string) {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/vincebel7/ltdnet/src/engine"
 	"github.com/vincebel7/ltdnet/src/model"
 )
 
@@ -232,46 +233,62 @@ func overview() {
 	fmt.Printf("Network ID:\t\t%s\n", Net().ID)
 	fmt.Printf("Network size:\t\t/%s\n", Net().Netsize)
 
-	// router
-	routerCount := 1
-	show(Net().Router.Hostname)
+	eng := engine.Instance()
+	devs := eng.Devices()
 
-	//switches
-	switchCount := 0
-	for i := 0; i < len(Net().Switches); i++ {
-		fmt.Printf("\nSwitch %v\n", Net().Switches[i].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", Net().Switches[i].ID)
-		fmt.Printf("\tModel:\t\t%s\n", Net().Switches[i].Model)
-		switchCount = i + 1
+	routerCount, switchCount, hostCount := 0, 0, 0
+
+	// First pass: counts + router display
+	for _, d := range devs {
+		switch x := d.(type) {
+		case *model.Router:
+			routerCount++
+			show(x.Hostname)
+		case *model.Switch:
+			switchCount++
+		case *model.Host:
+			hostCount++
+		}
 	}
 
-	//hosts
-	hostCount := 0
-	for i := 0; i < len(Net().Hosts); i++ {
-		fmt.Printf("\nHost %v\n", Net().Hosts[i].Hostname)
-		fmt.Printf("\tID:\t\t%s\n", Net().Hosts[i].ID)
-		fmt.Printf("\tModel:\t\t%s\n", Net().Hosts[i].Model)
-		fmt.Printf("\tMAC:\t\t%s\n", Net().Hosts[i].Interfaces["eth0"].MACAddr)
-		fmt.Printf("\tIP Address:\t%s\n", Net().Hosts[i].GetIP("eth0"))
-		fmt.Printf("\tDef. Gateway:\t%s\n", Net().Hosts[i].GetGateway("eth0"))
-		fmt.Printf("\tSubnet Mask:\t%s\n", Net().Hosts[i].GetMask("eth0"))
+	// Switch detail display (unified via Devices slice)
+	for _, d := range devs {
+		if sw, ok := d.(*model.Switch); ok {
+			fmt.Printf("\nSwitch %s\n", sw.Hostname)
+			fmt.Printf("\tID:\t\t%s\n", sw.ID)
+			fmt.Printf("\tModel:\t\t%s\n", sw.Model)
+		}
+	}
+
+	// Host detail display (still using existing logic)
+	for _, d := range devs {
+		h, ok := d.(*model.Host)
+		if !ok {
+			continue
+		}
+		fmt.Printf("\nHost %s\n", h.Hostname)
+		fmt.Printf("\tID:\t\t%s\n", h.ID)
+		fmt.Printf("\tModel:\t\t%s\n", h.Model)
+		fmt.Printf("\tMAC:\t\t%s\n", h.Interfaces["eth0"].MACAddr)
+		fmt.Printf("\tIP Address:\t%s\n", h.GetIP("eth0"))
+		fmt.Printf("\tDef. Gateway:\t%s\n", h.GetGateway("eth0"))
+		fmt.Printf("\tSubnet Mask:\t%s\n", h.GetMask("eth0"))
 		uplinkHostname := ""
-		//Router
-		if isSwitchportID(Net().Router.VSwitch, Net().Hosts[i].Interfaces["eth0"].RemoteL1ID) {
+		// Router uplink
+		if Net().Router != nil && isSwitchportID(Net().Router.VSwitch, h.Interfaces["eth0"].RemoteL1ID) {
 			uplinkHostname = Net().Router.Hostname + " (" + Net().Router.VSwitch.Hostname + ")"
 		}
-
-		//Switches
-		for j := range Net().Switches {
-			if isSwitchportID(Net().Switches[j], Net().Hosts[i].Interfaces["eth0"].RemoteL1ID) {
-				uplinkHostname = Net().Switches[j].Hostname
+		// Switch uplink
+		for _, sd := range devs {
+			if sw, ok := sd.(*model.Switch); ok && isSwitchportID(*sw, h.Interfaces["eth0"].RemoteL1ID) {
+				uplinkHostname = sw.Hostname
 			}
 		}
 		fmt.Printf("\tUplink to:\t%s\n", uplinkHostname)
-		hostCount = i + 1
 	}
 
-	fmt.Printf("\nTotal devices: %d (%d Router, %d Switches, %d Hosts)\n", (routerCount + switchCount + hostCount), routerCount, switchCount, hostCount)
+	fmt.Printf("\nTotal devices: %d (%d Router, %d Switches, %d Hosts)\n",
+		routerCount+switchCount+hostCount, routerCount, switchCount, hostCount)
 }
 
 func show(hostname string) {

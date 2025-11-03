@@ -15,12 +15,6 @@ import (
 	"github.com/vincebel7/ltdnet/src/model"
 )
 
-// Populate fields specific to the Probox 1
-func NewProbox(h model.Host) model.Host {
-	h.Model = "ProBox 1"
-	return h
-}
-
 func addHost(hostHostname string) {
 	hostModel := strings.ToUpper("ProBox")
 
@@ -32,13 +26,13 @@ func addHost(hostHostname string) {
 
 	h := model.Host{}
 	if hostModel == "PROBOX" {
-		h = NewProbox(h)
+		h = engine.NewProbox(h)
 	} else {
 		fmt.Println("Invalid model. Please try again")
 		return
 	}
 
-	h.ID = idgen(8)
+	h.ID = engine.IDgen(8)
 	h.Hostname = hostHostname
 	h.ARPTable = make(map[string]model.ARPEntry)
 
@@ -62,13 +56,13 @@ func addHost(hostHostname string) {
 
 	h.Interfaces["lo"] = model.Interface{
 		Name:     "lo",
-		L1ID:     idgen(8),
+		L1ID:     engine.IDgen(8),
 		MACAddr:  macgen(),
 		IPConfig: loopbackIPConfig,
 	}
 	h.Interfaces["eth0"] = model.Interface{
 		Name:     "eth0",
-		L1ID:     idgen(8),
+		L1ID:     engine.IDgen(8),
 		MACAddr:  macgen(),
 		IPConfig: eth0IPConfig,
 	}

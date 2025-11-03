@@ -81,7 +81,7 @@ func newNetworkPrompt() {
 }
 
 func newNetwork(netname string, networkPrefix string, saveType string) {
-	netid := idgen(8)
+	netid := engine.IDgen(8)
 	net := model.Network{
 		ID:         netid,
 		Name:       netname,
@@ -274,5 +274,5 @@ func save() {
 	}
 	f.Write(marshString)
 	os.Truncate(saveFile, int64(len(marshString)))
-	systemLog(2, "save", fmt.Sprintf("Network %s saved", Net().Name))
+	systemLog(5, "save", fmt.Sprintf("Network %s saved", Net().Name))
 }

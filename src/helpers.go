@@ -14,20 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vincebel7/ltdnet/src/engine"
 	"github.com/vincebel7/ltdnet/src/model"
 )
-
-func idgen(n int) string {
-	var idchars = []rune("abcdef1234567890")
-	id := make([]rune, n)
-
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := range id {
-		id[i] = idchars[r.Intn(len(idchars))]
-	}
-
-	return string(id)
-}
 
 func idgen_int(n int) int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -44,9 +33,9 @@ func idgen_int(n int) int {
 }
 
 func macgen() string {
-	mac := idgen(2)
+	mac := engine.IDgen(2)
 	for n := 0; n < 5; n++ {
-		mac = mac + ":" + idgen(2)
+		mac = mac + ":" + engine.IDgen(2)
 	}
 
 	return mac

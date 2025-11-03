@@ -131,11 +131,11 @@ func ping(srcID string, dst string, count int) {
 				fmt.Printf("Reply from %s: seq=%d\n", dstIP, i)
 
 				if srcIP != dstIP {
-					achievementTester(UNITED_PINGDOM)
+					achievementCheck(model.AchUnitedPingdom)
 				}
 
 				if dstIP == "127.0.0.1" {
-					achievementTester(SNIFF_FRAMES)
+					achievementCheck(model.AchSniffFrames)
 				}
 			} else {
 				deviceLog(1, "ping", srcID, "Error: Out-of-order channel")
@@ -618,7 +618,7 @@ func dns_query(srcID string, hostname string, reqType uint16) model.DNSMessage {
 			fmt.Printf("server can't find %s: NXDOMAIN\n", hostname)
 
 		case 0:
-			achievementTester(MY_NAME)
+			achievementCheck(model.AchMyName)
 			return dnsResponseMessage
 		}
 
@@ -730,7 +730,7 @@ func arpSynchronized(id string, targetIP string) {
 	}
 
 	if dstMAC != "" {
-		achievementTester(ARP_HOT)
+		achievementCheck(model.AchArpHot)
 	}
 
 	engine.Instance().ActionSync[id] <- 1
